@@ -6,8 +6,7 @@ check:
 	poetry check
 
 install:
-	poetry install --no-root
-
+	poetry install
 lock:
 	poetry lock
 
