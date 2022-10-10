@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "crypto-trading"
+version = "0.1.0"
+description = "trading infrastructure to algorithmically trade crypto currencies"
+authors = ["David Diranko"]
+readme = "README.md"
+classifiers = [
+        "Development Status :: 1 - Beta",
+        "Programming Language :: Python :: 3.9"]
+packages = [{include = "crypto_trading"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pandas = "^1.5.0"
+boto3 = "^1.24.86"
+pybit = "^2.4.0"
+
+[tool.poetry.dev-dependencies]
+isort = "^5.10.1"
+yapf = "^0.32.0"
+toml = "^0.10.2"
+mypy = "^0.982"
+coverage = "^6.5.0"
+jupyter = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
