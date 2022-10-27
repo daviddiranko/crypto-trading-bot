@@ -123,6 +123,9 @@ def bnc_get_recent_historical_klines(
     df[0] = pd.to_datetime(df[0],unit='ms')
     df[6] = pd.to_datetime(df[6],unit='ms')
     df[[1,2,3,4,5,7,8,9,10]]=df[[1,2,3,4,5,7,8,9,10]].apply(pd.to_numeric, errors='coerce')
-    df.columns = ['OpenTime','Open','High','Low','Close','Volume','CloseTime','QuoteVolume','NumberOfTrades','ActiveBuyVolume',
-                  'ActiveBuyQuoteVolume']
+    df.columns = ['start','open','high','low','close','volume','end','turnover','NumberOfTrades','ActiveBuyVolume', 'ActiveBuyQuoteVolume']
+    df[['start','end']] = df[['start','end']].apply(lambda x :x.dt.round(freq='s'))
+    df = df.drop(columns=['NumberOfTrades','ActiveBuyVolume', 'ActiveBuyQuoteVolume'])
+    df = df.set_index('end', drop=False)
+
     return df
