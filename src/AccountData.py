@@ -4,32 +4,32 @@
 import pandas as pd
 
 
-class MarketData:
+class AccountData:
     '''
-    Class to provide real time market data
+    Class to provide account data such as wallet balance or open trades
     '''
     
-    # create new marketdata object and initialize with historical data from binance
+    # initialize empty object
     def __init__(self): 
         '''
         Parameters
         ----------
 
         '''
-        ### here load binance kline data to initialize ###       
+        ### here add empty or zero account attributes ###       
         # self.x = y
         
 
     def on_message():
         '''
-        Add new candlestick data
+        Update account data
 
         Parameters
         ----------
         msg: pandas.DataFrame
             message received from api, i.e. data to store
         '''
-        ### here public on_message code ###
+        ### here private on_message code ###
         return None
     
    
