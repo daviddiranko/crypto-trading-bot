@@ -82,12 +82,13 @@ def get_klines(
     return df
 
 
-def bnc_get_recent_historical_klines(
+def get_historical_klines(
     client: Client,
     ticker: str,
     frequency: int,
     frequency_unit: str,
-    start_str: str):
+    start: int,
+    start_unit: str):
     '''
     get historical candlestick data
 
@@ -105,8 +106,17 @@ def bnc_get_recent_historical_klines(
             m: minutes
             h: hours
             d: days
-    start_str: str
-        start of the history in format <amount> <unit> ago UTC+X
+    start: int
+        time units to go back to pull history
+    start_unit: str
+        unit to consider in history
+        Options:
+            'm': minutes
+            'h': hours
+            'days': days
+            'weeks': weeks
+            'months': months
+            'years': years
 
 
     Returns
@@ -114,6 +124,9 @@ def bnc_get_recent_historical_klines(
     df: pandas.DataFrame
         candlestick data for provided symbol with shape (limit, column_names)
     '''
+
+    # construct start string
+    start_str = str(start)+ ' ' + start_unit + ' ago'
     df = pd.DataFrame(client.get_historical_klines(ticker, interval=str(frequency)+frequency_unit, start_str=start_str))
     
     # if no data is available return empty dataframe
