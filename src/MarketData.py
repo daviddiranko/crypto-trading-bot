@@ -23,21 +23,21 @@ class MarketData:
         '''
         Attributes
         ----------
-        self.history: pandas.DataFrame
-            dataframe of minutely candlesticks, indexed by the close timestamp
+        self.history: Dict[str, pandas.DataFrame]
+            dictionary that stores historical data.
+            the dictionary is indexed by the topic and stores a dataframe of candlesticks, indexed by the close timestamp.
         '''     
-        self.history = pd.DataFrame()
+        self.history = {}
         
 
     def on_message(self, message: json):
         '''
-        Receive new market data
-        dataframe is indexed by the end date of the candle.
+        Receive new market data and store the data in the appropriate history, indexed by the topic.
         The last row is the current candle and gets updated until candle is full.
 
         Parameters
         ----------
-        msg: pandas.DataFrame
+        msg: json
             message received from api, i.e. data to store
         '''
         # extract message and its topic
@@ -51,7 +51,7 @@ class MarketData:
             data = msg['data'][0]
             data['start'] = pd.to_datetime(data['start'],unit='s')
             data['end'] = pd.to_datetime(data['end'],unit='s')
-            self.history.loc[data['end']] = data
+            self.history[topic].loc[data['end']] = data
 
         else:
             print('topic: {} is not known'.format(topic))
@@ -59,11 +59,21 @@ class MarketData:
         
         return None
     
-    def add_history(self, data: pd.DataFrame):
+    def add_history(self, topic: str, data: pd.DataFrame):
         '''
         add historical candlestick data
         provided dataframe must be indexed by the end date of the candle.
+
+        Parameters
+        ----------
+
+        topic: str
+            topic for which to add data
+        data: pandas.DataFrame
+            the data to add
         '''
-        self.history = pd.concat([data,self.history])
+        self.history[topic] = pd.concat([data,self.history[topic]])
+
+        return None
     
    
