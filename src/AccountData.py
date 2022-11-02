@@ -90,7 +90,7 @@ class AccountData:
                 print(message)
 
         except:
-            print('No data received!')
+            print('AccountData: No data received!')
             print(message)
 
         return None

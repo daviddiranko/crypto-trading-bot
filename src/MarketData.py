@@ -6,6 +6,7 @@ import json
 from dotenv import load_dotenv
 import os
 from typing import List
+
 load_dotenv()
 
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
@@ -72,7 +73,7 @@ class MarketData:
                 print(message)
         
         except:
-            print('No data received!')
+            print('MarketData: No data received!')
             print(message)    
         
         return None
