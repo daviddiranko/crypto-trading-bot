@@ -22,7 +22,7 @@ class TradingModel:
     '''
     
     # create new Model object
-    def __init__(self, market_data: MarketData, account: AccountData, model: Any, **model_args: Dict[str, Any]): 
+    def __init__(self, market_data: MarketData, account: AccountData, model: Any, model_storage: Dict[str, Any] = {}, **model_args: Dict[str, Any]): 
         '''
         Parameters
         ----------
@@ -33,6 +33,8 @@ class TradingModel:
             AccountData object that stores relevant account data
         model: Any
             function that holds the trading logic
+        model_storage: Dict[str, Any]
+            additional storage so that the trading model can store results
         model_args: *kwargs
             optional additional parameters for the trading model
         '''
@@ -41,6 +43,7 @@ class TradingModel:
         self.market_data = market_data
         self.account = account
         self.model = model
+        self.model_storage = model_storage
         self.model_args = model_args
 
     def on_message(self, message: json):
