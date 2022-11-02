@@ -57,35 +57,42 @@ class AccountData:
             message received from api, i.e. data to store
         '''
 
-        # extract message and its topic
+         # extract message
         msg = json.loads(message)
-        topic = msg['topic']
 
-        # check if topic is a private topic
-        if topic in PRIVATE_TOPICS:
-            
-            # extract data of message
-            data = msg['data']['result']
+        try:
+            # extract topic
+            topic = msg['topic']
 
-            # store data in correct attribute
-            if topic==PRIVATE_TOPICS[0]:
-                self.positions = data
-            elif topic==PRIVATE_TOPICS[1]:
-                self.executions = data
-            elif topic==PRIVATE_TOPICS[2]:
-                self.orders = data
-            elif topic==PRIVATE_TOPICS[3]:
-                self.wallet = data
-            elif topic==PRIVATE_TOPICS[4]:
-                self.greeks = data
+            # check if topic is a private topic
+            if topic in PRIVATE_TOPICS:
+                
+                # extract data of message
+                data = msg['data']['result']
+
+                # store data in correct attribute
+                if topic==PRIVATE_TOPICS[0]:
+                    self.positions = data
+                elif topic==PRIVATE_TOPICS[1]:
+                    self.executions = data
+                elif topic==PRIVATE_TOPICS[2]:
+                    self.orders = data
+                elif topic==PRIVATE_TOPICS[3]:
+                    self.wallet = data
+                elif topic==PRIVATE_TOPICS[4]:
+                    self.greeks = data
+                else:
+                    print('topic: {} is not known'.format(topic))
+                    print(message)
+
             else:
                 print('topic: {} is not known'.format(topic))
                 print(message)
 
-        else:
-            print('topic: {} is not known'.format(topic))
+        except:
+            print('No data received!')
             print(message)
-        
+
         return None
     
 

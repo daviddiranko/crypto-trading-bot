@@ -5,7 +5,7 @@ import pandas as pd
 import json
 from dotenv import load_dotenv
 import os
-
+from typing import List
 load_dotenv()
 
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
@@ -19,16 +19,27 @@ class MarketData:
     '''
     
     # create new marketdata object with empty dataframe
-    def __init__(self): 
+    def __init__(self, topics: List[str]): 
         '''
+        Parameters
+        ----------
+
+        topics: List[str]
+            all topics to store
+
         Attributes
         ----------
+
         self.history: Dict[str, pandas.DataFrame]
             dictionary that stores historical data.
             the dictionary is indexed by the topic and stores a dataframe of candlesticks, indexed by the close timestamp.
-        '''     
+        '''
+
+        # initialize history with empty dataframes
         self.history = {}
-        
+
+        for topic in topics:
+            self.history[topic] = pd.DataFrame()
 
     def on_message(self, message: json):
         '''
@@ -40,22 +51,29 @@ class MarketData:
         msg: json
             message received from api, i.e. data to store
         '''
-        # extract message and its topic
+        # extract message
         msg = json.loads(message)
-        topic = msg['topic']
 
-        # check if topic is in private topics
-        if topic in PUBLIC_TOPICS:
+        try:
+            # extract topic
+            topic = msg['topic']
 
-            # extract candlestick data
-            data = msg['data'][0]
-            data['start'] = pd.to_datetime(data['start'],unit='s')
-            data['end'] = pd.to_datetime(data['end'],unit='s')
-            self.history[topic].loc[data['end']] = data
+            # check if topic is in private topics
+            if topic in PUBLIC_TOPICS:
 
-        else:
-            print('topic: {} is not known'.format(topic))
-            print(message)
+                # extract candlestick data
+                data = msg['data'][0]
+                data['start'] = pd.to_datetime(data['start'],unit='s')
+                data['end'] = pd.to_datetime(data['end'],unit='s')
+                self.history[topic].loc[data['end']] = data
+
+            else:
+                print('topic: {} is not known'.format(topic))
+                print(message)
+        
+        except:
+            print('No data received!')
+            print(message)    
         
         return None
     
