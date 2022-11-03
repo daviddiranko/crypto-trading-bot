@@ -6,6 +6,7 @@ import json
 from dotenv import load_dotenv
 import os
 from typing import List
+from src.endpoints.bybit_functions import format_klines
 
 load_dotenv()
 
@@ -14,13 +15,14 @@ PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
+
 class MarketData:
     '''
     Class to provide real time market data
     '''
-    
+
     # create new marketdata object with empty dataframe
-    def __init__(self, topics: List[str]): 
+    def __init__(self, topics: List[str]):
         '''
         Parameters
         ----------
@@ -51,6 +53,11 @@ class MarketData:
         ----------
         msg: json
             message received from api, i.e. data to store
+
+        Returns
+        ----------
+        data: Dict[str, Any]
+            extracted data
         '''
         # extract message
         msg = json.loads(message)
@@ -63,21 +70,23 @@ class MarketData:
             if topic in PUBLIC_TOPICS:
 
                 # extract candlestick data
-                data = msg['data'][0]
-                data['start'] = pd.to_datetime(data['start'],unit='s')
-                data['end'] = pd.to_datetime(data['end'],unit='s')
+                data = format_klines(msg=msg['data'][0])
+
+                # add to history
                 self.history[topic].loc[data['end']] = data
 
+                return data
             else:
                 print('topic: {} is not known'.format(topic))
                 print(message)
-        
+                return False
+
         except:
             print('MarketData: No data received!')
-            print(message)    
-        
-        return None
-    
+            print(message)
+
+            return False
+
     def add_history(self, topic: str, data: pd.DataFrame):
         '''
         add historical candlestick data
@@ -90,9 +99,12 @@ class MarketData:
             topic for which to add data
         data: pandas.DataFrame
             the data to add
+        
+        Return
+        ---------
+        self.history[topic]: pd.DataFrame
+            entire history of topic
         '''
-        self.history[topic] = pd.concat([data,self.history[topic]])
+        self.history[topic] = pd.concat([data, self.history[topic]])
 
-        return None
-    
-   
+        return self.history[topic]

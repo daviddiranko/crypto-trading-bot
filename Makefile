@@ -11,7 +11,7 @@ lock:
 	poetry lock
 
 lint:
-	poetry run yapf -i -r --style google -vv -e .venv .
+	poetry run yapf -i -r --style google -vv -e .venv -e ._env .
 
 autolint: lint
 	poetry run isort ${ALL_PYTHON_FILES}

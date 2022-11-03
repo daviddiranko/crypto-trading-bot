@@ -7,6 +7,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv
 import os
 from pybit import usdt_perpetual
+
 load_dotenv()
 
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
@@ -19,9 +20,9 @@ class AccountData:
     It stores real time account data such as wallet balance or open trades.
     It provides a http api for trading
     '''
-    
+
     # initialize empty account data object
-    def __init__(self, http_session: usdt_perpetual.HTTP): 
+    def __init__(self, http_session: usdt_perpetual.HTTP):
         '''
         Attributes
         ----------
@@ -40,14 +41,13 @@ class AccountData:
         '''
 
         self.session = http_session
-        self.positions=[]
+        self.positions = []
         self.executions = []
         self.orders = []
         self.wallet = {}
         self.greeks = []
-        
 
-    def on_message(self, message:json):
+    def on_message(self, message: json):
         '''
         Receive account data message and store in appropriate attributes
 
@@ -57,7 +57,7 @@ class AccountData:
             message received from api, i.e. data to store
         '''
 
-         # extract message
+        # extract message
         msg = json.loads(message)
 
         try:
@@ -66,20 +66,20 @@ class AccountData:
 
             # check if topic is a private topic
             if topic in PRIVATE_TOPICS:
-                
+
                 # extract data of message
                 data = msg['data']['result']
 
                 # store data in correct attribute
-                if topic==PRIVATE_TOPICS[0]:
+                if topic == PRIVATE_TOPICS[0]:
                     self.positions = data
-                elif topic==PRIVATE_TOPICS[1]:
+                elif topic == PRIVATE_TOPICS[1]:
                     self.executions = data
-                elif topic==PRIVATE_TOPICS[2]:
+                elif topic == PRIVATE_TOPICS[2]:
                     self.orders = data
-                elif topic==PRIVATE_TOPICS[3]:
+                elif topic == PRIVATE_TOPICS[3]:
                     self.wallet = data
-                elif topic==PRIVATE_TOPICS[4]:
+                elif topic == PRIVATE_TOPICS[4]:
                     self.greeks = data
                 else:
                     print('topic: {} is not known'.format(topic))
@@ -94,9 +94,8 @@ class AccountData:
             print(message)
 
         return None
-    
 
-    def place_order(self, 
+    def place_order(self,
                     symbol: str,
                     order_type: str,
                     side: str,
@@ -107,7 +106,7 @@ class AccountData:
                     time_in_force: str = "FillOrKill",
                     sl_trigger_by: str = "LastPrice",
                     tp_trigger_by: str = "LastPrice",
-                    order_link_id: str= None,
+                    order_link_id: str = None,
                     reduce_only: bool = False,
                     close_on_trigger: bool = False,
                     position_idx: int = None):
@@ -167,25 +166,25 @@ class AccountData:
             1-Buy side of both side mode
             2-Sell side of both side mode
         '''
-        
-        response = self.session.place_conditional_order(symbol=symbol,
-                                                    order_type=order_type,
-                                                    side=side,
-                                                    qty=qty,
-                                                    price=price,
-                                                    stop_loss=stop_loss,
-                                                    take_proft=take_proft,
-                                                    time_in_force=time_in_force,
-                                                    sl_trigger_by=sl_trigger_by,
-                                                    tp_trigger_by=tp_trigger_by,
-                                                    order_link_id=order_link_id,
-                                                    reduce_only=reduce_only,
-                                                    close_on_trigger=close_on_trigger,
-                                                    position_idx=position_idx)
+
+        response = self.session.place_conditional_order(
+            symbol=symbol,
+            order_type=order_type,
+            side=side,
+            qty=qty,
+            price=price,
+            stop_loss=stop_loss,
+            take_proft=take_proft,
+            time_in_force=time_in_force,
+            sl_trigger_by=sl_trigger_by,
+            tp_trigger_by=tp_trigger_by,
+            order_link_id=order_link_id,
+            reduce_only=reduce_only,
+            close_on_trigger=close_on_trigger,
+            position_idx=position_idx)
         return response
 
-    
-    def place_conditional_order(self, 
+    def place_conditional_order(self,
                                 symbol: str,
                                 order_type: str,
                                 side: str,
@@ -195,7 +194,7 @@ class AccountData:
                                 stop_px: float,
                                 time_in_force: str = "FillOrKill",
                                 trigger_by: str = "LastPrice",
-                                order_link_id: str= None,
+                                order_link_id: str = None,
                                 reduce_only: bool = False,
                                 close_on_trigger: bool = False):
         '''
@@ -245,19 +244,18 @@ class AccountData:
             This flag will enforce liquidiation of other positions if trigger is met and not enough margin is available.
             Only relevant for a closing orders. It can only reduce your position not increase it.
         '''
-        
-        response = self.session.place_conditional_order(symbol=symbol,
-                                                    order_type=order_type,
-                                                    side=side,
-                                                    qty=qty,
-                                                    price=price,
-                                                    base_price=base_price,
-                                                    stop_px=stop_px,
-                                                    time_in_force=time_in_force,
-                                                    trigger_by=trigger_by,
-                                                    order_link_id=order_link_id,
-                                                    reduce_only=reduce_only,
-                                                    close_on_trigger=close_on_trigger)
+
+        response = self.session.place_conditional_order(
+            symbol=symbol,
+            order_type=order_type,
+            side=side,
+            qty=qty,
+            price=price,
+            base_price=base_price,
+            stop_px=stop_px,
+            time_in_force=time_in_force,
+            trigger_by=trigger_by,
+            order_link_id=order_link_id,
+            reduce_only=reduce_only,
+            close_on_trigger=close_on_trigger)
         return response
-    
-   

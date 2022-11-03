@@ -16,13 +16,19 @@ PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
+
 class TradingModel:
     '''
     Class that wraps the trading model, market data and account data
     '''
-    
+
     # create new Model object
-    def __init__(self, market_data: MarketData, account: AccountData, model: Any, model_storage: Dict[str, Any] = {}, **model_args: Dict[str, Any]): 
+    def __init__(self,
+                 market_data: MarketData,
+                 account: AccountData,
+                 model: Any,
+                 model_storage: Dict[str, Any] = {},
+                 **model_args: Dict[str, Any]):
         '''
         Parameters
         ----------
@@ -76,11 +82,9 @@ class TradingModel:
             else:
                 print('topic: {} is not known'.format(topic))
                 print(message)
-        
+
         except:
             print('TradingModel: No data received!')
             print(message)
-        
+
         return None
-    
-   
