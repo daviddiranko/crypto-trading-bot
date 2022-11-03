@@ -5,7 +5,7 @@ import json
 from src.endpoints.bybit_functions import format_klines
 
 
-class TestMarketData(unittest.TestCase):
+class TestBybitFunctions(unittest.TestCase):
 
     def setUp(self):
 
@@ -36,4 +36,4 @@ class TestMarketData(unittest.TestCase):
 
         extraction = format_klines(self.success_message)
 
-        self.assertEqual(extraction, self.success)
+        self.assertEqual(extraction, self.success['data'][0])

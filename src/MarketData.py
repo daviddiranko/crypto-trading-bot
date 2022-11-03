@@ -13,6 +13,8 @@ load_dotenv()
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
+PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
+
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
 
@@ -42,7 +44,7 @@ class MarketData:
         self.history = {}
 
         for topic in topics:
-            self.history[topic] = pd.DataFrame()
+            self.history[topic] = pd.DataFrame(columns=PUBLIC_TOPICS_COLUMNS)
 
     def on_message(self, message: json):
         '''
@@ -70,7 +72,7 @@ class MarketData:
             if topic in PUBLIC_TOPICS:
 
                 # extract candlestick data
-                data = format_klines(msg=msg['data'][0])
+                data = format_klines(msg=msg)
 
                 # add to history
                 self.history[topic].loc[data['end']] = data
@@ -106,5 +108,7 @@ class MarketData:
             entire history of topic
         '''
         self.history[topic] = pd.concat([data, self.history[topic]])
+
+        # self.history[topic] = self.history[topic].sort_index()
 
         return self.history[topic]
