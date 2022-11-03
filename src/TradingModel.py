@@ -52,7 +52,7 @@ class TradingModel:
         self.model_storage = model_storage
         self.model_args = model_args
 
-    def on_message(self, message: json):
+    def on_message(self, message: json) -> bool:
         '''
         Upon reception of new websocket data, forward to either MarketData or AccountData object
 
@@ -73,18 +73,20 @@ class TradingModel:
 
                 self.market_data.on_message(message)
                 self.model(self, **self.model_args)
+                return True
 
             # if private topic, forward to account
             elif topic in PRIVATE_TOPICS:
 
                 self.account.on_message(message)
+                return False
 
             else:
                 print('topic: {} is not known'.format(topic))
                 print(message)
+                return False
 
         except:
             print('TradingModel: No data received!')
             print(message)
-
-        return None
+            return False

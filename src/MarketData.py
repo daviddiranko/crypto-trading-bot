@@ -46,7 +46,7 @@ class MarketData:
         for topic in topics:
             self.history[topic] = pd.DataFrame(columns=PUBLIC_TOPICS_COLUMNS)
 
-    def on_message(self, message: json):
+    def on_message(self, message: json) -> Dict[str, Any]:
         '''
         Receive new market data and store the data in the appropriate history, indexed by the topic.
         The last row is the current candle and gets updated until candle is full.
@@ -89,7 +89,7 @@ class MarketData:
 
             return False
 
-    def add_history(self, topic: str, data: pd.DataFrame):
+    def add_history(self, topic: str, data: pd.DataFrame) -> pd.DataFrame:
         '''
         add historical candlestick data
         provided dataframe must be indexed by the end date of the candle.

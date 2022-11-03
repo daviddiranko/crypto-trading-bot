@@ -9,7 +9,7 @@ load_dotenv()
 HIST_COLUMNS = eval(os.getenv('HIST_COLUMNS'))
 
 
-def format_historical_klines(msg: List[List[Any]]):
+def format_historical_klines(msg: List[List[Any]]) -> pd.DataFrame:
     '''
     extract historical candlestick data
 

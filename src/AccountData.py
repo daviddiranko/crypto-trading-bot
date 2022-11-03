@@ -28,26 +28,26 @@ class AccountData:
         ----------
         self.session: usdt_perpetual.HTTP
             open http connection for trading
-        self.positions: List[Dict[str, any]]
-            list of current open positions
-        self.executions = List[Dict[str, any]]
-            list of executed orders, i.e. trading history
-        self.orders = List[Dict[str, any]]
-            list of unfilled orders
+        self.positions: Dict[str, Dict[str, any]]
+            dict of current open positions, indexed by symbol
+        self.executions = Dict[str, Dict[str, any]]
+            dict of executed orders, i.e. trading history, indexed by execution id
+        self.orders = Dict[str, Dict[str, any]]
+            dict of unfilled orders, indexed by order id
+        self.stop_orders = Dict[str, Dict[str, any]]
+            dict of unfilled stop orders, indexed by stop order id
         self.wallet = Dict[str, any]
             wallet data, such as balance, margin etc.
-        self.greeks = List[Dict[str, any]]
-            greeks of traded coins
         '''
 
         self.session = http_session
-        self.positions = []
-        self.executions = []
-        self.orders = []
+        self.positions = {}
+        self.executions = {}
+        self.orders = {}
+        self.stop_orders = {}
         self.wallet = {}
-        self.greeks = []
 
-    def on_message(self, message: json):
+    def on_message(self, message: json) -> Dict[str, Any]:
         '''
         Receive account data message and store in appropriate attributes
 
@@ -55,6 +55,11 @@ class AccountData:
         ----------
         msg: json
             message received from api, i.e. data to store
+        
+        Returns
+        ---------
+        self.[msg['topic]]: Dict[str, Any]
+            extracted data from message
         '''
 
         # extract message
@@ -72,28 +77,34 @@ class AccountData:
 
                 # store data in correct attribute
                 if topic == PRIVATE_TOPICS[0]:
-                    self.positions = data
+                    self.positions = {pos['symbol']:pos for pos in data}
+                    return self.positions
                 elif topic == PRIVATE_TOPICS[1]:
-                    self.executions = data
+                    self.executions = {exe['exec_id']:exe for exe in data}
+                    return self.executions
                 elif topic == PRIVATE_TOPICS[2]:
-                    self.orders = data
+                    self.orders = {order['order_id']:order for order in data}
+                    return self.orders
                 elif topic == PRIVATE_TOPICS[3]:
-                    self.wallet = data
+                    self.stop_orders = {stop_order['stop_order_id']:stop_order for stop_order in data}
+                    return self.stop_orders
                 elif topic == PRIVATE_TOPICS[4]:
-                    self.greeks = data
+                    self.wallet = data[0]
+                    return self.wallet
                 else:
                     print('topic: {} is not known'.format(topic))
                     print(message)
+                    return False
 
             else:
                 print('topic: {} is not known'.format(topic))
                 print(message)
+                return False
 
         except:
             print('AccountData: No data received!')
             print(message)
-
-        return None
+            return False
 
     def place_order(self,
                     symbol: str,
@@ -109,7 +120,7 @@ class AccountData:
                     order_link_id: str = None,
                     reduce_only: bool = False,
                     close_on_trigger: bool = False,
-                    position_idx: int = None):
+                    position_idx: int = None) -> Dict[str, Any]:
         '''
         Place a regular active order.
 
@@ -165,6 +176,11 @@ class AccountData:
             0-One-Way Mode
             1-Buy side of both side mode
             2-Sell side of both side mode
+        
+        Returns
+        -------
+        response: Dict[str, Any]
+            response body from bybit
         '''
 
         response = self.session.place_conditional_order(
@@ -196,7 +212,7 @@ class AccountData:
                                 trigger_by: str = "LastPrice",
                                 order_link_id: str = None,
                                 reduce_only: bool = False,
-                                close_on_trigger: bool = False):
+                                close_on_trigger: bool = False) -> Dict[str, Any]:
         '''
         Place a conditional order.
 
@@ -243,6 +259,11 @@ class AccountData:
         close_on_trigger: bool = False
             This flag will enforce liquidiation of other positions if trigger is met and not enough margin is available.
             Only relevant for a closing orders. It can only reduce your position not increase it.
+        
+        Returns
+        -------
+        response: Dict[str, Any]
+            response body from bybit
         '''
 
         response = self.session.place_conditional_order(

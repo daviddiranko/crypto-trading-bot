@@ -2,7 +2,7 @@ import pandas as pd
 from typing import Dict, Any
 
 
-def format_klines(msg: Dict[str, Any]):
+def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
     '''
     Format candlestick data received by bybit websocket
 
