@@ -77,24 +77,23 @@ class AccountData:
 
                 # store data in correct attribute
                 if topic == PRIVATE_TOPICS[0]:
-                    self.positions = {pos['symbol']:pos for pos in data}
+                    self.positions = {pos['symbol']: pos for pos in data}
                     return self.positions
                 elif topic == PRIVATE_TOPICS[1]:
-                    self.executions = {exe['exec_id']:exe for exe in data}
+                    self.executions = {exe['exec_id']: exe for exe in data}
                     return self.executions
                 elif topic == PRIVATE_TOPICS[2]:
-                    self.orders = {order['order_id']:order for order in data}
+                    self.orders = {order['order_id']: order for order in data}
                     return self.orders
                 elif topic == PRIVATE_TOPICS[3]:
-                    self.stop_orders = {stop_order['stop_order_id']:stop_order for stop_order in data}
+                    self.stop_orders = {
+                        stop_order['stop_order_id']: stop_order
+                        for stop_order in data
+                    }
                     return self.stop_orders
                 elif topic == PRIVATE_TOPICS[4]:
                     self.wallet = data[0]
                     return self.wallet
-                else:
-                    print('topic: {} is not known'.format(topic))
-                    print(message)
-                    return False
 
             else:
                 print('topic: {} is not known'.format(topic))
@@ -200,19 +199,20 @@ class AccountData:
             position_idx=position_idx)
         return response
 
-    def place_conditional_order(self,
-                                symbol: str,
-                                order_type: str,
-                                side: str,
-                                qty: int,
-                                price: float,
-                                base_price: float,
-                                stop_px: float,
-                                time_in_force: str = "FillOrKill",
-                                trigger_by: str = "LastPrice",
-                                order_link_id: str = None,
-                                reduce_only: bool = False,
-                                close_on_trigger: bool = False) -> Dict[str, Any]:
+    def place_conditional_order(
+            self,
+            symbol: str,
+            order_type: str,
+            side: str,
+            qty: int,
+            price: float,
+            base_price: float,
+            stop_px: float,
+            time_in_force: str = "FillOrKill",
+            trigger_by: str = "LastPrice",
+            order_link_id: str = None,
+            reduce_only: bool = False,
+            close_on_trigger: bool = False) -> Dict[str, Any]:
         '''
         Place a conditional order.
 

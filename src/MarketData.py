@@ -5,7 +5,7 @@ import pandas as pd
 import json
 from dotenv import load_dotenv
 import os
-from typing import List
+from typing import List, Dict, Any
 from src.endpoints.bybit_functions import format_klines
 
 load_dotenv()
