@@ -68,7 +68,7 @@ class AccountData:
             if topic in PRIVATE_TOPICS:
 
                 # extract data of message
-                data = msg['data']['result']
+                data = msg['data']
 
                 # store data in correct attribute
                 if topic == PRIVATE_TOPICS[0]:
