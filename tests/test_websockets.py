@@ -14,15 +14,16 @@ import unittest
 
 load_dotenv()
 
-BYBIT_KEY = os.getenv('BYBIT_KEY')
-BYBIT_SECRET = os.getenv('BYBIT_SECRET')
+BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
+BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
 
 BINANCE_KEY = os.getenv('BINANCE_KEY')
 BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 
 BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
-WS_PUBLIC_URL = os.getenv('WS_PUBLIC_URL')
-WS_PRIVATE_URL = os.getenv('WS_PRIVATE_URL')
+
+WS_PUBLIC_TEST_URL = os.getenv('WS_PUBLIC_TEST_URL')
+WS_PRIVATE_TEST_URL = os.getenv('WS_PRIVATE_TEST_URL')
 
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
@@ -42,15 +43,17 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
 
         # Generate signature.
         self.signature = str(
-            hmac.new(bytes(BYBIT_SECRET, "utf-8"),
+            hmac.new(bytes(BYBIT_TEST_SECRET, "utf-8"),
                      bytes(f"GET/realtime{self.expires}", "utf-8"),
                      digestmod="sha256").hexdigest())
 
         self.param = "api_key={api_key}&expires={expires}&signature={signature}".format(
-            api_key=BYBIT_KEY, expires=self.expires, signature=self.signature)
+            api_key=BYBIT_TEST_KEY,
+            expires=self.expires,
+            signature=self.signature)
 
-        self.public_url = WS_PUBLIC_URL + "?" + self.param
-        self.private_url = WS_PRIVATE_URL + "?" + self.param
+        self.public_url = WS_PUBLIC_TEST_URL + "?" + self.param
+        self.private_url = WS_PRIVATE_TEST_URL + "?" + self.param
         self.frequency = 1
         self.frequency_unit = 'm'
         self.start = 10
@@ -63,8 +66,8 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
 
             # initialize http connection for trading
             session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                                          api_key=BYBIT_KEY,
-                                          api_secret=BYBIT_SECRET)
+                                          api_key=BYBIT_TEST_KEY,
+                                          api_secret=BYBIT_TEST_SECRET)
 
             # pull historical data from binance and add to market data history
             binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
@@ -97,7 +100,7 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
             await ws_private.send(
                 json.dumps({
                     "op": "auth",
-                    "args": [BYBIT_KEY, self.expires, self.signature]
+                    "args": [BYBIT_TEST_KEY, self.expires, self.signature]
                 }))
             await ws_private.send(
                 json.dumps({

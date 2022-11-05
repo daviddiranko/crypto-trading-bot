@@ -7,6 +7,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv
 import os
 from pybit import usdt_perpetual
+from .endpoints.bybit_functions import *
 
 load_dotenv()
 
@@ -21,13 +22,19 @@ class AccountData:
     It provides a http api for trading
     '''
 
-    # initialize empty account data object
-    def __init__(self, http_session: usdt_perpetual.HTTP):
+    # initialize account data object with current values
+    def __init__(self, http_session: usdt_perpetual.HTTP, symbols: List[str] = None):
         '''
+        Parameters
+        ----------
+        http_session: usdt_perpetual.HTTP
+            open http connection for account data initialization and trading
+        symbols: List[str]
+            optional list of symbols to incorporate. If no list is provided, all available symbols are incorporated.
         Attributes
         ----------
         self.session: usdt_perpetual.HTTP
-            open http connection for trading
+            open http connection for account data initialization and trading
         self.positions: Dict[str, Dict[str, any]]
             dict of current open positions, indexed by symbol
         self.executions = Dict[str, Dict[str, any]]
@@ -36,16 +43,20 @@ class AccountData:
             dict of unfilled orders, indexed by order id
         self.stop_orders = Dict[str, Dict[str, any]]
             dict of unfilled stop orders, indexed by stop order id
-        self.wallet = Dict[str, any]
-            wallet data, such as balance, margin etc.
+        self.wallet = Dict[str, Dict[str, Any]]
+            wallet data, indexed by symbol
+            each symbol is indexed to another dict that holds balance, margin etc. for that symbol
         '''
 
         self.session = http_session
-        self.positions = {}
-        self.executions = {}
-        self.orders = {}
-        self.stop_orders = {}
-        self.wallet = {}
+
+        # pull current account data
+        account_data = initialize_account_data(session=self.session, symbols=symbols)
+        self.positions = account_data['position']
+        self.executions = account_data['execution']
+        self.orders = account_data['order']
+        self.stop_orders = account_data['stop_order']
+        self.wallet = account_data['wallet']
 
     def on_message(self, message: json) -> Dict[str, Any]:
         '''
@@ -175,14 +186,14 @@ class AccountData:
             0-One-Way Mode
             1-Buy side of both side mode
             2-Sell side of both side mode
-        
+
         Returns
         -------
         response: Dict[str, Any]
             response body from bybit
         '''
 
-        response = self.session.place_conditional_order(
+        response = place_conditional_order(session=self.session,
             symbol=symbol,
             order_type=order_type,
             side=side,
@@ -259,14 +270,14 @@ class AccountData:
         close_on_trigger: bool = False
             This flag will enforce liquidiation of other positions if trigger is met and not enough margin is available.
             Only relevant for a closing orders. It can only reduce your position not increase it.
-        
+
         Returns
         -------
         response: Dict[str, Any]
             response body from bybit
         '''
 
-        response = self.session.place_conditional_order(
+        response = place_conditional_order(session=self.session,
             symbol=symbol,
             order_type=order_type,
             side=side,
@@ -280,3 +291,4 @@ class AccountData:
             reduce_only=reduce_only,
             close_on_trigger=close_on_trigger)
         return response
+        
