@@ -2,11 +2,12 @@ import pandas as pd
 from typing import List, Dict, Any
 from pybit import usdt_perpetual
 from dotenv import load_dotenv
-import os 
+import os
 import itertools
 
 load_dotenv()
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
+
 
 def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
     '''
@@ -37,7 +38,9 @@ def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
-def initialize_account_data(session: usdt_perpetual.HTTP, symbols: List[str] = None) -> Dict[str, Dict[str, Any]]:
+def initialize_account_data(
+        session: usdt_perpetual.HTTP,
+        symbols: List[str] = None) -> Dict[str, Dict[str, Any]]:
     '''
     Initialize account data by pulling current values from bybit via http request.
 
@@ -59,19 +62,27 @@ def initialize_account_data(session: usdt_perpetual.HTTP, symbols: List[str] = N
     # pull current position data
     position = session.my_position()['result']
 
-     # pull current wallet data
+    # pull current wallet data
     wallet = session.get_wallet_balance()['result']
 
     # if symbol list is provided, restrict results to that list
     if symbols:
         # build all possible tuples from symbols
-        symbol_tuples = [list(s)[0] + list(s)[1] for s in list(itertools.product(symbols, repeat=2))]
-        account_data['position'] = {pos['data']['symbol']: pos['data'] for pos in position if pos['data']['symbol'] in symbol_tuples}
+        symbol_tuples = [
+            list(s)[0] + list(s)[1]
+            for s in list(itertools.product(symbols, repeat=2))
+        ]
+        account_data['position'] = {
+            pos['data']['symbol']: pos['data']
+            for pos in position
+            if pos['data']['symbol'] in symbol_tuples
+        }
         account_data['wallet'] = {symbol: wallet[symbol] for symbol in symbols}
     else:
-        account_data['position'] = {pos['data']['symbol']: pos['data'] for pos in position}
+        account_data['position'] = {
+            pos['data']['symbol']: pos['data'] for pos in position
+        }
         account_data['wallet'] = wallet
-       
 
     # pull current order, stop order and execution data for every symbol
     orders = {symbol: None for symbol in account_data['position'].keys()}
@@ -83,15 +94,32 @@ def initialize_account_data(session: usdt_perpetual.HTTP, symbols: List[str] = N
     # These orders or executions are organized as dictionaries, indexed by the order id and hold another dictionary with the order information
     for symbol in orders.keys():
         order_list = session.query_active_order(symbol=symbol)['result']
-        orders[symbol] = {order['order_id']: order for order in order_list if order['order_status'] not in ['Rejected', 'Cancelled', 'Deactivated', 'Filled'] and not order['stop_loss']}
-        stop_orders[symbol] = {order['order_id']: order for order in order_list if order['order_status'] not in ['Rejected', 'Cancelled', 'Deactivated', 'Filled'] and order['stop_loss']}
-        executions[symbol] = {order['order_id']: order for order in order_list if order['order_status']=='Filled'}
+        orders[symbol] = {
+            order['order_id']: order
+            for order in order_list
+            if order['order_status'] not in
+            ['Rejected', 'Cancelled', 'Deactivated', 'Filled'] and
+            not order['stop_loss']
+        }
+        stop_orders[symbol] = {
+            order['order_id']: order
+            for order in order_list
+            if order['order_status'] not in
+            ['Rejected', 'Cancelled', 'Deactivated', 'Filled'] and
+            order['stop_loss']
+        }
+        executions[symbol] = {
+            order['order_id']: order
+            for order in order_list
+            if order['order_status'] == 'Filled'
+        }
 
     account_data['execution'] = executions
     account_data['order'] = orders
     account_data['stop_order'] = stop_orders
- 
+
     return account_data
+
 
 def place_order(session: usdt_perpetual.HTTP,
                 symbol: str,
@@ -189,20 +217,20 @@ def place_order(session: usdt_perpetual.HTTP,
         position_idx=position_idx)
     return response
 
-def place_conditional_order(
-        session: usdt_perpetual.HTTP,
-        symbol: str,
-        order_type: str,
-        side: str,
-        qty: int,
-        price: float,
-        base_price: float,
-        stop_px: float,
-        time_in_force: str = "FillOrKill",
-        trigger_by: str = "LastPrice",
-        order_link_id: str = None,
-        reduce_only: bool = False,
-        close_on_trigger: bool = False) -> Dict[str, Any]:
+
+def place_conditional_order(session: usdt_perpetual.HTTP,
+                            symbol: str,
+                            order_type: str,
+                            side: str,
+                            qty: int,
+                            price: float,
+                            base_price: float,
+                            stop_px: float,
+                            time_in_force: str = "FillOrKill",
+                            trigger_by: str = "LastPrice",
+                            order_link_id: str = None,
+                            reduce_only: bool = False,
+                            close_on_trigger: bool = False) -> Dict[str, Any]:
     '''
     Place a conditional order.
 

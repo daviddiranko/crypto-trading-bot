@@ -23,7 +23,9 @@ class AccountData:
     '''
 
     # initialize account data object with current values
-    def __init__(self, http_session: usdt_perpetual.HTTP, symbols: List[str] = None):
+    def __init__(self,
+                 http_session: usdt_perpetual.HTTP,
+                 symbols: List[str] = None):
         '''
         Parameters
         ----------
@@ -60,7 +62,8 @@ class AccountData:
         self.session = http_session
 
         # pull current account data
-        account_data = initialize_account_data(session=self.session, symbols=symbols)
+        account_data = initialize_account_data(session=self.session,
+                                               symbols=symbols)
         self.positions = account_data['position']
         self.executions = account_data['execution']
         self.orders = account_data['order']
@@ -103,8 +106,8 @@ class AccountData:
                     self.update_executions(msg=data)
                     return self.executions
                 elif topic == PRIVATE_TOPICS[2]:
-                    self.update_orders
-                    return self.orders(msg=data)
+                    self.update_orders(msg=data)
+                    return self.orders
                 elif topic == PRIVATE_TOPICS[3]:
                     self.update_stop_orders(msg=data)
                     return self.stop_orders
@@ -122,7 +125,8 @@ class AccountData:
             print(message)
             return False
 
-    def update_positions(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Any]]:
+    def update_positions(
+            self, msg: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         '''
         Update open positions.
 
@@ -141,8 +145,10 @@ class AccountData:
             self.positions[pos['symbol']] = pos
 
         return self.positions
-    
-    def update_executions(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Dict[str, Any]]]:
+
+    def update_executions(
+            self, msg: List[Dict[str,
+                                 Any]]) -> Dict[str, Dict[str, Dict[str, Any]]]:
         '''
         Update executions.
 
@@ -158,11 +164,13 @@ class AccountData:
         '''
         # iterate through list and update propagated executions
         for exec in msg:
-            self.executions[exec['symbol']][exec['order_id']]=exec
+            self.executions[exec['symbol']][exec['order_id']] = exec
 
         return self.executions
 
-    def update_orders(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Dict[str, Any]]]:
+    def update_orders(
+            self, msg: List[Dict[str,
+                                 Any]]) -> Dict[str, Dict[str, Dict[str, Any]]]:
         '''
         Update orders.
 
@@ -178,11 +186,13 @@ class AccountData:
         '''
         # iterate through list and update propagated orders
         for order in msg:
-            self.orders[order['symbol']][order['order_id']]=order
+            self.orders[order['symbol']][order['order_id']] = order
 
         return self.orders
-    
-    def update_stop_orders(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Dict[str, Any]]]:
+
+    def update_stop_orders(
+            self, msg: List[Dict[str,
+                                 Any]]) -> Dict[str, Dict[str, Dict[str, Any]]]:
         '''
         Update stop orders.
 
@@ -198,11 +208,13 @@ class AccountData:
         '''
         # iterate through list and update propagated stop orders
         for stop_order in msg:
-            self.stop_orders[stop_order['symbol']][stop_order['order_id']]=stop_order
+            self.stop_orders[stop_order['symbol']][
+                stop_order['stop_order_id']] = stop_order
 
         return self.stop_orders
 
-    def update_wallet(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Any]]:
+    def update_wallet(self, msg: List[Dict[str,
+                                           Any]]) -> Dict[str, Dict[str, Any]]:
         '''
         Update wallet.
 
@@ -218,7 +230,12 @@ class AccountData:
         '''
         # iterate through list and update propagated wallet balances
         for wallet in msg:
-            self.wallet[wallet['coin']] = wallet
+
+            # if no coin is propagated then it is USDT
+            try:
+                self.wallet[wallet['coin']] = wallet
+            except:
+                self.wallet['USDT'] = wallet
 
         return self.wallet
 
@@ -300,20 +317,20 @@ class AccountData:
         '''
 
         response = place_conditional_order(session=self.session,
-            symbol=symbol,
-            order_type=order_type,
-            side=side,
-            qty=qty,
-            price=price,
-            stop_loss=stop_loss,
-            take_proft=take_proft,
-            time_in_force=time_in_force,
-            sl_trigger_by=sl_trigger_by,
-            tp_trigger_by=tp_trigger_by,
-            order_link_id=order_link_id,
-            reduce_only=reduce_only,
-            close_on_trigger=close_on_trigger,
-            position_idx=position_idx)
+                                           symbol=symbol,
+                                           order_type=order_type,
+                                           side=side,
+                                           qty=qty,
+                                           price=price,
+                                           stop_loss=stop_loss,
+                                           take_proft=take_proft,
+                                           time_in_force=time_in_force,
+                                           sl_trigger_by=sl_trigger_by,
+                                           tp_trigger_by=tp_trigger_by,
+                                           order_link_id=order_link_id,
+                                           reduce_only=reduce_only,
+                                           close_on_trigger=close_on_trigger,
+                                           position_idx=position_idx)
         return response
 
     def place_conditional_order(
@@ -384,17 +401,16 @@ class AccountData:
         '''
 
         response = place_conditional_order(session=self.session,
-            symbol=symbol,
-            order_type=order_type,
-            side=side,
-            qty=qty,
-            price=price,
-            base_price=base_price,
-            stop_px=stop_px,
-            time_in_force=time_in_force,
-            trigger_by=trigger_by,
-            order_link_id=order_link_id,
-            reduce_only=reduce_only,
-            close_on_trigger=close_on_trigger)
+                                           symbol=symbol,
+                                           order_type=order_type,
+                                           side=side,
+                                           qty=qty,
+                                           price=price,
+                                           base_price=base_price,
+                                           stop_px=stop_px,
+                                           time_in_force=time_in_force,
+                                           trigger_by=trigger_by,
+                                           order_link_id=order_link_id,
+                                           reduce_only=reduce_only,
+                                           close_on_trigger=close_on_trigger)
         return response
-        
