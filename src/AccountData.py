@@ -37,12 +37,21 @@ class AccountData:
             open http connection for account data initialization and trading
         self.positions: Dict[str, Dict[str, any]]
             dict of current open positions, indexed by symbol
-        self.executions = Dict[str, Dict[str, any]]
-            dict of executed orders, i.e. trading history, indexed by execution id
-        self.orders = Dict[str, Dict[str, any]]
-            dict of unfilled orders, indexed by order id
-        self.stop_orders = Dict[str, Dict[str, any]]
-            dict of unfilled stop orders, indexed by stop order id
+        self.executions = Dict[str, Dict[str, Dict[str, Any]]]
+            Executions are organized in a 3 layer dict.
+            The first layer is indexed by the symbol and holds all executions for that symbol
+            These executions are organized in another dict, indexed by the order id
+            This dictionary holds the third dictionary with the execution information
+        self.orders = Dict[str, Dict[str, Dict[str, Any]]]
+            Orders are organized in a 3 layer dict.
+            The first layer is indexed by the symbol and holds all orders for that symbol
+            These orders are organized in another dict, indexed by the order id
+            This dictionary holds the third dictionary with the order information
+        self.stop_orders = Dict[str, Dict[str, Dict[str, Any]]]
+            Stop orders are organized in a 3 layer dict.
+            The first layer is indexed by the symbol and holds all stop orders for that symbol
+            These stop orders are organized in another dict, indexed by the order id
+            This dictionary holds the third dictionary with the stop order information
         self.wallet = Dict[str, Dict[str, Any]]
             wallet data, indexed by symbol
             each symbol is indexed to another dict that holds balance, margin etc. for that symbol
@@ -88,22 +97,19 @@ class AccountData:
 
                 # store data in correct attribute
                 if topic == PRIVATE_TOPICS[0]:
-                    self.positions = {pos['symbol']: pos for pos in data}
+                    self.update_positions(msg=data)
                     return self.positions
                 elif topic == PRIVATE_TOPICS[1]:
-                    self.executions = {exe['exec_id']: exe for exe in data}
+                    self.update_executions(msg=data)
                     return self.executions
                 elif topic == PRIVATE_TOPICS[2]:
-                    self.orders = {order['order_id']: order for order in data}
-                    return self.orders
+                    self.update_orders
+                    return self.orders(msg=data)
                 elif topic == PRIVATE_TOPICS[3]:
-                    self.stop_orders = {
-                        stop_order['stop_order_id']: stop_order
-                        for stop_order in data
-                    }
+                    self.update_stop_orders(msg=data)
                     return self.stop_orders
                 elif topic == PRIVATE_TOPICS[4]:
-                    self.wallet = data[0]
+                    self.update_wallet(msg=data)
                     return self.wallet
 
             else:
@@ -115,6 +121,106 @@ class AccountData:
             print('AccountData: No data received!')
             print(message)
             return False
+
+    def update_positions(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Any]]:
+        '''
+        Update open positions.
+
+        Parameters
+        ----------
+        msg: List[Dict[str, Any]]
+            data from websocket message as list of positions to update
+        
+        Returns
+        -------
+        self.positions: Dict[str, Dict[str, any]]
+            updated positions
+        '''
+        # iterate through list and update propagated positions
+        for pos in msg:
+            self.positions[pos['symbol']] = pos
+
+        return self.positions
+    
+    def update_executions(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Dict[str, Any]]]:
+        '''
+        Update executions.
+
+        Parameters
+        ----------
+        msg: List[Dict[str, Any]]
+            data from websocket message as list of new executions
+        
+        Returns
+        -------
+        self.executions: Dict[str, Dict[str, Dict[str, Any]]]
+            updated executions
+        '''
+        # iterate through list and update propagated executions
+        for exec in msg:
+            self.executions[exec['symbol']][exec['order_id']]=exec
+
+        return self.executions
+
+    def update_orders(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Dict[str, Any]]]:
+        '''
+        Update orders.
+
+        Parameters
+        ----------
+        msg: List[Dict[str, Any]]
+            data from websocket message as list of new orders
+        
+        Returns
+        -------
+        self.orders: Dict[str, Dict[str, Dict[str, Any]]]
+            updated orders
+        '''
+        # iterate through list and update propagated orders
+        for order in msg:
+            self.orders[order['symbol']][order['order_id']]=order
+
+        return self.orders
+    
+    def update_stop_orders(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Dict[str, Any]]]:
+        '''
+        Update stop orders.
+
+        Parameters
+        ----------
+        msg: List[Dict[str, Any]]
+            data from websocket message as list of new stop orders
+        
+        Returns
+        -------
+        self.orders: Dict[str, Dict[str, Dict[str, Any]]]
+            updated stop orders
+        '''
+        # iterate through list and update propagated stop orders
+        for stop_order in msg:
+            self.stop_orders[stop_order['symbol']][stop_order['order_id']]=stop_order
+
+        return self.stop_orders
+
+    def update_wallet(self, msg: List[Dict[str, Any]]) ->  Dict[str, Dict[str, Any]]:
+        '''
+        Update wallet.
+
+        Parameters
+        ----------
+        msg: List[Dict[str, Any]]
+            data from websocket message as list of wallet balances to update
+        
+        Returns
+        -------
+        self.wallet: Dict[str, Dict[str, any]]
+            updated wallet
+        '''
+        # iterate through list and update propagated wallet balances
+        for wallet in msg:
+            self.wallet[wallet['coin']] = wallet
+
+        return self.wallet
 
     def place_order(self,
                     symbol: str,
@@ -159,7 +265,7 @@ class AccountData:
         time_in_force: str = "FillOrKill"
             "Time in Force" strategy
             Options:
-                "GooTillCancelled": The order will remain valid until it is fully executed or manually cancelled by the trader.
+                "GoodTillCancelled": The order will remain valid until it is fully executed or manually cancelled by the trader.
                 "FillOrKill": The order must be immediately executed at the order price or better, otherwise, it will be completely cancelled and partially filled contracts will not be allowed.
                 "ImmediateOrCancel": The order must be filled immediately at the order limit price or better. If the order cannot be filled immediately, the unfilled contracts will be cancelled.
         sl_trigger_by: str = "LastPrice"

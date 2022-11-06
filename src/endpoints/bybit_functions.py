@@ -78,6 +78,9 @@ def initialize_account_data(session: usdt_perpetual.HTTP, symbols: List[str] = N
     stop_orders = {symbol: None for symbol in account_data['position'].keys()}
     executions = {symbol: None for symbol in account_data['position'].keys()}
 
+    # organize orders, stop orders and executions in a 3 layer dict.
+    # The first layer is indexed by the symbol and holds all orders or executions per symbol
+    # These orders or executions are organized as dictionaries, indexed by the order id and hold another dictionary with the order information
     for symbol in orders.keys():
         order_list = session.query_active_order(symbol=symbol)['result']
         orders[symbol] = {order['order_id']: order for order in order_list if order['order_status'] not in ['Rejected', 'Cancelled', 'Deactivated', 'Filled'] and not order['stop_loss']}
