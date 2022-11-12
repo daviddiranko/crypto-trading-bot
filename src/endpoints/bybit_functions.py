@@ -126,9 +126,9 @@ def place_order(session: usdt_perpetual.HTTP,
                 order_type: str,
                 side: str,
                 qty: int,
-                price: float,
-                stop_loss: float,
-                take_proft: float,
+                price: float = None,
+                stop_loss: float = None,
+                take_proft: float = None,
                 time_in_force: str = "FillOrKill",
                 sl_trigger_by: str = "LastPrice",
                 tp_trigger_by: str = "LastPrice",
@@ -185,6 +185,7 @@ def place_order(session: usdt_perpetual.HTTP,
         Optional unique order id to identify order
     reduce_only: bool = False
         If true, the position can only reduce in size and no stop loss or profit taking is possible.
+        Use reduce_only = True if you want to close entire positions by setting a large quantity
     close_on_trigger: bool = False
         This flag will enforce liquidiation of other positions if trigger is met and not enough margin is available.
         Only relevant for a closing orders. It can only reduce your position not increase it.
@@ -200,21 +201,20 @@ def place_order(session: usdt_perpetual.HTTP,
         response body from bybit
     '''
 
-    response = session.place_conditional_order(
-        symbol=symbol,
-        order_type=order_type,
-        side=side,
-        qty=qty,
-        price=price,
-        stop_loss=stop_loss,
-        take_proft=take_proft,
-        time_in_force=time_in_force,
-        sl_trigger_by=sl_trigger_by,
-        tp_trigger_by=tp_trigger_by,
-        order_link_id=order_link_id,
-        reduce_only=reduce_only,
-        close_on_trigger=close_on_trigger,
-        position_idx=position_idx)
+    response = session.place_active_order(symbol=symbol,
+                                          order_type=order_type,
+                                          side=side,
+                                          qty=qty,
+                                          price=price,
+                                          stop_loss=stop_loss,
+                                          take_proft=take_proft,
+                                          time_in_force=time_in_force,
+                                          sl_trigger_by=sl_trigger_by,
+                                          tp_trigger_by=tp_trigger_by,
+                                          order_link_id=order_link_id,
+                                          reduce_only=reduce_only,
+                                          close_on_trigger=close_on_trigger,
+                                          position_idx=position_idx)
     return response
 
 
@@ -223,9 +223,9 @@ def place_conditional_order(session: usdt_perpetual.HTTP,
                             order_type: str,
                             side: str,
                             qty: int,
-                            price: float,
-                            base_price: float,
-                            stop_px: float,
+                            price: float = None,
+                            base_price: float = None,
+                            stop_px: float = None,
                             time_in_force: str = "FillOrKill",
                             trigger_by: str = "LastPrice",
                             order_link_id: str = None,

@@ -301,6 +301,7 @@ class AccountData:
             Optional unique order id to identify order
         reduce_only: bool = False
             If true, the position can only reduce in size and no stop loss or profit taking is possible.
+            Use reduce_only = True if you want to close entire positions by setting a large quantity
         close_on_trigger: bool = False
             This flag will enforce liquidiation of other positions if trigger is met and not enough margin is available.
             Only relevant for a closing orders. It can only reduce your position not increase it.

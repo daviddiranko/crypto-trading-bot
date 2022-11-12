@@ -2,7 +2,18 @@ import pandas as pd
 from typing import List, Dict, Any
 import unittest
 import json
-from src.endpoints.bybit_functions import format_klines
+from src.endpoints.bybit_functions import *
+from pybit import usdt_perpetual
+from dotenv import load_dotenv
+import os
+import time
+
+load_dotenv()
+
+BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
+BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
+
+BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
 
 
 class TestBybitFunctions(unittest.TestCase):
@@ -32,8 +43,55 @@ class TestBybitFunctions(unittest.TestCase):
             "timestamp_e6": 1667461837466318
         }
 
+        self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                           api_key=BYBIT_TEST_KEY,
+                                           api_secret=BYBIT_TEST_SECRET)
+
     def test_format_klines(self):
 
         extraction = format_klines(self.success_message)
 
         self.assertEqual(extraction, self.success['data'][0])
+
+    def test_place_order(self):
+        try:
+            self.session.set_leverage(symbol='BTCUSDT',
+                                      sell_leverage=1,
+                                      buy_leverage=1)
+        except:
+            pass
+        response_buy = place_order(session=self.session,
+                                   symbol='BTCUSDT',
+                                   order_type='Market',
+                                   side='Buy',
+                                   qty=0.001)
+
+        while self.session.get_active_order(
+                symbol='BTCUSDT'
+        )['result']['data'][-1]['order_status'] != 'Filled':
+            time.sleep(1)
+
+        balance_1 = initialize_account_data(session=self.session,
+                                            symbols=['BTC', 'USDT'])
+        wallet_diff_usdt = balance_1['wallet']['USDT']['equity'] - balance_1[
+            'wallet']['USDT']['available_balance']
+        self.assertEqual(response_buy['ret_code'], 0)
+        self.assertEqual(response_buy['ret_msg'], "OK")
+        self.assertAlmostEqual(
+            balance_1['position']['BTCUSDT']['position_value'],
+            wallet_diff_usdt)
+        response_sell = place_order(session=self.session,
+                                    symbol='BTCUSDT',
+                                    order_type='Market',
+                                    side='Sell',
+                                    qty=1,
+                                    reduce_only=True)
+        while self.session.get_active_order(
+                symbol='BTCUSDT'
+        )['result']['data'][-1]['order_status'] != 'Filled':
+            time.sleep(1)
+        balance_2 = initialize_account_data(session=self.session,
+                                            symbols=['BTC', 'USDT'])
+        self.assertEqual(response_sell['ret_code'], 0)
+        self.assertEqual(response_sell['ret_msg'], "OK")
+        self.assertEqual(balance_2['position']['BTCUSDT']['position_value'], 0)
