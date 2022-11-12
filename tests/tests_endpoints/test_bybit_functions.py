@@ -47,6 +47,22 @@ class TestBybitFunctions(unittest.TestCase):
                                            api_key=BYBIT_TEST_KEY,
                                            api_secret=BYBIT_TEST_SECRET)
 
+    def tearDown(self):
+        try:
+            place_order(session=self.session,
+                        symbol='BTCUSDT',
+                        order_type='Market',
+                        side='Sell',
+                        qty=10,
+                        reduce_only=True)
+        except:
+            pass
+
+        try:
+            self.session.cancel_all_conditional_orders(symbol='BTCUSDT')
+        except:
+            pass
+
     def test_format_klines(self):
 
         extraction = format_klines(self.success_message)
@@ -95,3 +111,22 @@ class TestBybitFunctions(unittest.TestCase):
         self.assertEqual(response_sell['ret_code'], 0)
         self.assertEqual(response_sell['ret_msg'], "OK")
         self.assertEqual(balance_2['position']['BTCUSDT']['position_value'], 0)
+
+
+def test_place_conditional_order(self):
+    try:
+        self.session.set_leverage(symbol='BTCUSDT',
+                                  sell_leverage=1,
+                                  buy_leverage=1)
+    except:
+        pass
+    response_buy = place_conditional_order(session=self.session,
+                                           symbol='BTCUSDT',
+                                           order_type='Market',
+                                           side='Buy',
+                                           qty=0.001)
+
+    self.assertEqual(response_buy['ret_code'], 0)
+    self.assertEqual(response_buy['ret_msg'], "OK")
+
+    self.session.cancel_all_conditional_orders(symbol='BTCUSDT')

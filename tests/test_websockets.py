@@ -11,6 +11,7 @@ import asyncio
 from dotenv import load_dotenv
 import os
 import unittest
+from src.endpoints.bybit_functions import place_order, place_conditional_order
 
 load_dotenv()
 
@@ -59,15 +60,43 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
         self.start = 10
         self.start_unit = 'm'
 
+        # initialize http connection for trading
+        self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                           api_key=BYBIT_TEST_KEY,
+                                           api_secret=BYBIT_TEST_SECRET)
+
+        # set leverage to 1
+        try:
+            self.session.set_leverage(symbol='BTCUSDT',
+                                      sell_leverage=1,
+                                      buy_leverage=1)
+        except:
+            pass
+
+    def tearDown(self):
+        try:
+            place_order(session=self.session,
+                        symbol='BTCUSDT',
+                        order_type='Market',
+                        side='Sell',
+                        qty=10,
+                        reduce_only=True)
+        except:
+            pass
+        try:
+            place_conditional_order(session=self.session,
+                                    symbol='BTCUSDT',
+                                    order_type='Market',
+                                    side='Sell',
+                                    qty=10,
+                                    reduce_only=True)
+        except:
+            pass
+
     async def test_connections(self):
         # start listening to the public and private websockets "in parallel"
         async with websockets.connect(self.public_url) as ws_public, \
                     websockets.connect(self.private_url) as ws_private:
-
-            # initialize http connection for trading
-            session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                                          api_key=BYBIT_TEST_KEY,
-                                          api_secret=BYBIT_TEST_SECRET)
 
             # pull historical data from binance and add to market data history
             binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
@@ -120,12 +149,23 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
             asyncio.create_task(transmit(ws_public, 'public_source'))
             asyncio.create_task(transmit(ws_private, 'private_source'))
 
-            # Wait for 10 seconds to receive success messages and data from all endpoints
-            t_end = time.time() + 5
+            # Wait for 5 seconds to receive success messages and data from all endpoints
+            # Then place a market buy order and wait another 5 seconds for fulfillment
+            t_trade = time.time() + 5
+            t_end = t_trade + 10
+
+            # initialize traded flag to ensure that only one order is placed
+            traded = False
+
             while time.time() < t_end:
+
+                # load new message
                 source, msg = await channel.get()
                 response = json.loads(msg)
 
+                # try to collect a success message, otherwise extract data from public topic
+                # messages are tracked in a dictionary to count topics from which messages were received
+                # if message contains data and 5+ seconds have passed, place a market order
                 if source == 'public_source':
                     try:
                         topics = response['request']['args']
@@ -140,6 +180,22 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
                                     PUBLIC_TOPICS_COLUMNS):
                                 public_topics_data[topic] = True
 
+                            if time.time() > t_trade and not traded:
+                                order = place_order(session=self.session,
+                                                    symbol='BTCUSDT',
+                                                    order_type='Market',
+                                                    side='Buy',
+                                                    qty=0.001)
+
+                                conditional_order = place_conditional_order(
+                                    session=self.session,
+                                    symbol='BTCUSDT',
+                                    order_type='Market',
+                                    side='Buy',
+                                    qty=0.001,
+                                    base_price=10,
+                                    stop_px=10)
+                                traded = True
                         except:
                             pass
 
@@ -156,7 +212,6 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
                             if set(response['data'][0].keys()) == set(
                                     PRIVATE_TOPICS_COLUMNS[topic]):
                                 private_topics_data[topic] = True
-
                         except:
                             pass
 
@@ -165,6 +220,4 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sum(private_topics_success.values()),
                          len(PRIVATE_TOPICS))
         self.assertEqual(sum(public_topics_data.values()), len(PUBLIC_TOPICS))
-        # self.assertEqual(sum(private_topics_data.values()), len(PRIVATE_TOPICS))
-
-        # TODO Add mock trade and monitor account endpoint updates
+        self.assertEqual(sum(private_topics_data.values()), len(PRIVATE_TOPICS))
