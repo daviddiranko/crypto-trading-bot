@@ -28,7 +28,7 @@ class TradingModel:
                  account: AccountData,
                  model: Any,
                  model_storage: Dict[str, Any] = {},
-                 **model_args: Dict[str, Any]):
+                 model_args: Dict[str, Any] = {}):
         '''
         Parameters
         ----------
@@ -41,7 +41,7 @@ class TradingModel:
             function that holds the trading logic
         model_storage: Dict[str, Any]
             additional storage so that the trading model can store results
-        model_args: *kwargs
+        model_args: Dict[str, Any]
             optional additional parameters for the trading model
         '''
 
@@ -67,12 +67,12 @@ class TradingModel:
         try:
             # extract topic
             topic = msg['topic']
-
             # if public topic, forward to market_data and trigger model
             if topic in PUBLIC_TOPICS:
 
                 self.market_data.on_message(message)
-                self.model(self, **self.model_args)
+                print(topic)
+                self.model(model=self)
                 return True
 
             # if private topic, forward to account
