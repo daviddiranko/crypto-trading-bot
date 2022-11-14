@@ -12,6 +12,11 @@ from dotenv import load_dotenv
 import os
 import unittest
 from src.endpoints.bybit_functions import place_order, place_conditional_order
+from src.TradingModel import TradingModel
+from src.MarketData import MarketData
+from src.AccountData import AccountData
+from src.models.mock_model import mock_model
+from src.endpoints.binance_functions import format_historical_klines
 
 load_dotenv()
 
@@ -59,7 +64,7 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
         self.frequency_unit = 'm'
         self.start = 10
         self.start_unit = 'm'
-
+        self.ticker = 'BTCUSDT'
         # initialize http connection for trading
         self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                            api_key=BYBIT_TEST_KEY,
@@ -67,16 +72,16 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
 
         # set leverage to 1
         try:
-            self.session.set_leverage(symbol='BTCUSDT',
+            self.session.set_leverage(symbol=self.ticker,
                                       sell_leverage=1,
                                       buy_leverage=1)
         except:
             pass
 
-    def tearDown(self):
+        # close all possible open positions
         try:
             place_order(session=self.session,
-                        symbol='BTCUSDT',
+                        symbol=self.ticker,
                         order_type='Market',
                         side='Sell',
                         qty=10,
@@ -85,7 +90,27 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
             pass
         try:
             place_conditional_order(session=self.session,
-                                    symbol='BTCUSDT',
+                                    symbol=self.ticker,
+                                    order_type='Market',
+                                    side='Sell',
+                                    qty=10,
+                                    reduce_only=True)
+        except:
+            pass
+
+    def tearDown(self):
+        try:
+            place_order(session=self.session,
+                        symbol=self.ticker,
+                        order_type='Market',
+                        side='Sell',
+                        qty=10,
+                        reduce_only=True)
+        except:
+            pass
+        try:
+            place_conditional_order(session=self.session,
+                                    symbol=self.ticker,
                                     order_type='Market',
                                     side='Sell',
                                     qty=10,
@@ -182,14 +207,14 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
 
                             if time.time() > t_trade and not traded:
                                 order = place_order(session=self.session,
-                                                    symbol='BTCUSDT',
+                                                    symbol=self.ticker,
                                                     order_type='Market',
                                                     side='Buy',
                                                     qty=0.001)
 
                                 conditional_order = place_conditional_order(
                                     session=self.session,
-                                    symbol='BTCUSDT',
+                                    symbol=self.ticker,
                                     order_type='Market',
                                     side='Buy',
                                     qty=0.001,
@@ -221,3 +246,106 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
                          len(PRIVATE_TOPICS))
         self.assertEqual(sum(public_topics_data.values()), len(PUBLIC_TOPICS))
         self.assertEqual(sum(private_topics_data.values()), len(PRIVATE_TOPICS))
+
+    async def test_system(self):
+
+        # initialize MarketData, AccountData and TradingModel objects
+        market_data = MarketData(topics=PUBLIC_TOPICS)
+        account_data = AccountData(http_session=self.session,
+                                   symbols=[self.ticker[:3], self.ticker[3:]])
+        model = TradingModel(market_data=market_data,
+                             account=account_data,
+                             model=mock_model,
+                             model_args={'open': True},
+                             model_storage={
+                                 'open': False,
+                                 'close': False
+                             })
+
+        # pull historical data from binance and add to market data history
+        binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
+
+        # construct start string
+        start_str = str(self.start) + ' ' + self.start_unit + ' ago'
+
+        # load history as list of lists from binance
+        msg = binance_client.get_historical_klines(
+            self.ticker,
+            interval=str(self.frequency) + self.frequency_unit,
+            start_str=start_str)
+
+        # format payload to dataframe
+        klines = format_historical_klines(msg)
+
+        model.market_data.add_history(topic=PUBLIC_TOPICS[0], data=klines)
+
+        wallet_start = model.account.wallet['USDT']
+
+        # start listening to the public and private websockets "in parallel"
+        async with websockets.connect(self.private_url) as ws_private, \
+                    websockets.connect(self.public_url) as ws_public:
+
+            # subscribe to public and private topics
+            await ws_public.send(
+                json.dumps({
+                    "op": "subscribe",
+                    "args": PUBLIC_TOPICS
+                }))
+            await ws_private.send(
+                json.dumps({
+                    "op": "auth",
+                    "args": [BYBIT_TEST_KEY, self.expires, self.signature]
+                }))
+            await ws_private.send(
+                json.dumps({
+                    "op": "subscribe",
+                    "args": PRIVATE_TOPICS
+                }))
+
+            # create a task queue of websocket messages
+            channel = asyncio.Queue()
+
+            async def transmit(w, source):
+                while True:
+                    msg = await w.recv()
+                    await channel.put((source, msg))
+
+            # create tasks for reception of public and private messages
+            asyncio.create_task(transmit(ws_public, 'public_source'))
+            asyncio.create_task(transmit(ws_private, 'private_source'))
+
+            start_time = time.time()
+            while time.time() < start_time + 5:
+                source, msg = await channel.get()
+                model.on_message(msg)
+                if not model.model_storage['open'] or not model.model_storage[
+                        'close']:
+                    start_time = time.time()
+
+        order_keys = list(model.account.orders['BTCUSDT'].keys())
+        execution_keys = list(model.account.executions['BTCUSDT'].keys())
+        order_fee = model.account.orders['BTCUSDT'][
+            order_keys[1]]['cum_exec_fee'] + model.account.orders['BTCUSDT'][
+                order_keys[0]]['cum_exec_fee']
+        exec_fee = model.account.executions['BTCUSDT'][
+            order_keys[1]]['exec_fee'] + model.account.executions['BTCUSDT'][
+                order_keys[0]]['exec_fee']
+        order_profit = model.account.orders['BTCUSDT'][
+            order_keys[1]]['cum_exec_value'] - model.account.orders['BTCUSDT'][
+                order_keys[0]]['cum_exec_value']
+        exec_profit = model.account.executions['BTCUSDT'][order_keys[1]][
+            'price'] * model.account.executions['BTCUSDT'][order_keys[1]][
+                'exec_qty'] - model.account.executions['BTCUSDT'][order_keys[
+                    0]]['price'] * model.account.executions['BTCUSDT'][
+                        order_keys[0]]['exec_qty']
+        wallet_balance = model.account.wallet['USDT'][
+            'available_balance'] - wallet_start['available_balance']
+        available_balance = model.account.wallet['USDT'][
+            'available_balance'] - wallet_start['available_balance']
+        self.assertListEqual(order_keys, execution_keys)
+        self.assertEqual(order_fee, exec_fee)
+        self.assertEqual(order_profit, exec_profit)
+        self.assertEqual(wallet_balance, available_balance)
+        self.assertAlmostEqual(wallet_balance,
+                               order_profit - order_fee,
+                               places=2)

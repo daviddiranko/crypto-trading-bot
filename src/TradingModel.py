@@ -71,7 +71,6 @@ class TradingModel:
             if topic in PUBLIC_TOPICS:
 
                 self.market_data.on_message(message)
-                print(topic)
                 self.model(model=self)
                 return True
 
