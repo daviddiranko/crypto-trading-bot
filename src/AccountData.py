@@ -317,7 +317,7 @@ class AccountData:
             response body from bybit
         '''
 
-        response = place_conditional_order(session=self.session,
+        response = place_order(session=self.session,
                                            symbol=symbol,
                                            order_type=order_type,
                                            side=side,
