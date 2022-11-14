@@ -318,20 +318,20 @@ class AccountData:
         '''
 
         response = place_order(session=self.session,
-                                           symbol=symbol,
-                                           order_type=order_type,
-                                           side=side,
-                                           qty=qty,
-                                           price=price,
-                                           stop_loss=stop_loss,
-                                           take_proft=take_proft,
-                                           time_in_force=time_in_force,
-                                           sl_trigger_by=sl_trigger_by,
-                                           tp_trigger_by=tp_trigger_by,
-                                           order_link_id=order_link_id,
-                                           reduce_only=reduce_only,
-                                           close_on_trigger=close_on_trigger,
-                                           position_idx=position_idx)
+                               symbol=symbol,
+                               order_type=order_type,
+                               side=side,
+                               qty=qty,
+                               price=price,
+                               stop_loss=stop_loss,
+                               take_proft=take_proft,
+                               time_in_force=time_in_force,
+                               sl_trigger_by=sl_trigger_by,
+                               tp_trigger_by=tp_trigger_by,
+                               order_link_id=order_link_id,
+                               reduce_only=reduce_only,
+                               close_on_trigger=close_on_trigger,
+                               position_idx=position_idx)
         return response
 
     def place_conditional_order(

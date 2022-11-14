@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append('../')
 
 import hmac
@@ -24,11 +25,11 @@ from src.endpoints.bybit_functions import format_klines, place_order, place_cond
 # load environment variables
 load_dotenv()
 
-BYBIT_TEST_KEY=os.getenv('BYBIT_TEST_KEY')
-BYBIT_TEST_SECRET=os.getenv('BYBIT_TEST_SECRET')
+BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
+BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
 
-BINANCE_KEY=os.getenv('BINANCE_KEY')
-BINANCE_SECRET=os.getenv('BINANCE_SECRET')
+BINANCE_KEY = os.getenv('BINANCE_KEY')
+BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 
 BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
 
@@ -42,22 +43,18 @@ PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
 
-
 async def main():
     # Generate expires.
     expires = int((time.time() + 7200) * 1000)
 
     # Generate signature.
-    signature = str(hmac.new(
-        bytes(BYBIT_TEST_SECRET, "utf-8"),
-        bytes(f"GET/realtime{expires}", "utf-8"), digestmod="sha256"
-    ).hexdigest())
+    signature = str(
+        hmac.new(bytes(BYBIT_TEST_SECRET, "utf-8"),
+                 bytes(f"GET/realtime{expires}", "utf-8"),
+                 digestmod="sha256").hexdigest())
 
     param = "api_key={api_key}&expires={expires}&signature={signature}".format(
-        api_key=BYBIT_TEST_KEY,
-        expires=expires,
-        signature=signature
-    )
+        api_key=BYBIT_TEST_KEY, expires=expires, signature=signature)
 
     # generate websocket urls
     public_url = WS_PUBLIC_TEST_URL + "?" + param
@@ -65,22 +62,28 @@ async def main():
 
     # generate parameters for historical data
     ticker = "BTCUSDT"
-    frequency=1
-    frequency_unit='m'
-    start=10
-    start_unit='m'
+    frequency = 1
+    frequency_unit = 'm'
+    start = 10
+    start_unit = 'm'
 
     # initialize http connection for trading
-    session = usdt_perpetual.HTTP(
-        endpoint=BYBIT_TEST_ENDPOINT,
-        api_key=BYBIT_TEST_KEY,
-        api_secret=BYBIT_TEST_SECRET
-    )
+    session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                  api_key=BYBIT_TEST_KEY,
+                                  api_secret=BYBIT_TEST_SECRET)
 
     # initialize MarketData, AccountData and TradingModel objects
     market_data = MarketData(topics=PUBLIC_TOPICS)
-    account_data = AccountData(http_session=session, symbols=[ticker[:3], ticker[3:]])
-    model = TradingModel(market_data=market_data, account=account_data, model=mock_model, model_args={'open':True}, model_storage={'open':False, 'close':False})
+    account_data = AccountData(http_session=session,
+                               symbols=[ticker[:3], ticker[3:]])
+    model = TradingModel(market_data=market_data,
+                         account=account_data,
+                         model=mock_model,
+                         model_args={'open': True},
+                         model_storage={
+                             'open': False,
+                             'close': False
+                         })
 
     # pull historical data from binance and add to market data history
     binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
@@ -90,9 +93,9 @@ async def main():
 
     # load history as list of lists from binance
     msg = binance_client.get_historical_klines(ticker,
-                                        interval=str(frequency) + frequency_unit,
-                                        start_str=start_str)
-
+                                               interval=str(frequency) +
+                                               frequency_unit,
+                                               start_str=start_str)
 
     # format payload to dataframe
     klines = format_historical_klines(msg)
@@ -106,28 +109,37 @@ async def main():
                     websockets.connect(public_url) as ws_public:
 
             # subscribe to public and private topics
-            await ws_public.send(json.dumps({"op":"subscribe","args":PUBLIC_TOPICS}))
-            await ws_private.send(json.dumps({
+            await ws_public.send(
+                json.dumps({
+                    "op": "subscribe",
+                    "args": PUBLIC_TOPICS
+                }))
+            await ws_private.send(
+                json.dumps({
                     "op": "auth",
                     "args": [BYBIT_TEST_KEY, expires, signature]
                 }))
-            await ws_private.send(json.dumps({"op":"subscribe","args":PRIVATE_TOPICS}))
+            await ws_private.send(
+                json.dumps({
+                    "op": "subscribe",
+                    "args": PRIVATE_TOPICS
+                }))
 
             # create a task queue of websocket messages
             channel = asyncio.Queue()
+
             async def transmit(w, source):
                 while True:
                     msg = await w.recv()
                     message = json.loads(msg)
                     # only include full candlesticks to avoid spamming
                     try:
-                        if message['data'][0]['confirm']==True:
+                        if message['data'][0]['confirm'] == True:
                             await channel.put((source, msg))
                     except:
                         await channel.put((source, msg))
                     await channel.put((source, msg))
-                    
-            
+
             # create tasks for reception of public and private messages
             asyncio.create_task(transmit(ws_public, 'public_source'))
             asyncio.create_task(transmit(ws_private, 'private_source'))
