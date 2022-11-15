@@ -70,15 +70,15 @@ class TradingModel:
             # if public topic, forward to market_data and trigger model
             if topic in PUBLIC_TOPICS:
 
-                self.market_data.on_message(message)
+                response = self.market_data.on_message(message)
                 self.model(model=self)
-                return True
+                return response
 
             # if private topic, forward to account
             elif topic in PRIVATE_TOPICS:
 
-                self.account.on_message(message)
-                return False
+                response = self.account.on_message(message)
+                return response
 
             else:
                 print('topic: {} is not known'.format(topic))

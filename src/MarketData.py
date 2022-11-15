@@ -24,7 +24,7 @@ class MarketData:
     '''
 
     # create new marketdata object with empty dataframe
-    def __init__(self, topics: List[str]):
+    def __init__(self, topics: List[str] = PUBLIC_TOPICS):
         '''
         Parameters
         ----------

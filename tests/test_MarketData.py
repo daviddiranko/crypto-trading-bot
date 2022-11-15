@@ -25,7 +25,7 @@ class TestMarketData(unittest.TestCase):
         self.failure_message_1 = '{"success":true,"ret_msg":"","conn_id":"0645af2a-2a34-476e-bcc6-40baa771c0bf","request":{"op":"subscribe","args":["candle.1.BTCUSDT"]}}'
         self.failure_message_2 = '{"topic":"candle.1.EURUSD","data":[{"start":1667461800,"end":1667461860,"period":"1","open":20282,"close":20280.5,"high":20282.5,"low":20280,"volume":"20.753","turnover":"420912.939","confirm":false,"cross_seq":19909786084,"timestamp":1667461837466318}],"timestamp_e6":1667461837466318}'
         self.success = {
-            "topic": "candle.1.BTCUSDT",
+            "topic": PUBLIC_TOPICS[0],
             "data": [{
                 "start": pd.Timestamp('2022-11-03 07:50:00'),
                 "end": pd.Timestamp('2022-11-03 07:51:00'),
@@ -44,7 +44,7 @@ class TestMarketData(unittest.TestCase):
         }
 
         self.success_2 = {
-            "topic": "candle.1.BTCUSDT",
+            "topic": PUBLIC_TOPICS[0],
             "data": [{
                 "start": pd.Timestamp('2022-11-03 07:51:00'),
                 "end": pd.Timestamp('2022-11-03 07:52:00'),
@@ -72,12 +72,12 @@ class TestMarketData(unittest.TestCase):
         history_1.loc[self.success['data'][0]['end']] = self.success['data'][0]
 
         pd.testing.assert_frame_equal(
-            self.market_data.history["candle.1.BTCUSDT"], history_1)
+            self.market_data.history[PUBLIC_TOPICS[0]], history_1)
 
         data_2 = self.market_data.on_message(self.success_message)
 
         pd.testing.assert_frame_equal(
-            self.market_data.history["candle.1.BTCUSDT"], history_1)
+            self.market_data.history[PUBLIC_TOPICS[0]], history_1)
 
         data_3 = self.market_data.on_message(self.success_message_3)
         history_3 = history_1.copy()
@@ -87,7 +87,7 @@ class TestMarketData(unittest.TestCase):
         self.assertFalse(failure_1)
         self.assertFalse(failure_2)
         pd.testing.assert_frame_equal(
-            self.market_data.history["candle.1.BTCUSDT"], history_3)
+            self.market_data.history[PUBLIC_TOPICS[0]], history_3)
 
     def test_add_history(self):
 
@@ -110,13 +110,12 @@ class TestMarketData(unittest.TestCase):
             "timestamp": 1667461837466318
         }
 
-        history = pd.concat(
-            [data, self.market_data.history["candle.1.BTCUSDT"]])
+        history = pd.concat([data, self.market_data.history[PUBLIC_TOPICS[0]]])
 
-        self.market_data.add_history(topic="candle.1.BTCUSDT", data=data)
+        self.market_data.add_history(topic=PUBLIC_TOPICS[0], data=data)
 
         pd.testing.assert_frame_equal(
-            history, self.market_data.history["candle.1.BTCUSDT"])
+            history, self.market_data.history[PUBLIC_TOPICS[0]])
 
         self.assertListEqual(list(history.index), [
             pd.Timestamp('2022-11-03 07:50:00'),
