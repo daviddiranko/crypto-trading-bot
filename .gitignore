@@ -131,6 +131,3 @@ dmypy.json
 
 # ignore notebooks
 notebooks
-
-# ignore models
-models
