@@ -55,6 +55,10 @@ class TestBybitFunctions(unittest.TestCase):
                         side='Sell',
                         qty=10,
                         reduce_only=True)
+            while self.session.get_active_order(
+                    symbol='BTCUSDT'
+            )['result']['data'][-1]['order_status'] != 'Filled':
+                time.sleep(1)
         except:
             pass
 
@@ -87,6 +91,7 @@ class TestBybitFunctions(unittest.TestCase):
         )['result']['data'][-1]['order_status'] != 'Filled':
             time.sleep(1)
 
+        time.sleep(1)
         balance_1 = initialize_account_data(session=self.session,
                                             symbols=['BTC', 'USDT'])
         wallet_diff_usdt = balance_1['wallet']['USDT']['equity'] - balance_1[
@@ -107,6 +112,7 @@ class TestBybitFunctions(unittest.TestCase):
                 symbol='BTCUSDT'
         )['result']['data'][-1]['order_status'] != 'Filled':
             time.sleep(1)
+        time.sleep(1)
         balance_2 = initialize_account_data(session=self.session,
                                             symbols=['BTC', 'USDT'])
         self.assertEqual(response_sell['ret_code'], 0)
