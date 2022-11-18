@@ -95,7 +95,8 @@ class TestBybitFunctions(unittest.TestCase):
         self.assertEqual(response_buy['ret_msg'], "OK")
         self.assertAlmostEqual(
             balance_1['position']['BTCUSDT']['position_value'],
-            wallet_diff_usdt)
+            wallet_diff_usdt,
+            places=3)
         response_sell = place_order(session=self.session,
                                     symbol='BTCUSDT',
                                     order_type='Market',
