@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 import os
 from binance.client import Client
-from src.endpoints import binance_functions
+from src.endpoints import binance_functions, bybit_functions
 from src.AccountData import AccountData
 
 load_dotenv()
@@ -14,6 +14,7 @@ load_dotenv()
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
+PUBLIC_TOPIC_MAPPING = eval(os.getenv('PUBLIC_TOPIC_MAPPING'))
 
 class BacktestAccountData(AccountData):
     '''
@@ -150,21 +151,23 @@ class BacktestAccountData(AccountData):
             sign_old_1 = ((pos_old_1['side']=='Buy')-0.5)*2
             sign_old_2 = ((pos_old_2['side']=='Buy')-0.5)*2
 
+            # determine actually traded qty
+            true_qty = (1-reduce_only)*qty+reduce_only*pos_old_1['size']
             # update positions
             self.update_positions([{
                 "symbol": symbol[:3],
-                "size": abs(sign_old_1*pos_old_1['size']+sign*qty),
-                "side": ["Buy" if sign_old_1*pos_old_1['size']+sign*qty>0 else "Sell"][0],
-                "position_value": abs(sign_old_1*pos_old_1['position_value']+sign*qty*trade_price),
+                "size": abs(sign_old_1*pos_old_1['size']+sign*true_qty),
+                "side": ["Buy" if sign_old_1*pos_old_1['size']+sign*true_qty>0 else "Sell"][0],
+                "position_value": abs(sign_old_1*pos_old_1['position_value']+sign*true_qty*trade_price),
                 "take_profit": take_profit or pos_old_1['take_profit'],
                 "stop_loss": stop_loss or pos_old_1['stop_loss']
                 },{
                 "symbol": symbol[3:],
-                "size": abs(sign_old_2*pos_old_2['size']-sign*qty*trade_price),
-                "side": ["Buy" if sign_old_2*pos_old_2['size']-sign*qty>0 else "Sell"][0],
-                "position_value": abs(sign_old_2*pos_old_2['position_value']-sign*qty*trade_price),
-                "take_profit": take_profit or pos_old_2['take_profit'],
-                "stop_loss": stop_loss or pos_old_2['stop_loss']
+                "size": abs(sign_old_2*pos_old_2['size']-sign*true_qty*trade_price),
+                "side": ["Buy" if sign_old_2*pos_old_2['size']-sign*true_qty>0 else "Sell"][0],
+                "position_value": abs(sign_old_2*pos_old_2['position_value']-sign*true_qty*trade_price),
+                "take_profit": pos_old_2['take_profit'],
+                "stop_loss": pos_old_2['stop_loss']
                 }])
             
             old_wallet_1 = self.wallet[symbol[:3]]
@@ -173,12 +176,12 @@ class BacktestAccountData(AccountData):
             # update wallets
             self.update_wallet([{
                 "coin": symbol[:3],
-                "available_balance": old_wallet_1["available_balnce"]+sign*qty,
-                "wallet_balance": old_wallet_1["available_balnce"]+sign*qty
+                "available_balance": old_wallet_1["available_balnce"]+sign*true_qty,
+                "wallet_balance": old_wallet_1["available_balnce"]+sign*true_qty
             }, {
                 "coin": symbol[3:],
-                "available_balance": old_wallet_2["available_balnce"]-sign*qty*trade_price-0.0001*qty*trade_price,
-                "wallet_balance": old_wallet_2["available_balnce"]-sign*qty*trade_price-0.0001*qty*trade_price
+                "available_balance": old_wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
+                "wallet_balance": old_wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
             }])
 
             # update executions
@@ -188,10 +191,10 @@ class BacktestAccountData(AccountData):
                 "order_id": len(self.executions["symbol"].keys())+1,
                 "exec_id": len(self.executions["symbol"].keys())+1,
                 "price": trade_price,
-                "order_qty": qty,
+                "order_qty": true_qty,
                 "exec_type": "Trade",
-                "exec_qty": qty,
-                "exec_fee": 0.0001*qty*trade_price,
+                "exec_qty": true_qty,
+                "exec_fee": 0.0001*true_qty*trade_price,
                 "trade_time": order_time
             }])
         
@@ -200,13 +203,15 @@ class BacktestAccountData(AccountData):
 
         return None
 
-    def new_market_data(kline: Dict[str, Any]) -> bool:
+    def new_market_data(self, topic: str, data: Dict[str, Any]) -> bool:
         '''
         If new candle is received update all orders, executions, positions and wallet.
 
         Parameters
         ----------
-        kline: Dict[str, Any]
+        topic: str
+            public topic of data
+        data: Dict[str, Any]
             new candle stick data
         '''
 
@@ -215,4 +220,68 @@ class BacktestAccountData(AccountData):
         # check limit orders for triggers -> open position and update orders, executions and wallet
         # update positions and wallet according to close price -> update balances, margins, etc.
 
+        # iterate through potential stop losses or take profits
+        for pos in self.positions[PUBLIC_TOPIC_MAPPING[topic][:3]]:
+            side =pos['side']
+            symbol = PUBLIC_TOPIC_MAPPING[topic]
+
+            if pos['stop_loss']>=data['low']:
+                # determine direction of trade buy=1, sell=-1
+                sign = ((side=='Buy')-0.5)*2
+                trade_price = pos['stop_loss']
+                # determine direction of old positions
+                pos_old_1 = self.positions[symbol[:3]]
+                pos_old_2 = self.positions[symbol[3:]]
+
+                sign_old_1 = ((pos_old_1['side']=='Buy')-0.5)*2
+                sign_old_2 = ((pos_old_2['side']=='Buy')-0.5)*2
+
+                # determine actually traded qty
+                true_qty = pos_old_1['size']
+                # update positions
+                self.update_positions([{
+                    "symbol": symbol[:3],
+                    "size": abs(sign_old_1*pos_old_1['size']+sign*true_qty),
+                    "side": ["Buy" if sign_old_1*pos_old_1['size']+sign*true_qty>0 else "Sell"][0],
+                    "position_value": abs(sign_old_1*pos_old_1['position_value']+sign*true_qty*trade_price),
+                    "take_profit": None,
+                    "stop_loss": None
+                    },{
+                    "symbol": symbol[3:],
+                    "size": abs(sign_old_2*pos_old_2['size']-sign*true_qty*trade_price),
+                    "side": ["Buy" if sign_old_2*pos_old_2['size']-sign*true_qty>0 else "Sell"][0],
+                    "position_value": abs(sign_old_2*pos_old_2['position_value']-sign*true_qty*trade_price),
+                    "take_profit": pos_old_2['take_profit'],
+                    "stop_loss": pos_old_2['stop_loss']
+                    }])
+                
+                old_wallet_1 = self.wallet[symbol[:3]]
+                old_wallet_2 = self.wallet[symbol[3:]]
+                
+                # update wallets
+                self.update_wallet([{
+                    "coin": symbol[:3],
+                    "available_balance": old_wallet_1["available_balnce"]+sign*true_qty,
+                    "wallet_balance": old_wallet_1["available_balnce"]+sign*true_qty
+                }, {
+                    "coin": symbol[3:],
+                    "available_balance": old_wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
+                    "wallet_balance": old_wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
+                }])
+
+                # update executions
+                self.update_executions([{
+                    "symbol": symbol,
+                    "side": side,
+                    "order_id": len(self.executions["symbol"].keys())+1,
+                    "exec_id": len(self.executions["symbol"].keys())+1,
+                    "price": trade_price,
+                    "order_qty": true_qty,
+                    "exec_type": "Trade",
+                    "exec_qty": true_qty,
+                    "exec_fee": 0.0001*true_qty*trade_price,
+                    "trade_time": data['end']
+                }])
+            
+            
         return True

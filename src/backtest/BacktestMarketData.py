@@ -84,7 +84,7 @@ class BacktestMarketData(MarketData):
                 self.history[topic].loc[data['end']] = data
 
                 # trigger account data update
-                self.account.new_market_data(data)
+                self.account.new_market_data(topic=topic, data=data)
 
                 return data
             else:

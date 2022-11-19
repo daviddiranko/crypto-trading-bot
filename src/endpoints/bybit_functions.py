@@ -20,7 +20,7 @@ def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
 
     Returns
     -------
-    df: Dict[str, Any]
+    data: Dict[str, Any]
         formatted json payload
     '''
 
