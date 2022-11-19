@@ -6,9 +6,9 @@ import json
 from dotenv import load_dotenv
 import os
 from typing import Any, Dict
-from .MarketData import MarketData
-from .AccountData import AccountData
-
+from src.backtest.BacktestMarketData import BacktestMarketData
+from src.backtest.BacktestAccountData import BacktestAccountData
+from src.TradingModel import TradingModel
 load_dotenv()
 
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
@@ -17,15 +17,15 @@ PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
 
-class TradingModel:
+class BacktestTradingModel(TradingModel):
     '''
-    Class that wraps the trading model, market data and account data
+    Class that wraps the backtest trading model, backtest market data and backtest account data.
     '''
 
     # create new Model object
     def __init__(self,
-                 market_data: MarketData,
-                 account: AccountData,
+                 market_data: BacktestMarketData,
+                 account: BacktestAccountData,
                  model: Any,
                  model_storage: Dict[str, Any] = {},
                  model_args: Dict[str, Any] = {}):
@@ -45,12 +45,12 @@ class TradingModel:
             optional additional parameters for the trading model
         '''
 
-        # initialize attributes
-        self.market_data = market_data
-        self.account = account
-        self.model = model
-        self.model_storage = model_storage
-        self.model_args = model_args
+        # initialize attributes through inheritance from trading model
+        super().__init__(market_data,
+                 account,
+                 model,
+                 model_storage,
+                 model_args)
 
     def on_message(self, message: json) -> bool:
         '''

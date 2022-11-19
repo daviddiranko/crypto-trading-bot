@@ -3,7 +3,7 @@
 
 import pandas as pd
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List
 from dotenv import load_dotenv
 import os
 from pybit import usdt_perpetual
