@@ -225,10 +225,12 @@ class BacktestAccountData(AccountData):
             side =pos['side']
             symbol = PUBLIC_TOPIC_MAPPING[topic]
 
-            if pos['stop_loss']>=data['low']:
+            if pos['stop_loss']>=data['low'] or pos['take_profit']<=data['high']:
+                
                 # determine direction of trade buy=1, sell=-1
                 sign = ((side=='Buy')-0.5)*2
-                trade_price = pos['stop_loss']
+                trade_price = max((pos['stop_loss']>=data['low'])*pos['stop_loss'],(pos['take_profit']<=data['high'])*pos['take_profit'])
+
                 # determine direction of old positions
                 pos_old_1 = self.positions[symbol[:3]]
                 pos_old_2 = self.positions[symbol[3:]]
