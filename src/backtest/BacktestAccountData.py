@@ -2,13 +2,13 @@
 # coding: utf-8
 
 import pandas as pd
-import json
 from typing import Any, Dict, List
 from dotenv import load_dotenv
 import os
 from binance.client import Client
 from src.endpoints import binance_functions
 from src.AccountData import AccountData
+
 load_dotenv()
 
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
@@ -67,12 +67,8 @@ class BacktestAccountData(AccountData):
             "size": 0.0,
             "side": "Buy",
             "position_value": 0.0,
-            "entry_price": 0.0,
-            "liq_price": 0.0,
-            "bust_price": 0.0,
-            "leverage": 1,
-            "order_margin": 0,
-            "position_margin": 0.0} for symbol in symbols}
+            "take_profit": 0.0,
+            "stop_loss": 0.0} for symbol in symbols}
         self.executions = {symbol: {} for symbol in symbols}
         self.orders = {symbol: {} for symbol in symbols}
         self.stop_orders = {symbol: {} for symbol in symbols}
@@ -90,7 +86,7 @@ class BacktestAccountData(AccountData):
                     order_time: pd.Timestamp,
                     price: float = None,
                     stop_loss: float = None,
-                    take_proft: float = None,
+                    take_profit: float = None,
                     reduce_only: bool = False) -> Dict[str, Any]:
         '''
         Place a mock order for backtesting.
@@ -136,13 +132,68 @@ class BacktestAccountData(AccountData):
         kline = msg = self.session.get_historical_klines(symbol, start_str=str(order_time), end_str= str(order_time_1),interval='1m')
 
         # format klines and extract high and low
-        prices = binance_functions.format_historical_klines(msg)
-        low = prices.iloc[0]['low']
-        high = prices.iloc[0]['high']
+        quotes = binance_functions.format_historical_klines(msg)
+        low = quotes.iloc[0]['low']
+        high = quotes.iloc[0]['high']
         
         # determine execution price according to direction of the trade
         if order_type=='Market':
             trade_price = (side=='Buy')*high + (side=='Sell')*low
+            
+            # determine direction of trade buy=1, sell=-1
+            sign = ((side=='Buy')-0.5)*2
+
+            # determine direction of old positions
+            pos_old_1 = self.positions[symbol[:3]]
+            pos_old_2 = self.positions[symbol[3:]]
+
+            sign_old_1 = ((pos_old_1['side']=='Buy')-0.5)*2
+            sign_old_2 = ((pos_old_2['side']=='Buy')-0.5)*2
+
+            # update positions
+            self.update_positions([{
+                "symbol": symbol[:3],
+                "size": abs(sign_old_1*pos_old_1['size']+sign*qty),
+                "side": ["Buy" if sign_old_1*pos_old_1['size']+sign*qty>0 else "Sell"][0],
+                "position_value": abs(sign_old_1*pos_old_1['position_value']+sign*qty*trade_price),
+                "take_profit": take_profit or pos_old_1['take_profit'],
+                "stop_loss": stop_loss or pos_old_1['stop_loss']
+                },{
+                "symbol": symbol[3:],
+                "size": abs(sign_old_2*pos_old_2['size']-sign*qty*trade_price),
+                "side": ["Buy" if sign_old_2*pos_old_2['size']-sign*qty>0 else "Sell"][0],
+                "position_value": abs(sign_old_2*pos_old_2['position_value']-sign*qty*trade_price),
+                "take_profit": take_profit or pos_old_2['take_profit'],
+                "stop_loss": stop_loss or pos_old_2['stop_loss']
+                }])
+            
+            old_wallet_1 = self.wallet[symbol[:3]]
+            old_wallet_2 = self.wallet[symbol[3:]]
+            
+            # update wallets
+            self.update_wallet([{
+                "coin": symbol[:3],
+                "available_balance": old_wallet_1["available_balnce"]+sign*qty,
+                "wallet_balance": old_wallet_1["available_balnce"]+sign*qty
+            }, {
+                "coin": symbol[3:],
+                "available_balance": old_wallet_2["available_balnce"]-sign*qty*trade_price-0.0001*qty*trade_price,
+                "wallet_balance": old_wallet_2["available_balnce"]-sign*qty*trade_price-0.0001*qty*trade_price
+            }])
+
+            # update executions
+            self.update_executions([{
+                "symbol": symbol,
+                "side": side,
+                "order_id": len(self.executions["symbol"].keys())+1,
+                "exec_id": len(self.executions["symbol"].keys())+1,
+                "price": trade_price,
+                "order_qty": qty,
+                "exec_type": "Trade",
+                "exec_qty": qty,
+                "exec_fee": 0.0001*qty*trade_price,
+                "trade_time": order_time
+            }])
         
         # TODO send correct messages to update all account endpoints
 
