@@ -109,7 +109,7 @@ class BacktestAccountData(AccountData):
         order_type: str
             Type of order. Currently only market orders are supported.
         price: float
-            if order_type="Limit": limit price for the order
+            if order_type="Limit": limit price for the order -> Currently not supported.
         stop_loss: float
             stop loss price of order
         take_profit: float
@@ -139,64 +139,115 @@ class BacktestAccountData(AccountData):
             # determine execution price according to direction of the trade
             trade_price = (side=='Buy')*high + (side=='Sell')*low
             
-            # determine direction of trade buy=1, sell=-1
-            sign = ((side=='Buy')-0.5)*2
+            # execute trade
+            execution = self.execute(symbol=symbol, side=side, qty=qty, execution_time=order_time, trade_price=trade_price, stop_loss=stop_loss, take_profit=take_profit, reduce_only=reduce_only)
 
-            # determine direction of old positions
-            pos_1 = self.positions[symbol[:3]]
-            pos_2 = self.positions[symbol[3:]]
 
-            sign_1 = ((pos_1['side']=='Buy')-0.5)*2
-            sign_2 = ((pos_2['side']=='Buy')-0.5)*2
+        return execution
 
-            # determine actually traded qty, since the reduce_only flag only reduces the trade
-            true_qty = (1-reduce_only)*qty+reduce_only*min(qty,pos_1['size'])
+    def execute(self, symbol: str, side: str, qty: int, execution_time: pd.Timestamp, trade_price: float, stop_loss: float, take_profit: float, reduce_only: bool = False) -> Dict[str, Any]:
+        '''
+        Execute mock order, profit taking or stop losses.
+        Update positions, wallets and executions.
 
-            # update positions
-            self.update_positions([{
-                "symbol": symbol[:3],
-                "size": abs(sign_1*pos_1['size']+sign*true_qty),
-                "side": ["Buy" if sign_1*pos_1['size']+sign*true_qty>0 else "Sell"][0],
-                "position_value": abs(sign_1*pos_1['position_value']+sign*true_qty*trade_price),
-                "take_profit": take_profit or pos_1['take_profit'],
-                "stop_loss": stop_loss or pos_1['stop_loss']
-                },{
-                "symbol": symbol[3:],
-                "size": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
-                "side": ["Buy" if sign_2*pos_2['size']-sign*true_qty>0 else "Sell"][0],
-                "position_value": abs(sign_2*pos_2['position_value']-sign*true_qty*trade_price),
-                "take_profit": pos_2['take_profit'],
-                "stop_loss": pos_2['stop_loss']
-                }])
-            
-            wallet_1 = self.wallet[symbol[:3]]
-            wallet_2 = self.wallet[symbol[3:]]
-            
-            # update wallets
-            self.update_wallet([{
-                "coin": symbol[:3],
-                "available_balance": wallet_1["available_balnce"]+sign*true_qty,
-                "wallet_balance": wallet_1["available_balnce"]+sign*true_qty
-            }, {
-                "coin": symbol[3:],
-                "available_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
-                "wallet_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
+        Parameters
+        ----------
+        symbol: str
+            trading pair
+        side: str
+            which side to trade
+            Options:
+                "Buy"
+                "Sell"
+        qty: int
+            number of contracts to trade
+        execution_time: pandas.Timestamp
+            execution timestamp
+        trade_price: float
+            execution price
+        stop_loss: float
+            stop loss price of order
+        take_profit: float
+            stop price to take profits
+        reduce_only: bool = False
+            If true, the position can only reduce in size and no stop loss or profit taking is possible.
+            Use reduce_only = True if you want to close entire positions by setting a large quantity
+
+        Returns
+        -------
+        response: Dict[str, Any]
+            response body for execution
+        '''
+
+        # determine sign of trade, buy=1, sell=-1
+        sign = ((side=='Buy')-0.5)*2
+
+        # determine direction of old positions
+        pos_1 = self.positions[symbol[:3]]
+        pos_2 = self.positions[symbol[3:]]
+
+        sign_1 = ((pos_1['side']=='Buy')-0.5)*2
+        sign_2 = ((pos_2['side']=='Buy')-0.5)*2
+
+        # determine actually traded qty, since the reduce_only flag only reduces the trade
+        true_qty = (1-reduce_only)*qty+reduce_only*min(qty,pos_1['size'])
+
+        # determine sides of new positions
+        if sign_1*pos_1['size']+sign*true_qty>0:
+            side_1="Buy"
+        else:
+            side_1="Sell"
+
+        if sign_2*pos_2['size']-sign*true_qty>0:
+            side_2="Buy"
+        else:
+            side_2="Sell"
+
+        # update positions
+        self.update_positions([{
+            "symbol": symbol[:3],
+            "size": abs(sign_1*pos_1['size']+sign*true_qty),
+            "side": side_1,
+            "position_value": abs(sign_1*pos_1['position_value']+sign*true_qty*trade_price),
+            "take_profit": take_profit or pos_1['take_profit'],
+            "stop_loss": stop_loss or pos_1['stop_loss']
+            },{
+            "symbol": symbol[3:],
+            "size": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
+            "side": side_2,
+            "position_value": abs(sign_2*pos_2['position_value']-sign*true_qty*trade_price),
+            "take_profit": pos_2['take_profit'],
+            "stop_loss": pos_2['stop_loss']
             }])
+        
+        wallet_1 = self.wallet[symbol[:3]]
+        wallet_2 = self.wallet[symbol[3:]]
+        
+        # update wallets
+        self.update_wallet([{
+            "coin": symbol[:3],
+            "available_balance": wallet_1["available_balnce"]+sign*true_qty,
+            "wallet_balance": wallet_1["available_balnce"]+sign*true_qty
+        }, {
+            "coin": symbol[3:],
+            "available_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
+            "wallet_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
+        }])
 
-            # update executions
-            execution = {
-                "symbol": symbol,
-                "side": side,
-                "order_id": len(self.executions["symbol"].keys())+1,
-                "exec_id": len(self.executions["symbol"].keys())+1,
-                "price": trade_price,
-                "order_qty": true_qty,
-                "exec_type": "Trade",
-                "exec_qty": true_qty,
-                "exec_fee": 0.0001*true_qty*trade_price,
-                "trade_time": order_time
-            }
-            self.update_executions([execution])
+        # update executions
+        execution = {
+            "symbol": symbol,
+            "side": side,
+            "order_id": len(self.executions["symbol"].keys())+1,
+            "exec_id": len(self.executions["symbol"].keys())+1,
+            "price": trade_price,
+            "order_qty": true_qty,
+            "exec_type": "Trade",
+            "exec_qty": true_qty,
+            "exec_fee": 0.0001*true_qty*trade_price,
+            "trade_time": execution_time
+        }
+        self.update_executions([execution])
 
         return execution
 
@@ -217,97 +268,45 @@ class BacktestAccountData(AccountData):
             list of updated position of first symbol and second symbol
         '''
 
-        # TODO 
-        # update positions and wallet according to close price -> update balances, margins, etc.
-
-        # iterate through potential stop losses or take profits
+        # extract symbol from topic
         symbol = PUBLIC_TOPIC_MAPPING[topic]
 
-        # determine direction of old positions
-        pos_1 = self.positions[symbol[:3]]
-        pos_2 = self.positions[symbol[3:]]
+        # determine direction of old position
+        pos = self.positions[symbol[:3]]
 
-        side_1 = pos_1['side']
-        side_2 = pos_2['side']
-
-        # determine direction of positions buy=1, sell=-1
-        sign_1 = ((side_1=='Buy')-0.5)*2
-        sign_2 = ((side_2=='Buy')-0.5)*2
+        side = pos['side']
 
         # check if stop loss is triggered
-        if pos_1['stop_loss']:
-            stop_loss = (side_1=='Buy')*pos_1['stop_loss']>data['low'] or pos_1['stop_loss']<(side_1=='Sell')*data['high']
+        if pos['stop_loss']:
+            stop_loss = (side=='Buy')*pos['stop_loss']>data['low'] or pos['stop_loss']<(side=='Sell')*data['high']
         else:
             stop_loss = False            
 
         # check if take profit is triggered
-        if pos_1['take_profit']:
-            take_profit = pos_1['take_profit']<(side_1=='Buy')*data['high'] or (side_1=='Sell')*pos_1['take_profit']>data['low']
+        if pos['take_profit']:
+            take_profit = pos['take_profit']<(side=='Buy')*data['high'] or (side=='Sell')*pos['take_profit']>data['low']
         else:
             take_profit=False
 
         if stop_loss or take_profit:
             
-            # trade takes other side than pos_1
-            side = ["Buy" if side_1=="Sell" else "Sell"][0]
-            sign = -sign_1
+            # trade takes other side than pos
+            if side == "Sell":
+                side_new = "Buy"
+            else:
+                side_new = "Sell"
 
             # trade price is either stop loss or take profit, depending on which was triggered
             # or-clause is added for stability if stop loss or take profit is None
-            trade_price = max(stop_loss*(pos_1['stop_loss'] or 0),take_profit*(pos_1['take_profit'] or 0))
+            trade_price = max(stop_loss*(pos['stop_loss'] or 0),take_profit*(pos['take_profit'] or 0))
 
-            # determine actually traded qty
-            true_qty = pos_1['size']
-
-            # update positions
-            self.update_positions([{
-                "symbol": symbol[:3],
-                "size": 0,
-                "side": 'Buy',
-                "position_value": 0,
-                "take_profit": None,
-                "stop_loss": None
-                },{
-                "symbol": symbol[3:],
-                "size": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
-                "side": ["Buy" if sign_2*pos_2['size']-sign*true_qty*trade_price>0 else "Sell"][0],
-                "position_value": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
-                "take_profit": pos_2['take_profit'],
-                "stop_loss": pos_2['stop_loss']
-                }])
-            
-            wallet_1 = self.wallet[symbol[:3]]
-            wallet_2 = self.wallet[symbol[3:]]
-            
-            # update wallets
-            self.update_wallet([{
-                "coin": symbol[:3],
-                "available_balance": wallet_1["available_balnce"]+sign*true_qty,
-                "wallet_balance": wallet_1["available_balnce"]+sign*true_qty
-            }, {
-                "coin": symbol[3:],
-                "available_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
-                "wallet_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
-            }])
-
-            # update executions
-            self.update_executions([{
-                "symbol": symbol,
-                "side": side,
-                "order_id": len(self.executions["symbol"].keys())+1,
-                "exec_id": len(self.executions["symbol"].keys())+1,
-                "price": trade_price,
-                "order_qty": true_qty,
-                "exec_type": "Trade",
-                "exec_qty": true_qty,
-                "exec_fee": 0.0001*true_qty*trade_price,
-                "trade_time": data['end']
-            }])
+            # execute trade
+            self.execute(symbol=symbol, side=side_new, qty=pos['size'], execution_time=data['end'], trade_price=trade_price, stop_loss=None, take_profit=None, reduce_only=True)
 
         # calculate average position price
-        pos_price = pos_1['position_value']/pos_1['size']
+        pos_price = pos['position_value']/pos['size']
         
         # update position value according to new close price
-        pos_1['position_value']=pos_1['position_value']*(data['close']/pos_price)
+        pos['position_value']=pos['position_value']*(data['close']/pos_price)
             
-        return [pos_1,pos_2]
+        return [pos]
