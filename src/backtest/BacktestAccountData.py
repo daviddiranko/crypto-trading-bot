@@ -81,10 +81,10 @@ class BacktestAccountData(AccountData):
 
     def place_order(self,
                     symbol: str,
-                    order_type: str,
                     side: str,
                     qty: int,
                     order_time: pd.Timestamp,
+                    order_type: str = 'Market',
                     price: float = None,
                     stop_loss: float = None,
                     take_profit: float = None,
@@ -97,11 +97,6 @@ class BacktestAccountData(AccountData):
         ----------
         symbol: str
             trading pair
-        order_type: str
-            Type of order. Currently only market orders are supported.
-            Options:
-                "Limit"
-                "Market"
         side: str
             which side to trade
             Options:
@@ -111,6 +106,8 @@ class BacktestAccountData(AccountData):
             number of contracts to trade
         order_time: pandas.Timestamp
             order time. Necessary to pull correct historical price
+        order_type: str
+            Type of order. Currently only market orders are supported.
         price: float
             if order_type="Limit": limit price for the order
         stop_loss: float
