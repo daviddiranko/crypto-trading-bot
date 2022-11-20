@@ -143,44 +143,44 @@ class BacktestAccountData(AccountData):
             sign = ((side=='Buy')-0.5)*2
 
             # determine direction of old positions
-            pos_old_1 = self.positions[symbol[:3]]
-            pos_old_2 = self.positions[symbol[3:]]
+            pos_1 = self.positions[symbol[:3]]
+            pos_2 = self.positions[symbol[3:]]
 
-            sign_old_1 = ((pos_old_1['side']=='Buy')-0.5)*2
-            sign_old_2 = ((pos_old_2['side']=='Buy')-0.5)*2
+            sign_1 = ((pos_1['side']=='Buy')-0.5)*2
+            sign_2 = ((pos_2['side']=='Buy')-0.5)*2
 
             # determine actually traded qty, since the reduce_only flag only reduces the trade
-            true_qty = (1-reduce_only)*qty+reduce_only*min(qty,pos_old_1['size'])
+            true_qty = (1-reduce_only)*qty+reduce_only*min(qty,pos_1['size'])
 
             # update positions
             self.update_positions([{
                 "symbol": symbol[:3],
-                "size": abs(sign_old_1*pos_old_1['size']+sign*true_qty),
-                "side": ["Buy" if sign_old_1*pos_old_1['size']+sign*true_qty>0 else "Sell"][0],
-                "position_value": abs(sign_old_1*pos_old_1['position_value']+sign*true_qty*trade_price),
-                "take_profit": take_profit or pos_old_1['take_profit'],
-                "stop_loss": stop_loss or pos_old_1['stop_loss']
+                "size": abs(sign_1*pos_1['size']+sign*true_qty),
+                "side": ["Buy" if sign_1*pos_1['size']+sign*true_qty>0 else "Sell"][0],
+                "position_value": abs(sign_1*pos_1['position_value']+sign*true_qty*trade_price),
+                "take_profit": take_profit or pos_1['take_profit'],
+                "stop_loss": stop_loss or pos_1['stop_loss']
                 },{
                 "symbol": symbol[3:],
-                "size": abs(sign_old_2*pos_old_2['size']-sign*true_qty*trade_price),
-                "side": ["Buy" if sign_old_2*pos_old_2['size']-sign*true_qty>0 else "Sell"][0],
-                "position_value": abs(sign_old_2*pos_old_2['position_value']-sign*true_qty*trade_price),
-                "take_profit": pos_old_2['take_profit'],
-                "stop_loss": pos_old_2['stop_loss']
+                "size": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
+                "side": ["Buy" if sign_2*pos_2['size']-sign*true_qty>0 else "Sell"][0],
+                "position_value": abs(sign_2*pos_2['position_value']-sign*true_qty*trade_price),
+                "take_profit": pos_2['take_profit'],
+                "stop_loss": pos_2['stop_loss']
                 }])
             
-            old_wallet_1 = self.wallet[symbol[:3]]
-            old_wallet_2 = self.wallet[symbol[3:]]
+            wallet_1 = self.wallet[symbol[:3]]
+            wallet_2 = self.wallet[symbol[3:]]
             
             # update wallets
             self.update_wallet([{
                 "coin": symbol[:3],
-                "available_balance": old_wallet_1["available_balnce"]+sign*true_qty,
-                "wallet_balance": old_wallet_1["available_balnce"]+sign*true_qty
+                "available_balance": wallet_1["available_balnce"]+sign*true_qty,
+                "wallet_balance": wallet_1["available_balnce"]+sign*true_qty
             }, {
                 "coin": symbol[3:],
-                "available_balance": old_wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
-                "wallet_balance": old_wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
+                "available_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
+                "wallet_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
             }])
 
             # update executions
@@ -247,6 +247,10 @@ class BacktestAccountData(AccountData):
             take_profit=False
 
         if stop_loss or take_profit:
+            
+            # trade takes other side than pos_1
+            side = ["Buy" if side_1=="Sell" else "Sell"][0]
+            sign = -sign_1
 
             # trade price is either stop loss or take profit, depending on which was triggered
             # or-clause is added for stability if stop loss or take profit is None
@@ -265,9 +269,9 @@ class BacktestAccountData(AccountData):
                 "stop_loss": None
                 },{
                 "symbol": symbol[3:],
-                "size": abs(sign_2*pos_2['size']+sign_1*true_qty*trade_price),
-                "side": ["Buy" if sign_2*pos_2['size']+sign_1*true_qty*trade_price>0 else "Sell"][0],
-                "position_value": abs(sign_2*pos_2['size']+sign_1*true_qty*trade_price),
+                "size": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
+                "side": ["Buy" if sign_2*pos_2['size']-sign*true_qty*trade_price>0 else "Sell"][0],
+                "position_value": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
                 "take_profit": pos_2['take_profit'],
                 "stop_loss": pos_2['stop_loss']
                 }])
@@ -278,18 +282,18 @@ class BacktestAccountData(AccountData):
             # update wallets
             self.update_wallet([{
                 "coin": symbol[:3],
-                "available_balance": wallet_1["available_balnce"]-sign_1*true_qty,
-                "wallet_balance": wallet_1["available_balnce"]-sign_1*true_qty
+                "available_balance": wallet_1["available_balnce"]+sign*true_qty,
+                "wallet_balance": wallet_1["available_balnce"]+sign*true_qty
             }, {
                 "coin": symbol[3:],
-                "available_balance": wallet_2["available_balnce"]+sign_1*true_qty*trade_price-0.0001*true_qty*trade_price,
-                "wallet_balance": wallet_2["available_balnce"]+sign_1*true_qty*trade_price-0.0001*true_qty*trade_price
+                "available_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
+                "wallet_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
             }])
 
             # update executions
             self.update_executions([{
                 "symbol": symbol,
-                "side": ["Buy" if side_1=="Sell" else "Sell"][0],
+                "side": side,
                 "order_id": len(self.executions["symbol"].keys())+1,
                 "exec_id": len(self.executions["symbol"].keys())+1,
                 "price": trade_price,
