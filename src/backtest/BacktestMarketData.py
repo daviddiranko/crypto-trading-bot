@@ -48,7 +48,7 @@ class BacktestMarketData(MarketData):
             Necessary to update real time account data endpoints like positions, open orders etc.
         '''
 
-        super().__init__(self, topics)
+        super().__init__(topics)
         self.account = account
 
     def on_message(self, message: json) -> Dict[str, Any]:

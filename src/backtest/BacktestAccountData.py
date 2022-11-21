@@ -8,6 +8,7 @@ import os
 from binance.client import Client
 from src.endpoints import binance_functions, bybit_functions
 from src.AccountData import AccountData
+import itertools
 
 load_dotenv()
 
@@ -26,7 +27,7 @@ class BacktestAccountData(AccountData):
     def __init__(self,
                  binance_client: Client,
                  symbols: List[str],
-                 budget: float = 1000.0):
+                 budget: Dict[str,float]):
         '''
         Parameters
         ----------
@@ -34,8 +35,8 @@ class BacktestAccountData(AccountData):
             binance http client to pull historical prices to mock a backtesting order
         symbols: List[str]
             optional list of symbols to incorporate. If no list is provided, all available symbols are incorporated.
-        budget: float
-            start budget for all tickers
+        budget: Dict[str, float]
+            start budget for all tickers as dictionary with key = symbol, value= budget
 
         Attributes
         ----------
@@ -63,21 +64,27 @@ class BacktestAccountData(AccountData):
             each symbol is indexed to another dict that holds balance, margin etc. for that symbol
         '''
 
-        self.sesion = binance_client
+        # build all possible tuples from symbols
+        symbol_tuples = [
+            list(s)[0] + list(s)[1]
+            for s in list(itertools.product(symbols, repeat=2))
+        ]
+
+        self.session = binance_client
         self.positions = {symbol: {"symbol": symbol,
             "size": 0.0,
             "side": "Buy",
             "position_value": 0.0,
             "take_profit": 0.0,
-            "stop_loss": 0.0} for symbol in symbols}
-        self.executions = {symbol: {} for symbol in symbols}
-        self.orders = {symbol: {} for symbol in symbols}
-        self.stop_orders = {symbol: {} for symbol in symbols}
-        self.wallet = {symbol:{{
+            "stop_loss": 0.0} for symbol in symbol_tuples}
+        self.executions = {symbol: {} for symbol in symbol_tuples}
+        self.orders = {symbol: {} for symbol in symbol_tuples}
+        self.stop_orders = {symbol: {} for symbol in symbol_tuples}
+        self.wallet = {symbol:{
             "coin": symbol,
-            "available_balance": budget,
-            "wallet_balance": budget
-        }} for symbol in symbols}
+            "available_balance": budget[symbol],
+            "wallet_balance": budget[symbol]
+        } for symbol in symbols}
 
     def place_order(self,
                     symbol: str,
@@ -124,7 +131,7 @@ class BacktestAccountData(AccountData):
             response body for execution
         '''
         # order time + 1 second
-        order_time_1 = pd.Timestamp(order_time.value+1000000000)
+        order_time_1 = pd.Timestamp(order_time.value+60000000000)
 
         # pull historical kline
         msg = self.session.get_historical_klines(symbol, start_str=str(order_time), end_str= str(order_time_1),interval='1m')
@@ -183,11 +190,12 @@ class BacktestAccountData(AccountData):
         sign = ((side=='Buy')-0.5)*2
 
         # determine direction of old positions
-        pos_1 = self.positions[symbol[:3]]
-        pos_2 = self.positions[symbol[3:]]
+        pos_1 = self.positions[symbol]
+        # pos_1 = self.positions[symbol[:3]]
+        # pos_2 = self.positions[symbol[3:]]
 
         sign_1 = ((pos_1['side']=='Buy')-0.5)*2
-        sign_2 = ((pos_2['side']=='Buy')-0.5)*2
+        # sign_2 = ((pos_2['side']=='Buy')-0.5)*2
 
         # determine actually traded qty, since the reduce_only flag only reduces the trade
         true_qty = (1-reduce_only)*qty+reduce_only*min(qty,pos_1['size'])
@@ -198,27 +206,36 @@ class BacktestAccountData(AccountData):
         else:
             side_1="Sell"
 
-        if sign_2*pos_2['size']-sign*true_qty>0:
-            side_2="Buy"
-        else:
-            side_2="Sell"
+        # if sign_2*pos_2['size']-sign*true_qty>0:
+        #     side_2="Buy"
+        # else:
+        #     side_2="Sell"
 
         # update positions
         self.update_positions([{
-            "symbol": symbol[:3],
+            "symbol": symbol,
             "size": abs(sign_1*pos_1['size']+sign*true_qty),
             "side": side_1,
             "position_value": abs(sign_1*pos_1['position_value']+sign*true_qty*trade_price),
             "take_profit": take_profit or pos_1['take_profit'],
             "stop_loss": stop_loss or pos_1['stop_loss']
-            },{
-            "symbol": symbol[3:],
-            "size": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
-            "side": side_2,
-            "position_value": abs(sign_2*pos_2['position_value']-sign*true_qty*trade_price),
-            "take_profit": pos_2['take_profit'],
-            "stop_loss": pos_2['stop_loss']
             }])
+        
+        # self.update_positions([{
+        #     "symbol": symbol[:3],
+        #     "size": abs(sign_1*pos_1['size']+sign*true_qty),
+        #     "side": side_1,
+        #     "position_value": abs(sign_1*pos_1['position_value']+sign*true_qty*trade_price),
+        #     "take_profit": take_profit or pos_1['take_profit'],
+        #     "stop_loss": stop_loss or pos_1['stop_loss']
+        #     },{
+        #     "symbol": symbol[3:],
+        #     "size": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
+        #     "side": side_2,
+        #     "position_value": abs(sign_2*pos_2['position_value']-sign*true_qty*trade_price),
+        #     "take_profit": pos_2['take_profit'],
+        #     "stop_loss": pos_2['stop_loss']
+        #     }])
         
         wallet_1 = self.wallet[symbol[:3]]
         wallet_2 = self.wallet[symbol[3:]]
@@ -226,20 +243,20 @@ class BacktestAccountData(AccountData):
         # update wallets
         self.update_wallet([{
             "coin": symbol[:3],
-            "available_balance": wallet_1["available_balnce"]+sign*true_qty,
-            "wallet_balance": wallet_1["available_balnce"]+sign*true_qty
+            "available_balance": wallet_1["available_balance"]+sign*true_qty,
+            "wallet_balance": wallet_1["available_balance"]+sign*true_qty
         }, {
             "coin": symbol[3:],
-            "available_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
-            "wallet_balance": wallet_2["available_balnce"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
+            "available_balance": wallet_2["available_balance"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
+            "wallet_balance": wallet_2["available_balance"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
         }])
 
         # update executions
         execution = {
             "symbol": symbol,
             "side": side,
-            "order_id": len(self.executions["symbol"].keys())+1,
-            "exec_id": len(self.executions["symbol"].keys())+1,
+            "order_id": len(self.executions[symbol].keys())+1,
+            "exec_id": len(self.executions[symbol].keys())+1,
             "price": trade_price,
             "order_qty": true_qty,
             "exec_type": "Trade",
