@@ -189,53 +189,29 @@ class BacktestAccountData(AccountData):
         # determine sign of trade, buy=1, sell=-1
         sign = ((side=='Buy')-0.5)*2
 
-        # determine direction of old positions
-        pos_1 = self.positions[symbol]
-        # pos_1 = self.positions[symbol[:3]]
-        # pos_2 = self.positions[symbol[3:]]
+        # determine direction of old position
+        pos = self.positions[symbol]
 
-        sign_1 = ((pos_1['side']=='Buy')-0.5)*2
-        # sign_2 = ((pos_2['side']=='Buy')-0.5)*2
+        sign_pos = ((pos['side']=='Buy')-0.5)*2
 
         # determine actually traded qty, since the reduce_only flag only reduces the trade
-        true_qty = (1-reduce_only)*qty+reduce_only*min(qty,pos_1['size'])
+        true_qty = (1-reduce_only)*qty+reduce_only*min(qty,pos['size'])
 
         # determine sides of new positions
-        if sign_1*pos_1['size']+sign*true_qty>0:
-            side_1="Buy"
+        if sign_pos*pos['size']+sign*true_qty>0:
+            side_pos="Buy"
         else:
-            side_1="Sell"
-
-        # if sign_2*pos_2['size']-sign*true_qty>0:
-        #     side_2="Buy"
-        # else:
-        #     side_2="Sell"
+            side_pos="Sell"
 
         # update positions
         self.update_positions([{
             "symbol": symbol,
-            "size": abs(sign_1*pos_1['size']+sign*true_qty),
-            "side": side_1,
-            "position_value": abs(sign_1*pos_1['position_value']+sign*true_qty*trade_price),
-            "take_profit": take_profit or pos_1['take_profit'],
-            "stop_loss": stop_loss or pos_1['stop_loss']
+            "size": abs(sign_pos*pos['size']+sign*true_qty),
+            "side": side_pos,
+            "position_value": abs(sign_pos*pos['position_value']+sign*true_qty*trade_price),
+            "take_profit": take_profit or pos['take_profit'],
+            "stop_loss": stop_loss or pos['stop_loss']
             }])
-        
-        # self.update_positions([{
-        #     "symbol": symbol[:3],
-        #     "size": abs(sign_1*pos_1['size']+sign*true_qty),
-        #     "side": side_1,
-        #     "position_value": abs(sign_1*pos_1['position_value']+sign*true_qty*trade_price),
-        #     "take_profit": take_profit or pos_1['take_profit'],
-        #     "stop_loss": stop_loss or pos_1['stop_loss']
-        #     },{
-        #     "symbol": symbol[3:],
-        #     "size": abs(sign_2*pos_2['size']-sign*true_qty*trade_price),
-        #     "side": side_2,
-        #     "position_value": abs(sign_2*pos_2['position_value']-sign*true_qty*trade_price),
-        #     "take_profit": pos_2['take_profit'],
-        #     "stop_loss": pos_2['stop_loss']
-        #     }])
         
         wallet_1 = self.wallet[symbol[:3]]
         wallet_2 = self.wallet[symbol[3:]]
