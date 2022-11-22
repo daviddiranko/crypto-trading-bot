@@ -35,17 +35,17 @@ class TestBacktestAccountData(unittest.TestCase):
         self.market_data = BacktestMarketData(account=self.account,
                                               topics=PUBLIC_TOPICS)
 
-    def test_place_order(self):
-
-        order_time = pd.Timestamp('2022-10-01 09:33:12')
+        self.order_time = pd.Timestamp('2022-10-01 09:33:12')
 
         # order time + 1 minute
-        order_time_1 = pd.Timestamp(order_time.value + 60000000000)
+        self.order_time_1 = pd.Timestamp(self.order_time.value + 60000000000)
+
+    def test_place_order(self):
 
         # pull historical kline
         msg = self.client.get_historical_klines('BTCUSDT',
-                                                start_str=str(order_time),
-                                                end_str=str(order_time_1),
+                                                start_str=str(self.order_time),
+                                                end_str=str(self.order_time_1),
                                                 interval='1m')
 
         # format klines and extract high and low
@@ -56,7 +56,7 @@ class TestBacktestAccountData(unittest.TestCase):
         open = self.account.place_order(symbol='BTCUSDT',
                                         side='Buy',
                                         qty=0.01,
-                                        order_time=order_time,
+                                        order_time=self.order_time,
                                         order_type='Market',
                                         stop_loss=18000,
                                         take_profit=20000)
@@ -70,7 +70,7 @@ class TestBacktestAccountData(unittest.TestCase):
         close = self.account.place_order(symbol='BTCUSDT',
                                          side='Sell',
                                          qty=0.02,
-                                         order_time=order_time,
+                                         order_time=self.order_time,
                                          order_type='Market',
                                          stop_loss=18000,
                                          take_profit=20000,
@@ -84,8 +84,8 @@ class TestBacktestAccountData(unittest.TestCase):
 
         self.assertAlmostEqual(balance_1, 1000.0)
         self.assertAlmostEqual(balance_2, 1000.0)
-        self.assertEqual(open['trade_time'], order_time_1)
-        self.assertEqual(close['trade_time'], order_time_1)
+        self.assertEqual(open['trade_time'], self.order_time_1)
+        self.assertEqual(close['trade_time'], self.order_time_1)
         self.assertEqual(position_1['BTCUSDT']['size'], 0.01)
         self.assertAlmostEqual(position_1['BTCUSDT']['position_value'],
                                193.2393)
@@ -97,15 +97,10 @@ class TestBacktestAccountData(unittest.TestCase):
 
     def test_execute(self):
 
-        order_time = pd.Timestamp('2022-10-01 09:33:12')
-
-        # order time + 1 minute
-        order_time_1 = pd.Timestamp(order_time.value + 60000000000)
-
         open = self.account.execute(symbol='BTCUSDT',
                                     side='Buy',
                                     qty=0.01,
-                                    execution_time=order_time_1,
+                                    execution_time=self.order_time_1,
                                     trade_price=19000,
                                     stop_loss=18000,
                                     take_profit=20000)
@@ -120,7 +115,7 @@ class TestBacktestAccountData(unittest.TestCase):
         close = self.account.execute(symbol='BTCUSDT',
                                      side='Sell',
                                      qty=0.02,
-                                     execution_time=order_time_1,
+                                     execution_time=self.order_time_1,
                                      trade_price=19000,
                                      stop_loss=18000,
                                      take_profit=20000)
@@ -133,8 +128,8 @@ class TestBacktestAccountData(unittest.TestCase):
 
         self.assertEqual(balance_1, 1000.0)
         self.assertEqual(balance_2, 1190.0)
-        self.assertEqual(open['trade_time'], order_time_1)
-        self.assertEqual(close['trade_time'], order_time_1)
+        self.assertEqual(open['trade_time'], self.order_time_1)
+        self.assertEqual(close['trade_time'], self.order_time_1)
         self.assertEqual(position_1['BTCUSDT']['size'], 0.01)
         self.assertEqual(position_1['BTCUSDT']['position_value'], 190.0)
         self.assertEqual(position_1['BTCUSDT']['stop_loss'], 18000)
@@ -144,3 +139,76 @@ class TestBacktestAccountData(unittest.TestCase):
         self.assertEqual(self.account.positions['BTCUSDT']['side'], 'Sell')
         self.assertEqual(self.account.positions['BTCUSDT']['position_value'],
                          190.0)
+
+    def test_new_market_data(self):
+        self.account.execute(symbol='BTCUSDT',
+                             side='Buy',
+                             qty=0.01,
+                             execution_time=self.order_time,
+                             trade_price=19000,
+                             stop_loss=18000,
+                             take_profit=20000)
+
+        market_data_1 = {
+            'start': self.order_time,
+            'end': self.order_time_1,
+            'open': 19000,
+            'close': 19500,
+            'high': 19800,
+            'low': 18500,
+            'volume': 10,
+            'turnover': 192000
+        }
+        pos_1 = self.account.new_market_data(topic=PUBLIC_TOPICS[0],
+                                             data=market_data_1)
+
+        self.assertEqual(pos_1['size'], 0.01)
+        self.assertAlmostEqual(pos_1['position_value'], 195.0)
+        self.assertEqual(
+            self.account.wallet['USDT']['available_balance'],
+            810.0 - self.account.executions['BTCUSDT'][1]['exec_fee'])
+
+        market_data_2 = {
+            'start': self.order_time,
+            'end': self.order_time_1,
+            'open': 19000,
+            'close': 19500,
+            'high': 20100,
+            'low': 18900,
+            'volume': 10,
+            'turnover': 192000
+        }
+        pos_2 = self.account.new_market_data(topic=PUBLIC_TOPICS[0],
+                                             data=market_data_2)
+        fees_2 = self.account.executions['BTCUSDT'][1][
+            'exec_fee'] + self.account.executions['BTCUSDT'][2]['exec_fee']
+        self.assertEqual(pos_2['size'], 0)
+        self.assertEqual(self.account.wallet['USDT']['available_balance'],
+                         1010 - fees_2)
+
+        self.account.execute(symbol='BTCUSDT',
+                             side='Sell',
+                             qty=0.01,
+                             execution_time=self.order_time,
+                             trade_price=19000,
+                             stop_loss=20000,
+                             take_profit=18000)
+
+        market_data_3 = {
+            'start': self.order_time,
+            'end': self.order_time_1,
+            'open': 19500,
+            'close': 19100,
+            'high': 20100,
+            'low': 18500,
+            'volume': 10,
+            'turnover': 192000
+        }
+        pos_3 = self.account.new_market_data(topic=PUBLIC_TOPICS[0],
+                                             data=market_data_3)
+        fees_3 = fees_2 + self.account.executions['BTCUSDT'][3][
+            'exec_fee'] + self.account.executions['BTCUSDT'][4]['exec_fee']
+        self.assertEqual(pos_3['size'], 0)
+        self.assertAlmostEqual(pos_3['position_value'], 0.0)
+        self.assertEqual(self.account.wallet['USDT']['available_balance'],
+                         1000 - fees_3)

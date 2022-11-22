@@ -86,36 +86,38 @@ class TestBybitFunctions(unittest.TestCase):
                                    side='Buy',
                                    qty=0.001)
 
-        while self.session.get_active_order(
-                symbol='BTCUSDT'
-        )['result']['data'][-1]['order_status'] != 'Filled':
+        while self.session.query_active_order(
+                symbol='BTCUSDT', order_id=response_buy['result']
+            ['order_id'])['result']['order_status'] != 'Filled':
             time.sleep(1)
 
-        time.sleep(3)
         balance_1 = initialize_account_data(session=self.session,
-                                            symbols=['BTC', 'USDT'])
-        print(balance_1)
+                                            symbols=['BTC', 'USDT']).copy()
+
         wallet_diff_usdt = balance_1['wallet']['USDT']['equity'] - balance_1[
             'wallet']['USDT']['available_balance']
+
         self.assertEqual(response_buy['ret_code'], 0)
         self.assertEqual(response_buy['ret_msg'], "OK")
         self.assertAlmostEqual(
             balance_1['position']['BTCUSDT']['position_value'],
             wallet_diff_usdt,
-            places=3)
+            places=1)
+        self.assertGreater(balance_1['position']['BTCUSDT']['position_value'],
+                           0)
         response_sell = place_order(session=self.session,
                                     symbol='BTCUSDT',
                                     order_type='Market',
                                     side='Sell',
                                     qty=1,
                                     reduce_only=True)
-        while self.session.get_active_order(
-                symbol='BTCUSDT'
-        )['result']['data'][-1]['order_status'] != 'Filled':
+        while self.session.query_active_order(
+                symbol='BTCUSDT', order_id=response_buy['result']
+            ['order_id'])['result']['order_status'] != 'Filled':
             time.sleep(1)
-        time.sleep(1)
+
         balance_2 = initialize_account_data(session=self.session,
-                                            symbols=['BTC', 'USDT'])
+                                            symbols=['BTC', 'USDT']).copy()
         self.assertEqual(response_sell['ret_code'], 0)
         self.assertEqual(response_sell['ret_msg'], "OK")
         self.assertEqual(balance_2['position']['BTCUSDT']['position_value'], 0)

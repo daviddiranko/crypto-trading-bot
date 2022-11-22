@@ -72,6 +72,7 @@ def initialize_account_data(
             list(s)[0] + list(s)[1]
             for s in list(itertools.product(symbols, repeat=2))
         ]
+
         account_data['position'] = {
             pos['data']['symbol']: pos['data']
             for pos in position

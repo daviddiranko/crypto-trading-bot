@@ -243,9 +243,9 @@ class BacktestAccountData(AccountData):
                 abs(sign_pos * pos['position_value'] +
                     sign * true_qty * pos_price),
             "take_profit":
-                take_profit or pos['take_profit'],
+                take_profit,
             "stop_loss":
-                stop_loss or pos['stop_loss']
+                stop_loss
         }])
 
         wallet_1 = self.wallet[symbol[:3]]
@@ -301,15 +301,15 @@ class BacktestAccountData(AccountData):
         
         Returns
         --------
-        pos_1: List[Dict[str, Any]]
-            list of updated position of first symbol and second symbol
+        pos: Dict[str, Any]
+            updated position of traded symbol
         '''
 
         # extract symbol from topic
         symbol = PUBLIC_TOPIC_MAPPING[topic]
 
         # determine direction of old position
-        pos = self.positions[symbol[:3]]
+        pos = self.positions[symbol]
 
         side = pos['side']
 
@@ -350,11 +350,18 @@ class BacktestAccountData(AccountData):
                          take_profit=None,
                          reduce_only=True)
 
-        # calculate average position price
-        pos_price = pos['position_value'] / pos['size']
+            # determine direction of new position
+            pos = self.positions[symbol]
+
+        # calculate average position prize
+        if pos['size'] != 0:
+            pos_price = pos['position_value'] / pos['size']
+        else:
+            # set to -1 to avoid float division error
+            pos_price = -1
 
         # update position value according to new close price
         pos['position_value'] = pos['position_value'] * (data['close'] /
                                                          pos_price)
 
-        return [pos]
+        return pos
