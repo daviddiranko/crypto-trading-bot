@@ -344,7 +344,7 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
             'available_balance'] - wallet_start['available_balance']
         self.assertListEqual(order_keys, execution_keys)
         self.assertEqual(order_fee, exec_fee)
-        self.assertAlmostEqual(order_profit, exec_profit)
+        self.assertAlmostEqual(order_profit, exec_profit, places=5)
         self.assertEqual(wallet_balance, available_balance)
         self.assertAlmostEqual(wallet_balance,
                                order_profit - order_fee,

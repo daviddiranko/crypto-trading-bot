@@ -17,6 +17,7 @@ PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
 PUBLIC_TOPIC_MAPPING = eval(os.getenv('PUBLIC_TOPIC_MAPPING'))
 
+
 class BacktestAccountData(AccountData):
     '''
     Class to provide the account interface for backtesting. 
@@ -24,10 +25,8 @@ class BacktestAccountData(AccountData):
     '''
 
     # initialize account data object with current values
-    def __init__(self,
-                 binance_client: Client,
-                 symbols: List[str],
-                 budget: Dict[str,float]):
+    def __init__(self, binance_client: Client, symbols: List[str],
+                 budget: Dict[str, float]):
         '''
         Parameters
         ----------
@@ -71,20 +70,26 @@ class BacktestAccountData(AccountData):
         ]
 
         self.session = binance_client
-        self.positions = {symbol: {"symbol": symbol,
-            "size": 0.0,
-            "side": "Buy",
-            "position_value": 0.0,
-            "take_profit": 0.0,
-            "stop_loss": 0.0} for symbol in symbol_tuples}
+        self.positions = {
+            symbol: {
+                "symbol": symbol,
+                "size": 0.0,
+                "side": "Buy",
+                "position_value": 0.0,
+                "take_profit": 0.0,
+                "stop_loss": 0.0
+            } for symbol in symbol_tuples
+        }
         self.executions = {symbol: {} for symbol in symbol_tuples}
         self.orders = {symbol: {} for symbol in symbol_tuples}
         self.stop_orders = {symbol: {} for symbol in symbol_tuples}
-        self.wallet = {symbol:{
-            "coin": symbol,
-            "available_balance": budget[symbol],
-            "wallet_balance": budget[symbol]
-        } for symbol in symbols}
+        self.wallet = {
+            symbol: {
+                "coin": symbol,
+                "available_balance": budget[symbol],
+                "wallet_balance": budget[symbol]
+            } for symbol in symbols
+        }
 
     def place_order(self,
                     symbol: str,
@@ -130,29 +135,46 @@ class BacktestAccountData(AccountData):
         response: Dict[str, Any]
             response body for execution
         '''
-        # order time + 1 second
-        order_time_1 = pd.Timestamp(order_time.value+60000000000)
+        # order time + 1 minute
+        order_time_1 = pd.Timestamp(order_time.value + 60000000000)
 
         # pull historical kline
-        msg = self.session.get_historical_klines(symbol, start_str=str(order_time), end_str= str(order_time_1),interval='1m')
+        msg = self.session.get_historical_klines(symbol,
+                                                 start_str=str(order_time),
+                                                 end_str=str(order_time_1),
+                                                 interval='1m')
 
         # format klines and extract high and low
         quotes = binance_functions.format_historical_klines(msg)
         low = quotes.iloc[0]['low']
         high = quotes.iloc[0]['high']
-        
-        if order_type=='Market':
+
+        if order_type == 'Market':
 
             # determine execution price according to direction of the trade
-            trade_price = (side=='Buy')*high + (side=='Sell')*low
-            
-            # execute trade
-            execution = self.execute(symbol=symbol, side=side, qty=qty, execution_time=order_time, trade_price=trade_price, stop_loss=stop_loss, take_profit=take_profit, reduce_only=reduce_only)
+            trade_price = (side == 'Buy') * high + (side == 'Sell') * low
 
+            # execute trade
+            execution = self.execute(symbol=symbol,
+                                     side=side,
+                                     qty=qty,
+                                     execution_time=order_time_1,
+                                     trade_price=trade_price,
+                                     stop_loss=stop_loss,
+                                     take_profit=take_profit,
+                                     reduce_only=reduce_only)
 
         return execution
 
-    def execute(self, symbol: str, side: str, qty: int, execution_time: pd.Timestamp, trade_price: float, stop_loss: float, take_profit: float, reduce_only: bool = False) -> Dict[str, Any]:
+    def execute(self,
+                symbol: str,
+                side: str,
+                qty: int,
+                execution_time: pd.Timestamp,
+                trade_price: float,
+                stop_loss: float,
+                take_profit: float,
+                reduce_only: bool = False) -> Dict[str, Any]:
         '''
         Execute mock order, profit taking or stop losses.
         Update positions, wallets and executions.
@@ -187,64 +209,86 @@ class BacktestAccountData(AccountData):
         '''
 
         # determine sign of trade, buy=1, sell=-1
-        sign = ((side=='Buy')-0.5)*2
+        sign = ((side == 'Buy') - 0.5) * 2
 
         # determine direction of old position
         pos = self.positions[symbol]
 
-        sign_pos = ((pos['side']=='Buy')-0.5)*2
+        sign_pos = ((pos['side'] == 'Buy') - 0.5) * 2
 
         # determine actually traded qty, since the reduce_only flag only reduces the trade
-        true_qty = (1-reduce_only)*qty+reduce_only*min(qty,pos['size'])
+        true_qty = (1 - reduce_only) * qty + reduce_only * min(qty, pos['size'])
 
         # determine sides of new positions
-        if sign_pos*pos['size']+sign*true_qty>0:
-            side_pos="Buy"
+        if sign_pos * pos['size'] + sign * true_qty > 0:
+            side_pos = "Buy"
         else:
-            side_pos="Sell"
+            side_pos = "Sell"
+
+        # determine average position prize
+        if pos['size'] != 0:
+            pos_price = pos['position_value'] / pos['size']
+        else:
+            pos_price = trade_price
 
         # update positions
         self.update_positions([{
-            "symbol": symbol,
-            "size": abs(sign_pos*pos['size']+sign*true_qty),
-            "side": side_pos,
-            "position_value": abs(sign_pos*pos['position_value']+sign*true_qty*trade_price),
-            "take_profit": take_profit or pos['take_profit'],
-            "stop_loss": stop_loss or pos['stop_loss']
-            }])
-        
+            "symbol":
+                symbol,
+            "size":
+                abs(sign_pos * pos['size'] + sign * true_qty),
+            "side":
+                side_pos,
+            "position_value":
+                abs(sign_pos * pos['position_value'] +
+                    sign * true_qty * pos_price),
+            "take_profit":
+                take_profit or pos['take_profit'],
+            "stop_loss":
+                stop_loss or pos['stop_loss']
+        }])
+
         wallet_1 = self.wallet[symbol[:3]]
         wallet_2 = self.wallet[symbol[3:]]
-        
+
         # update wallets
         self.update_wallet([{
-            "coin": symbol[:3],
-            "available_balance": wallet_1["available_balance"]+sign*true_qty,
-            "wallet_balance": wallet_1["available_balance"]+sign*true_qty
+            "coin":
+                symbol[:3],
+            "available_balance":
+                wallet_1["available_balance"] + sign * true_qty,
+            "wallet_balance":
+                wallet_1["available_balance"] + sign * true_qty
         }, {
-            "coin": symbol[3:],
-            "available_balance": wallet_2["available_balance"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price,
-            "wallet_balance": wallet_2["available_balance"]-sign*true_qty*trade_price-0.0001*true_qty*trade_price
+            "coin":
+                symbol[3:],
+            "available_balance":
+                wallet_2["available_balance"] - sign * true_qty * trade_price -
+                0.0001 * true_qty * trade_price,
+            "wallet_balance":
+                wallet_2["available_balance"] - sign * true_qty * trade_price -
+                0.0001 * true_qty * trade_price
         }])
 
         # update executions
         execution = {
             "symbol": symbol,
             "side": side,
-            "order_id": len(self.executions[symbol].keys())+1,
-            "exec_id": len(self.executions[symbol].keys())+1,
+            "order_id": len(self.executions[symbol].keys()) + 1,
+            "exec_id": len(self.executions[symbol].keys()) + 1,
             "price": trade_price,
             "order_qty": true_qty,
             "exec_type": "Trade",
             "exec_qty": true_qty,
-            "exec_fee": 0.0001*true_qty*trade_price,
+            "exec_fee": 0.0001 * true_qty * trade_price,
             "trade_time": execution_time
         }
         self.update_executions([execution])
 
         return execution
 
-    def new_market_data(self, topic: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def new_market_data(self, topic: str,
+                        data: Dict[str, Any]) -> List[Dict[str, Any]]:
         '''
         If new candle is received update all orders, executions, positions and wallet.
 
@@ -271,18 +315,20 @@ class BacktestAccountData(AccountData):
 
         # check if stop loss is triggered
         if pos['stop_loss']:
-            stop_loss = (side=='Buy')*pos['stop_loss']>data['low'] or pos['stop_loss']<(side=='Sell')*data['high']
+            stop_loss = (side == 'Buy') * pos['stop_loss'] > data['low'] or pos[
+                'stop_loss'] < (side == 'Sell') * data['high']
         else:
-            stop_loss = False            
+            stop_loss = False
 
         # check if take profit is triggered
         if pos['take_profit']:
-            take_profit = pos['take_profit']<(side=='Buy')*data['high'] or (side=='Sell')*pos['take_profit']>data['low']
+            take_profit = pos['take_profit'] < (side == 'Buy') * data[
+                'high'] or (side == 'Sell') * pos['take_profit'] > data['low']
         else:
-            take_profit=False
+            take_profit = False
 
         if stop_loss or take_profit:
-            
+
             # trade takes other side than pos
             if side == "Sell":
                 side_new = "Buy"
@@ -291,15 +337,24 @@ class BacktestAccountData(AccountData):
 
             # trade price is either stop loss or take profit, depending on which was triggered
             # or-clause is added for stability if stop loss or take profit is None
-            trade_price = max(stop_loss*(pos['stop_loss'] or 0),take_profit*(pos['take_profit'] or 0))
+            trade_price = max(stop_loss * (pos['stop_loss'] or 0),
+                              take_profit * (pos['take_profit'] or 0))
 
             # execute trade
-            self.execute(symbol=symbol, side=side_new, qty=pos['size'], execution_time=data['end'], trade_price=trade_price, stop_loss=None, take_profit=None, reduce_only=True)
+            self.execute(symbol=symbol,
+                         side=side_new,
+                         qty=pos['size'],
+                         execution_time=data['end'],
+                         trade_price=trade_price,
+                         stop_loss=None,
+                         take_profit=None,
+                         reduce_only=True)
 
         # calculate average position price
-        pos_price = pos['position_value']/pos['size']
-        
+        pos_price = pos['position_value'] / pos['size']
+
         # update position value according to new close price
-        pos['position_value']=pos['position_value']*(data['close']/pos_price)
-            
+        pos['position_value'] = pos['position_value'] * (data['close'] /
+                                                         pos_price)
+
         return [pos]

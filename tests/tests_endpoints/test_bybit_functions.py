@@ -91,9 +91,10 @@ class TestBybitFunctions(unittest.TestCase):
         )['result']['data'][-1]['order_status'] != 'Filled':
             time.sleep(1)
 
-        time.sleep(1)
+        time.sleep(3)
         balance_1 = initialize_account_data(session=self.session,
                                             symbols=['BTC', 'USDT'])
+        print(balance_1)
         wallet_diff_usdt = balance_1['wallet']['USDT']['equity'] - balance_1[
             'wallet']['USDT']['available_balance']
         self.assertEqual(response_buy['ret_code'], 0)
