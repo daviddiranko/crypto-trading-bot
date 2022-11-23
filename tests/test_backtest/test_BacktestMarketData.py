@@ -7,95 +7,168 @@ from dotenv import load_dotenv
 import os
 from typing import List, Dict, Any
 from src.endpoints.bybit_functions import format_klines
-from src.MarketData import MarketData
+from src.backtest.BacktestMarketData import BacktestMarketData
 from src.backtest.BacktestAccountData import BacktestAccountData
+
+from binance.client import Client
+from src.endpoints import binance_functions, bybit_functions
+
+import unittest
 
 load_dotenv()
 
+BINANCE_KEY = os.getenv('BINANCE_KEY')
+BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
-
-PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
-
-HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
 
-class BacktestMarketData(MarketData):
+class TestBacktestMarketData(unittest.TestCase):
     '''
     Class to provide historical market data for backtesting
     '''
 
     # create new backtesting marketdata object through inheritance from MarketData
-    def __init__(self,
-                 account: BacktestAccountData,
-                 topics: List[str] = PUBLIC_TOPICS):
-        '''
-        Parameters
-        ----------
-        account: BacktestAccountData
-            account data object to send new market data point to.
-            Necessary to update real time account data endpoints like positions, open orders etc.
-        topics: List[str]
-            all topics to store
+    def setUp(self):
+        self.client = Client(BINANCE_KEY, BINANCE_SECRET)
+        self.account = BacktestAccountData(binance_client=self.client,
+                                           symbols=['BTC', 'USDT'],
+                                           budget={
+                                               'BTC': 0,
+                                               'USDT': 1000
+                                           })
+        self.market_data = BacktestMarketData(account=self.account,
+                                              topics=PUBLIC_TOPICS)
 
-        Attributes
-        ----------
+        self.order_time = pd.Timestamp('2022-10-01 09:33:00')
 
-        self.history: Dict[str, pandas.DataFrame]
-            dictionary that stores historical data.
-            the dictionary is indexed by the topic and stores a dataframe of candlesticks, indexed by the close timestamp.
-        
-        self.account: BacktestAccountData
-            account data object to send new market data point to.
-            Necessary to update real time account data endpoints like positions, open orders etc.
-        '''
+        # order time + 1 minute
+        self.order_time_1 = pd.Timestamp(self.order_time.value / 1000000000 +
+                                         60,
+                                         unit='s')
+        # order time_1 + 1 minute
+        self.order_time_2 = pd.Timestamp(self.order_time_1.value / 1000000000 +
+                                         60,
+                                         unit='s')
+        # order time_2 + 1 minute
+        self.order_time_3 = pd.Timestamp(self.order_time_2.value / 1000000000 +
+                                         60,
+                                         unit='s')
 
-        super().__init__(topics)
-        self.account = account
+    def test_on_message(self):
 
-    def on_message(self, message: json) -> Dict[str, Any]:
-        '''
-        Receive new market data and store the data in the appropriate history, indexed by the topic.
-        The last row is the current candle and gets updated until candle is full.
-        Additionally trigger new_market_data function of account to update real time account data endpoints.
+        market_data_1 = json.dumps({
+            "topic": PUBLIC_TOPICS[0],
+            "data": [{
+                'start': self.order_time.value / 1000000000,
+                'end': self.order_time_1.value / 1000000000,
+                'period': "1",
+                'open': 19000,
+                'close': 19500,
+                'high': 19800,
+                'low': 18500,
+                'volume': 10,
+                'turnover': 192000,
+                "confirm": True,
+                "cross_seq": 19909786084,
+                "timestamp": 1667461837466318
+            }],
+            "timestamp_e6": 1667461837466318
+        })
 
-        Parameters
-        ----------
-        msg: json
-            message received from api, i.e. data to store
+        market_data_2 = json.dumps({
+            "topic": PUBLIC_TOPICS[0],
+            "data": [{
+                'start': self.order_time_1.value / 1000000000,
+                'end': self.order_time_2.value / 1000000000,
+                'period': "1",
+                'open': 19500,
+                'close': 19000,
+                'high': 20100,
+                'low': 18900,
+                'volume': 10,
+                'turnover': 192000,
+                "confirm": True,
+                "cross_seq": 19909786084,
+                "timestamp": 1667461837466318
+            }],
+            "timestamp_e6": 1667461837466318
+        })
 
-        Returns
-        ----------
-        data: Dict[str, Any]
-            extracted data
-        '''
-        # extract message
-        msg = json.loads(message)
+        market_data_3 = json.dumps({
+            "topic": PUBLIC_TOPICS[0],
+            "data": [{
+                'start': self.order_time_2.value / 1000000000,
+                'end': self.order_time_3.value / 1000000000,
+                'period': "1",
+                'open': 19000,
+                'close': 18500,
+                'high': 19300,
+                'low': 18200,
+                'volume': 10,
+                'turnover': 192000,
+                "confirm": True,
+                "cross_seq": 19909786084,
+                "timestamp": 1667461837466318
+            }],
+            "timestamp_e6": 1667461837466318
+        })
 
-        try:
-            # extract topic
-            topic = msg['topic']
+        response_1 = {
+            'start': self.order_time,
+            'end': self.order_time_1,
+            'period': "1",
+            'open': 19000.0,
+            'close': 19500.0,
+            'high': 19800.0,
+            'low': 18500.0,
+            'volume': 10.0,
+            'turnover': 192000.0,
+            "confirm": True,
+            "cross_seq": 19909786084,
+            "timestamp": 1667461837466318
+        }
 
-            # check if topic is in private topics
-            if topic in PUBLIC_TOPICS:
+        msg_1 = self.market_data.on_message(message=market_data_1)
 
-                # extract candlestick data
-                data = format_klines(msg=msg)
+        response_2 = {
+            'start': self.order_time_1,
+            'end': self.order_time_2,
+            'period': "1",
+            'open': 19500.0,
+            'close': 19000.0,
+            'high': 20100.0,
+            'low': 18900.0,
+            'volume': 10.0,
+            'turnover': 192000.0,
+            "confirm": True,
+            "cross_seq": 19909786084,
+            "timestamp": 1667461837466318
+        }
+        msg_2 = self.market_data.on_message(message=market_data_2)
 
-                # add to history
-                self.history[topic].loc[data['end']] = data
+        response_3 = {
+            'start': self.order_time_2,
+            'end': self.order_time_3,
+            'period': "1",
+            'open': 19000.0,
+            'close': 18500.0,
+            'high': 19300.0,
+            'low': 18200.0,
+            'volume': 10.0,
+            'turnover': 192000.0,
+            "confirm": True,
+            "cross_seq": 19909786084,
+            "timestamp": 1667461837466318
+        }
+        msg_3 = self.market_data.on_message(message=market_data_3)
 
-                # trigger account data update
-                self.account.new_market_data(topic=topic, data=data)
+        history = pd.DataFrame([response_1, response_2,
+                                response_3]).set_index('end', drop=False)
+        history.index.name = None
 
-                return data
-            else:
-                print('topic: {} is not known'.format(topic))
-                print(message)
-                return False
+        self.assertDictEqual(msg_1, response_1)
+        self.assertDictEqual(msg_2, response_2)
+        self.assertDictEqual(msg_3, response_3)
 
-        except:
-            print('MarketData: No data received!')
-            print(message)
-
-            return False
+        pd.testing.assert_frame_equal(
+            self.market_data.history[PUBLIC_TOPICS[0]], history)

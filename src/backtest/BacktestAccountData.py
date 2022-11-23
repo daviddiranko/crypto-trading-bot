@@ -353,15 +353,7 @@ class BacktestAccountData(AccountData):
             # determine direction of new position
             pos = self.positions[symbol]
 
-        # calculate average position prize
-        if pos['size'] != 0:
-            pos_price = pos['position_value'] / pos['size']
-        else:
-            # set to -1 to avoid float division error
-            pos_price = -1
-
         # update position value according to new close price
-        pos['position_value'] = pos['position_value'] * (data['close'] /
-                                                         pos_price)
+        pos['position_value'] = pos['size'] * data['close']
 
         return pos

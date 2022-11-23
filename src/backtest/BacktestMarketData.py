@@ -98,4 +98,4 @@ class BacktestMarketData(MarketData):
             print('MarketData: No data received!')
             print(message)
 
-            return False
+        return False
