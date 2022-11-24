@@ -128,9 +128,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# ignore notebooks and tests
+# ignore notebooks, tests and backtests
 notebooks
 tests
+src/backtest
 
 # ignore Markdown files
 *.md

@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 import os
 from binance.client import Client
-from src.endpoints import binance_functions, bybit_functions
+from src.endpoints import binance_functions
 from src.AccountData import AccountData
 import itertools
 
