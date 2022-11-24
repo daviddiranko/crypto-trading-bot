@@ -34,7 +34,6 @@ class TradingModel:
         '''
         Parameters
         ----------
-
         model: Any
             function that holds the trading logic
         http_session: usdt_perpetual.HTTP

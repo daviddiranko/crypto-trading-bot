@@ -7,7 +7,9 @@ from dotenv import load_dotenv
 import os
 from typing import Any, Dict, List
 from src.TradingModel import TradingModel
-from pybit import usdt_perpetual
+from src.backtest.BacktestAccountData import BacktestAccountData
+from src.backtest.BacktestMarketData import BacktestMarketData
+from binance.client import Client
 
 load_dotenv()
 
@@ -25,27 +27,37 @@ class BacktestTradingModel(TradingModel):
     # create new Model object
     def __init__(self,
                  model: Any,
-                 http_session: usdt_perpetual.HTTP,
-                 symbols: List[str] = None,
+                 http_session: Client,
+                 symbols: List[str],
+                 budget: Dict[str, Any],
                  topics: List[str] = PUBLIC_TOPICS,
                  model_storage: Dict[str, Any] = {},
                  model_args: Dict[str, Any] = {}):
         '''
         Parameters
         ----------
-
-        market_data: MarketData
-            MarketData object that stores relevant market data
-        account: AccountData
-            AccountData object that stores relevant account data
         model: Any
             function that holds the trading logic
+        http_session: binance.client.Client
+            open http connection to pull data from.
+        symbols: List[str]
+            list of symbols to incorporate into account data.
+        budget: Dict[str, float]
+            start budget for all tickers as dictionary with key = symbol, value= budget
+        topics: List[str]
+            all topics to store in market data object
         model_storage: Dict[str, Any]
             additional storage so that the trading model can store results
         model_args: Dict[str, Any]
             optional additional parameters for the trading model
         '''
 
-        # initialize attributes through inheritance from trading model
-        super().__init__(model, http_session, symbols, topics, model_storage,
-                         model_args)
+        # initialize attributes and instantiate market and account data objects
+        self.account = BacktestAccountData(binance_client=http_session,
+                                           symbols=symbols,
+                                           budget=budget)
+        self.market_data = BacktestMarketData(account=self.account,
+                                              topics=topics)
+        self.model = model
+        self.model_storage = model_storage
+        self.model_args = model_args
