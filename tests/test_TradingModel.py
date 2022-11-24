@@ -33,24 +33,18 @@ class TestTradingModel(unittest.TestCase):
                                            api_key=BYBIT_TEST_KEY,
                                            api_secret=BYBIT_TEST_SECRET)
 
-        # create new market data object
-        self.market_data = MarketData(topics=PUBLIC_TOPICS)
-
-        # create new account data object
-        self.account_data = AccountData(http_session=self.session,
-                                        symbols=['BTC', 'USDT'])
-
-        # create new trading model object
-        self.model = TradingModel(market_data=self.market_data,
-                                  account=self.account_data,
-                                  model=lambda model: None)
+        # instantiate trading model object
+        self.model = TradingModel(model=lambda model: None,
+                                  http_session=self.session,
+                                  symbols=['BTC', 'USDT'],
+                                  topics=PUBLIC_TOPICS)
 
         # reset attributes for testing purposes
-        self.account_data.positions = {'BTCUSDT': None}
-        self.account_data.executions = {'BTCUSDT': {}}
-        self.account_data.orders = {'BTCUSDT': {}}
-        self.account_data.stop_orders = {'BTCUSDT': {}}
-        self.account_data.wallet = {'USDT': {}, 'BTC': {}}
+        self.model.account.positions = {'BTCUSDT': None}
+        self.model.account.executions = {'BTCUSDT': {}}
+        self.model.account.orders = {'BTCUSDT': {}}
+        self.model.account.stop_orders = {'BTCUSDT': {}}
+        self.model.account.wallet = {'USDT': {}, 'BTC': {}}
 
         self.position_response = json.dumps({
             "topic":

@@ -249,13 +249,11 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
 
     async def test_system(self):
 
-        # initialize MarketData, AccountData and TradingModel objects
-        market_data = MarketData(topics=PUBLIC_TOPICS)
-        account_data = AccountData(http_session=self.session,
-                                   symbols=[self.ticker[:3], self.ticker[3:]])
-        model = TradingModel(market_data=market_data,
-                             account=account_data,
-                             model=mock_model,
+        # instantiate TradingModel object
+        model = TradingModel(model=mock_model,
+                             http_session=self.session,
+                             symbols=[self.ticker[:3], self.ticker[3:]],
+                             topics=PUBLIC_TOPICS,
                              model_args={'open': True},
                              model_storage={
                                  'open': False,

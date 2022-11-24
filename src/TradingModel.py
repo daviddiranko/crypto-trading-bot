@@ -5,9 +5,10 @@ import pandas as pd
 import json
 from dotenv import load_dotenv
 import os
-from typing import Any, Dict
+from typing import Any, Dict, List
 from .MarketData import MarketData
 from .AccountData import AccountData
+from pybit import usdt_perpetual
 
 load_dotenv()
 
@@ -24,30 +25,33 @@ class TradingModel:
 
     # create new Model object
     def __init__(self,
-                 market_data: MarketData,
-                 account: AccountData,
                  model: Any,
+                 http_session: usdt_perpetual.HTTP,
+                 symbols: List[str] = None,
+                 topics: List[str] = PUBLIC_TOPICS,
                  model_storage: Dict[str, Any] = {},
                  model_args: Dict[str, Any] = {}):
         '''
         Parameters
         ----------
 
-        market_data: MarketData
-            MarketData object that stores relevant market data
-        account: AccountData
-            AccountData object that stores relevant account data
         model: Any
             function that holds the trading logic
+        http_session: usdt_perpetual.HTTP
+            open http connection for account data initialization and trading
+        symbols: List[str]
+            optional list of symbols to incorporate into account data. If no list is provided, all available symbols are incorporated.
+        topics: List[str]
+            all topics to store in market data object
         model_storage: Dict[str, Any]
             additional storage so that the trading model can store results
         model_args: Dict[str, Any]
             optional additional parameters for the trading model
         '''
 
-        # initialize attributes
-        self.market_data = market_data
-        self.account = account
+        # initialize attributes and instantiate market and account data objects
+        self.market_data = MarketData(topics=topics)
+        self.account = AccountData(http_session=http_session, symbols=symbols)
         self.model = model
         self.model_storage = model_storage
         self.model_args = model_args

@@ -5,10 +5,9 @@ import pandas as pd
 import json
 from dotenv import load_dotenv
 import os
-from typing import Any, Dict
-from src.backtest.BacktestMarketData import BacktestMarketData
-from src.backtest.BacktestAccountData import BacktestAccountData
+from typing import Any, Dict, List
 from src.TradingModel import TradingModel
+from pybit import usdt_perpetual
 
 load_dotenv()
 
@@ -25,9 +24,10 @@ class BacktestTradingModel(TradingModel):
 
     # create new Model object
     def __init__(self,
-                 market_data: BacktestMarketData,
-                 account: BacktestAccountData,
                  model: Any,
+                 http_session: usdt_perpetual.HTTP,
+                 symbols: List[str] = None,
+                 topics: List[str] = PUBLIC_TOPICS,
                  model_storage: Dict[str, Any] = {},
                  model_args: Dict[str, Any] = {}):
         '''
@@ -47,4 +47,5 @@ class BacktestTradingModel(TradingModel):
         '''
 
         # initialize attributes through inheritance from trading model
-        super().__init__(market_data, account, model, model_storage, model_args)
+        super().__init__(model, http_session, symbols, topics, model_storage,
+                         model_args)

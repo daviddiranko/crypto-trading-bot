@@ -28,7 +28,6 @@ class MarketData:
         '''
         Parameters
         ----------
-
         topics: List[str]
             all topics to store
 
