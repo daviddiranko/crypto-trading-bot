@@ -101,5 +101,6 @@ class TestBinanceFunctions(unittest.TestCase):
         ]
 
         self.binance_to_bybit = binance_to_bybit(klines=self.binance_msg,
-                                                 topic="candle.1.BTCUSDT")
+                                                 topics=["candle.1.BTCUSDT"] *
+                                                 len(self.binance_msg))
         self.assertListEqual(self.bybit_response, self.binance_to_bybit)

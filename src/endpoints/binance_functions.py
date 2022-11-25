@@ -52,15 +52,15 @@ def format_historical_klines(msg: List[List[Any]]) -> pd.DataFrame:
     return df
 
 
-def binance_to_bybit(klines: List[List[Any]], topic: str) -> List[str]:
+def binance_to_bybit(klines: List[List[Any]], topics: List[str]) -> List[str]:
     '''
     transform binance kline response to bybit websocket message for backtesting simulation.
     Parameters
     ----------
     klines: List[List[Any]]
         historical binance candlesticks
-    topic: str
-        respective bybit topic to simulate websocket responses
+    topics: List[str]
+        respective bybit topics to simulate websocket responses
     
     Returns
     -------
@@ -70,8 +70,15 @@ def binance_to_bybit(klines: List[List[Any]], topic: str) -> List[str]:
     # initialize empty list of messages
     messages = []
 
-    # format klines
+    # format klines and add topics
     formatted_klines = format_historical_klines(klines)
+    formatted_klines['topic'] = topics
+
+    formatted_klines = formatted_klines.reset_index(drop=True).set_index(
+        ['end', 'topic'], drop=False)
+
+    # sort klines by index
+    formatted_klines = formatted_klines.sort_index()
 
     # iterate through all lines and format candles
     for idx in formatted_klines.index:
@@ -79,7 +86,7 @@ def binance_to_bybit(klines: List[List[Any]], topic: str) -> List[str]:
 
         # format candle to dict
         bybit_msg = {
-            "topic": topic,
+            "topic": kline['topic'],
             "data": [{
                 "start": kline['start'].value / 1000000000,
                 "end": kline['end'].value / 1000000000,
