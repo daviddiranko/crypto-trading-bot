@@ -146,6 +146,7 @@ class BacktestAccountData(AccountData):
 
         # format klines and extract high and low
         quotes = binance_functions.format_historical_klines(msg)
+
         price_sell = quotes.iloc[0]['low']
         price_buy = quotes.iloc[0]['high']
 

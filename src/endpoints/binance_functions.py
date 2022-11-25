@@ -1,8 +1,9 @@
 import pandas as pd
-from typing import List, Any, Tuple
+from typing import List, Any, Tuple, Dict
 from dotenv import load_dotenv
 import os
 import json
+from binance.client import Client
 
 load_dotenv()
 
@@ -111,3 +112,48 @@ def binance_to_bybit(klines: List[List[Any]],
         messages.append(json.dumps(bybit_msg))
 
     return messages, formatted_klines
+
+
+def create_simulation_data(session: Client, symbols: Dict[str,
+                                                          str], start_str: str,
+                           end_str: str) -> Tuple[List[List[Any]], List[str]]:
+    '''
+    Create simulation data.
+    Pull all relevant candles from binance and add them to a single list.
+    for each list index, add the bybit topic in another list
+
+    Parameters
+    ----------
+    session: binance.client.Client
+        http session to pull historical data
+    
+    symbols: Dict[str, str]
+        dictionary of relevant symbols for backtesting
+        symbols for backtesting
+        keys have format binance_ticker.binacne_interval and values are coresponding bybit ws topics.
+    
+    start_str: str
+        start of simulation in format yyyy-mm-dd hh-mm-ss
+    end_str: str
+        end of simulation in format yyyy-mm-dd hh-mm-ss
+
+    Returns
+    --------
+    klines: List[List[Any]]
+        list of raw klines
+    
+    topics: List[str]
+        list of respective websocket topics
+    '''
+    klines = []
+    topics = []
+    for symbol in symbols:
+        ticker, interval = symbol.split('.')
+        bnc_data = session.get_historical_klines(ticker,
+                                                 start_str=start_str,
+                                                 end_str=end_str,
+                                                 interval=interval)
+        klines.extend(bnc_data)
+        topics.extend([symbols[symbol]] * len(bnc_data))
+
+    return klines, topics

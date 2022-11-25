@@ -1,7 +1,15 @@
 import pandas as pd
 from typing import List, Dict, Any
 import unittest
-from src.endpoints.binance_functions import format_historical_klines, binance_to_bybit
+from src.endpoints.binance_functions import format_historical_klines, binance_to_bybit, create_simulation_data
+from binance.client import Client
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BINANCE_KEY = os.getenv('BINANCE_KEY')
+BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 
 
 class TestBinanceFunctions(unittest.TestCase):
@@ -137,3 +145,38 @@ class TestBinanceFunctions(unittest.TestCase):
                                                  len(self.binance_msg))
         self.assertListEqual(self.bybit_response, self.binance_to_bybit[0])
         pd.testing.assert_frame_equal(self.binance_df, self.binance_to_bybit[1])
+
+    def test_create_simulation_date(self):
+        self.klines = [[
+            1669075200000, '15781.29000000', '15792.20000000', '15771.85000000',
+            '15773.47000000', '177.50515000', 1669075259999, '2801323.85635350',
+            5042, '83.54770000', '1318604.78348070', '0'
+        ],
+                       [
+                           1669075260000, '15773.47000000', '15778.84000000',
+                           '15754.17000000', '15764.87000000', '239.19100000',
+                           1669075319999, '3770939.10765890', 6760,
+                           '102.41369000', '1614619.67260330', '0'
+                       ],
+                       [
+                           1669075200000, '15781.29000000', '15890.00000000',
+                           '15746.16000000', '15865.33000000', '3925.23978000',
+                           1669076099999, '62117291.29081640', 97554,
+                           '1995.41764000', '31580092.78870870', '0'
+                       ]]
+        self.topics = [
+            'candle.1.BTCUSDT', 'candle.1.BTCUSDT', 'candle.15.BTCUSDT'
+        ]
+
+        session = Client(api_key=BINANCE_KEY, api_secret=BINANCE_SECRET)
+        klines, topics = create_simulation_data(
+            session=session,
+            symbols={
+                'BTCUSDT.1m': 'candle.1.BTCUSDT',
+                'BTCUSDT.15m': 'candle.15.BTCUSDT'
+            },
+            start_str='2022-11-22 00:00:00',
+            end_str='2022-11-22 00:01:00')
+
+        self.assertListEqual(self.klines, klines)
+        self.assertListEqual(self.topics, topics)
