@@ -126,12 +126,10 @@ def create_simulation_data(session: Client, symbols: Dict[str,
     ----------
     session: binance.client.Client
         http session to pull historical data
-    
     symbols: Dict[str, str]
         dictionary of relevant symbols for backtesting
         symbols for backtesting
         keys have format binance_ticker.binacne_interval and values are coresponding bybit ws topics.
-    
     start_str: str
         start of simulation in format yyyy-mm-dd hh-mm-ss
     end_str: str

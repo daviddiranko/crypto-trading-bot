@@ -10,6 +10,7 @@ from src.TradingModel import TradingModel
 from src.backtest.BacktestAccountData import BacktestAccountData
 from src.backtest.BacktestMarketData import BacktestMarketData
 from binance.client import Client
+from src.endpoints.binance_functions import binance_to_bybit, create_simulation_data
 
 load_dotenv()
 
@@ -17,6 +18,8 @@ PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
+
+BACKTEST_SYMBOLS = eval(os.getenv('BACKTEST_SYMBOLS'))
 
 
 class BacktestTradingModel(TradingModel):
@@ -69,3 +72,43 @@ class BacktestTradingModel(TradingModel):
 
         # list of bybit websocket messages
         self.bybit_messages = None
+
+    def run_backtest(self, symbols: Dict[str, str], start_str: str,
+                     end_str: str) -> None:
+        '''
+        Run a backtest by simulating websocket messages from bybit through historical klines from binance.
+
+        Parameters
+        ----------
+        symbols: Dict[str, str]
+            dictionary of relevant symbols for backtesting
+            symbols for backtesting
+            keys have format binance_ticker.binacne_interval and values are coresponding bybit ws topics.
+        start_str: str
+            start of simulation in format yyyy-mm-dd hh-mm-ss
+        end_str: str
+            end of simulation in format yyyy-mm-dd hh-mm-ss
+
+        Returns
+        -------
+        '''
+        # create simulation data
+        klines, topics = create_simulation_data(session=self.account.session,
+                                                symbols=symbols,
+                                                start_str=start_str,
+                                                end_str=end_str)
+
+        # format data to bybit websocket messages
+        self.bybit_messages, self.simulation_data = binance_to_bybit(
+            klines, topics=topics)
+
+        # set starting timestamp
+        self.account.timestamp = self.simulation_data.index[0][0]
+
+        # iterate through formated simulation data and run backtest
+        for msg in self.bybit_messages:
+            self.on_message(message=msg)
+            self.account.timestamp = self.market_data.history[BACKTEST_SYMBOLS[
+                list(BACKTEST_SYMBOLS.keys())[0]]].index[-1]
+
+        return None
