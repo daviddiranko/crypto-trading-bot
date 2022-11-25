@@ -12,6 +12,7 @@ from src.MarketData import MarketData
 
 from pybit import usdt_perpetual
 from dotenv import load_dotenv
+from binance.client import Client
 
 PUBLIC_TOPICS = ["candle.1.BTCUSDT"]
 PUBLIC_TOPICS_COLUMNS = [
@@ -24,6 +25,9 @@ BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
 BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
 BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
 
+BINANCE_KEY = os.getenv('BINANCE_KEY')
+BINANCE_SECRET = os.getenv('BINANCE_SECRET')
+
 
 class TestTradingModel(unittest.TestCase):
 
@@ -33,8 +37,11 @@ class TestTradingModel(unittest.TestCase):
                                            api_key=BYBIT_TEST_KEY,
                                            api_secret=BYBIT_TEST_SECRET)
 
+        self.client = Client(api_key=BINANCE_KEY, api_secret=BINANCE_SECRET)
+
         # instantiate trading model object
         self.model = TradingModel(model=lambda model: None,
+                                  client=self.client,
                                   http_session=self.session,
                                   symbols=['BTC', 'USDT'],
                                   topics=PUBLIC_TOPICS)

@@ -61,21 +61,21 @@ class BacktestTradingModel(TradingModel):
                                            symbols=symbols,
                                            budget=budget)
         self.market_data = BacktestMarketData(account=self.account,
+                                              client=http_session,
                                               topics=topics)
         self.model = model
         self.model_storage = model_storage
         self.model_args = model_args
 
         # initialize empty simulation data
-
         # formatted dataframe of binance candles
         self.simulation_data = None
 
         # list of bybit websocket messages
         self.bybit_messages = None
 
-    def run_backtest(self, symbols: Dict[str, str], start_str: str,
-                     end_str: str) -> Dict[str, float]:
+    def run_backtest(self, symbols: Dict[str, str], start_history: str,
+                     start_str: str, end_str: str) -> Dict[str, float]:
         '''
         Run a backtest by simulating websocket messages from bybit through historical klines from binance and return a performance report.
         Parameters
@@ -84,6 +84,9 @@ class BacktestTradingModel(TradingModel):
             dictionary of relevant symbols for backtesting
             symbols for backtesting
             keys have format binance_ticker.binacne_interval and values are coresponding bybit ws topics.
+        start_history: str
+            start of historical data to pull for model in format yyyy-mm-dd hh-mm-ss
+            history will be pulled until start_str
         start_str: str
             start of simulation in format yyyy-mm-dd hh-mm-ss
         end_str: str

@@ -7,8 +7,10 @@ from dotenv import load_dotenv
 import os
 from typing import List, Dict, Any
 from src.endpoints.bybit_functions import format_klines
+from src.endpoints.binance_functions import format_historical_klines
 from src.MarketData import MarketData
 from src.backtest.BacktestAccountData import BacktestAccountData
+from binance.client import Client
 
 load_dotenv()
 
@@ -28,6 +30,7 @@ class BacktestMarketData(MarketData):
     # create new backtesting marketdata object through inheritance from MarketData
     def __init__(self,
                  account: BacktestAccountData,
+                 client: Client,
                  topics: List[str] = PUBLIC_TOPICS):
         '''
         Parameters
@@ -35,6 +38,8 @@ class BacktestMarketData(MarketData):
         account: BacktestAccountData
             account data object to send new market data point to.
             Necessary to update real time account data endpoints like positions, open orders etc.
+        client: binance.client.Client
+            http session to pull historical data from
         topics: List[str]
             all topics to store
 
@@ -50,7 +55,7 @@ class BacktestMarketData(MarketData):
             Necessary to update real time account data endpoints like positions, open orders etc.
         '''
 
-        super().__init__(topics)
+        super().__init__(client, topics)
         self.account = account
 
     def on_message(self, message: json) -> Dict[str, Any]:

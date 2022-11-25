@@ -47,6 +47,7 @@ class TestBacktestTradingModel(unittest.TestCase):
     def test_run_backtest(self):
 
         self.model.run_backtest(symbols=self.symbols,
+                                start_history='2022-11-21 23:59:00',
                                 start_str='2022-11-22 00:00:00',
                                 end_str='2022-11-22 00:03:00')
 
@@ -137,6 +138,7 @@ class TestBacktestTradingModel(unittest.TestCase):
                                              'close': False
                                          })
         new_model.run_backtest(symbols=self.symbols,
+                               start_history='2022-11-21 23:59:00',
                                start_str='2022-11-22 00:00:00',
                                end_str='2022-11-22 00:03:00')
 

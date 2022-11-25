@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from .MarketData import MarketData
 from .AccountData import AccountData
 from pybit import usdt_perpetual
+from binance.client import Client
 
 load_dotenv()
 
@@ -27,6 +28,7 @@ class TradingModel:
     def __init__(self,
                  model: Any,
                  http_session: usdt_perpetual.HTTP,
+                 client: Client,
                  symbols: List[str] = None,
                  topics: List[str] = PUBLIC_TOPICS,
                  model_storage: Dict[str, Any] = {},
@@ -38,6 +40,8 @@ class TradingModel:
             function that holds the trading logic
         http_session: usdt_perpetual.HTTP
             open http connection for account data initialization and trading
+        client: binance.client.Client
+            http session to pull historical data from
         symbols: List[str]
             optional list of symbols to incorporate into account data. If no list is provided, all available symbols are incorporated.
         topics: List[str]
@@ -49,7 +53,7 @@ class TradingModel:
         '''
 
         # initialize attributes and instantiate market and account data objects
-        self.market_data = MarketData(topics=topics)
+        self.market_data = MarketData(client=client, topics=topics)
         self.account = AccountData(http_session=http_session, symbols=symbols)
         self.model = model
         self.model_storage = model_storage

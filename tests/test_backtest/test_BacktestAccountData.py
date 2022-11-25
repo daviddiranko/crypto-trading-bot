@@ -33,6 +33,7 @@ class TestBacktestAccountData(unittest.TestCase):
                                                'BTC': 0
                                            })
         self.market_data = BacktestMarketData(account=self.account,
+                                              client=self.client,
                                               topics=PUBLIC_TOPICS)
 
         self.order_time = pd.Timestamp('2022-10-01 09:33:12')

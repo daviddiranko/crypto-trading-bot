@@ -249,8 +249,12 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
 
     async def test_system(self):
 
+        # pull historical data from binance and add to market data history
+        binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
+
         # instantiate TradingModel object
         model = TradingModel(model=mock_model,
+                             client=binance_client,
                              http_session=self.session,
                              symbols=[self.ticker[:3], self.ticker[3:]],
                              topics=PUBLIC_TOPICS,
@@ -262,9 +266,6 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
                                  'open': False,
                                  'close': False
                              })
-
-        # pull historical data from binance and add to market data history
-        binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
 
         # construct start string
         start_str = str(self.start) + ' ' + self.start_unit + ' ago'
