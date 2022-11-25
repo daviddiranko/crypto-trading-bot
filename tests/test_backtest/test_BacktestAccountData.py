@@ -53,10 +53,10 @@ class TestBacktestAccountData(unittest.TestCase):
 
         spread = quotes.iloc[0]['high'] - quotes.iloc[0]['low']
 
+        self.account.timestamp = self.order_time
         open = self.account.place_order(symbol='BTCUSDT',
                                         side='Buy',
                                         qty=0.01,
-                                        order_time=self.order_time,
                                         order_type='Market',
                                         stop_loss=18000,
                                         take_profit=20000)
@@ -67,10 +67,10 @@ class TestBacktestAccountData(unittest.TestCase):
             'available_balance'] + last_trade_1[
                 'exec_fee'] + last_trade_1['exec_qty'] * last_trade_1['price']
         position_1 = self.account.positions.copy()
+
         close = self.account.place_order(symbol='BTCUSDT',
                                          side='Sell',
                                          qty=0.02,
-                                         order_time=self.order_time,
                                          order_type='Market',
                                          stop_loss=18000,
                                          take_profit=20000,

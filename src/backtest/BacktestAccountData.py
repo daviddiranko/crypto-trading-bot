@@ -61,6 +61,8 @@ class BacktestAccountData(AccountData):
         self.wallet = Dict[str, Dict[str, Any]]
             wallet data, indexed by symbol
             each symbol is indexed to another dict that holds balance, margin etc. for that symbol
+        self.timestamp = pandas.Timestamp
+            current timestamp in backtesting simulation
         '''
 
         # build all possible tuples from symbols
@@ -90,12 +92,12 @@ class BacktestAccountData(AccountData):
                 "wallet_balance": budget[symbol]
             } for symbol in symbols
         }
+        self.timestamp = None
 
     def place_order(self,
                     symbol: str,
                     side: str,
                     qty: int,
-                    order_time: pd.Timestamp,
                     order_type: str = 'Market',
                     price: float = None,
                     stop_loss: float = None,
@@ -116,8 +118,6 @@ class BacktestAccountData(AccountData):
                 "Sell"
         qty: int
             number of contracts to trade
-        order_time: pandas.Timestamp
-            order time. Necessary to pull correct historical price
         order_type: str
             Type of order. Currently only market orders are supported.
         price: float
@@ -136,23 +136,24 @@ class BacktestAccountData(AccountData):
             response body for execution
         '''
         # order time + 1 minute
-        order_time_1 = pd.Timestamp(order_time.value + 60000000000)
+        order_time_1 = pd.Timestamp(self.timestamp.value + 60000000000)
 
         # pull historical kline
         msg = self.session.get_historical_klines(symbol,
-                                                 start_str=str(order_time),
+                                                 start_str=str(self.timestamp),
                                                  end_str=str(order_time_1),
                                                  interval='1m')
 
         # format klines and extract high and low
         quotes = binance_functions.format_historical_klines(msg)
-        low = quotes.iloc[0]['low']
-        high = quotes.iloc[0]['high']
+        price_sell = quotes.iloc[0]['low']
+        price_buy = quotes.iloc[0]['high']
 
         if order_type == 'Market':
 
             # determine execution price according to direction of the trade
-            trade_price = (side == 'Buy') * high + (side == 'Sell') * low
+            trade_price = (side == 'Buy') * price_buy + (side
+                                                         == 'Sell') * price_sell
 
             # execute trade
             execution = self.execute(symbol=symbol,

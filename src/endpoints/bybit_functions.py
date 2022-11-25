@@ -38,9 +38,8 @@ def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
-def initialize_account_data(
-        session: usdt_perpetual.HTTP,
-        symbols: List[str] = None) -> Dict[str, Dict[str, Any]]:
+def initialize_account_data(session: usdt_perpetual.HTTP,
+                            symbols: List[str]) -> Dict[str, Dict[str, Any]]:
     '''
     Initialize account data by pulling current values from bybit via http request.
 
@@ -49,7 +48,7 @@ def initialize_account_data(
     session: usdt_perpetual.HTTP
         active bybit http session
     symbols: List[str]
-            optional list of symbols to incorporate. If no list is provided, all available symbols are incorporated.
+            list of symbols to incorporate.
     Returns
     -------
     account_data: Dict[str, Dict[str, Any]]
@@ -65,25 +64,18 @@ def initialize_account_data(
     # pull current wallet data
     wallet = session.get_wallet_balance()['result']
 
-    # if symbol list is provided, restrict results to that list
-    if symbols:
-        # build all possible tuples from symbols
-        symbol_tuples = [
-            list(s)[0] + list(s)[1]
-            for s in list(itertools.product(symbols, repeat=2))
-        ]
+    # build all possible tuples from symbols
+    symbol_tuples = [
+        list(s)[0] + list(s)[1]
+        for s in list(itertools.product(symbols, repeat=2))
+    ]
 
-        account_data['position'] = {
-            pos['data']['symbol']: pos['data']
-            for pos in position
-            if pos['data']['symbol'] in symbol_tuples
-        }
-        account_data['wallet'] = {symbol: wallet[symbol] for symbol in symbols}
-    else:
-        account_data['position'] = {
-            pos['data']['symbol']: pos['data'] for pos in position
-        }
-        account_data['wallet'] = wallet
+    account_data['position'] = {
+        pos['data']['symbol']: pos['data']
+        for pos in position
+        if pos['data']['symbol'] in symbol_tuples
+    }
+    account_data['wallet'] = {symbol: wallet[symbol] for symbol in symbols}
 
     # pull current order, stop order and execution data for every symbol
     orders = {symbol: None for symbol in account_data['position'].keys()}

@@ -72,7 +72,7 @@ class BacktestMarketData(MarketData):
         # extract message
         msg = json.loads(message)
 
-        try:
+        if 'topic' in msg.keys():
             # extract topic
             topic = msg['topic']
 
@@ -90,12 +90,10 @@ class BacktestMarketData(MarketData):
 
                 return data
             else:
-                print('topic: {} is not known'.format(topic))
-                print(message)
+                # print('BacktestMarketData.on_message: topic: {} is not known \n{}'.format(topic, message))
                 return False
 
-        except:
-            print('MarketData: No data received!')
-            print(message)
+        else:
+            # print('BacktestMarketData.on_message: Could not process message:{}'.format(message))
 
-        return False
+            return False

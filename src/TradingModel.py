@@ -67,7 +67,7 @@ class TradingModel:
         # extract message
         msg = json.loads(message)
 
-        try:
+        if 'topic' in msg.keys():
             # extract topic
             topic = msg['topic']
             # if public topic, forward to market_data and trigger model
@@ -88,7 +88,6 @@ class TradingModel:
                 print(message)
                 return False
 
-        except:
-            print('TradingModel: No data received!')
-            print(message)
+        else:
+            # print('TradingModel.on_message: Could not process ws message: \n{}'.format(message))
             return False

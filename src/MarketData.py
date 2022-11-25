@@ -63,7 +63,7 @@ class MarketData:
         # extract message
         msg = json.loads(message)
 
-        try:
+        if 'topic' in msg.keys():
             # extract topic
             topic = msg['topic']
 
@@ -78,14 +78,11 @@ class MarketData:
 
                 return data
             else:
-                print('topic: {} is not known'.format(topic))
-                print(message)
+                # print('MarketData.on_message: topic: {} is not known\n{}'.format(topic,message))
                 return False
 
-        except:
-            print('MarketData: No data received!')
-            print(message)
-
+        else:
+            # print('MarketData.on_message: Could not process ws message:\n{}'.format(message))
             return False
 
     def add_history(self, topic: str, data: pd.DataFrame) -> pd.DataFrame:
