@@ -254,7 +254,10 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
                              http_session=self.session,
                              symbols=[self.ticker[:3], self.ticker[3:]],
                              topics=PUBLIC_TOPICS,
-                             model_args={'open': True},
+                             model_args={
+                                 'open': True,
+                                 'reduce_only': True
+                             },
                              model_storage={
                                  'open': False,
                                  'close': False

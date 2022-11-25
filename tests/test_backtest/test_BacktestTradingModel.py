@@ -31,7 +31,10 @@ class TestBacktestTradingModel(unittest.TestCase):
                                               'BTC': 0
                                           },
                                           topics=PUBLIC_TOPICS,
-                                          model_args={'open': True},
+                                          model_args={
+                                              'open': True,
+                                              'reduce_only': True
+                                          },
                                           model_storage={
                                               'open': False,
                                               'close': False
@@ -115,4 +118,26 @@ class TestBacktestTradingModel(unittest.TestCase):
         }
 
         self.assertDictEqual(self.model.account.executions, executions)
+        self.assertDictEqual(self.model.account.positions, positions)
+
+        new_model = BacktestTradingModel(model=mock_model,
+                                         http_session=self.client,
+                                         symbols=['BTC', 'USDT'],
+                                         budget={
+                                             'USDT': 1000,
+                                             'BTC': 0
+                                         },
+                                         topics=PUBLIC_TOPICS,
+                                         model_args={
+                                             'open': True,
+                                             'reduce_only': False
+                                         },
+                                         model_storage={
+                                             'open': False,
+                                             'close': False
+                                         })
+        new_model.run_backtest(symbols=self.symbols,
+                               start_str='2022-11-22 00:00:00',
+                               end_str='2022-11-22 00:03:00')
+
         self.assertDictEqual(self.model.account.positions, positions)

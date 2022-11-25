@@ -112,8 +112,8 @@ class BacktestTradingModel(TradingModel):
             self.account.timestamp = self.market_data.history[BACKTEST_SYMBOLS[
                 list(BACKTEST_SYMBOLS.keys())[0]]].index[-1]
 
-        # close remaining position
-        for pos in self.account.positions:
+        # close remaining open positions
+        for pos in self.account.positions.values():
             if pos['size'] > 0:
                 if pos['side'] == 'Buy':
                     side = 'Sell'
