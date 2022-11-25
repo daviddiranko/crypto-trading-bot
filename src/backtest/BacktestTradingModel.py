@@ -75,10 +75,9 @@ class BacktestTradingModel(TradingModel):
         self.bybit_messages = None
 
     def run_backtest(self, symbols: Dict[str, str], start_str: str,
-                     end_str: str) -> None:
+                     end_str: str) -> Dict[str, float]:
         '''
-        Run a backtest by simulating websocket messages from bybit through historical klines from binance.
-
+        Run a backtest by simulating websocket messages from bybit through historical klines from binance and return a performance report.
         Parameters
         ----------
         symbols: Dict[str, str]
@@ -92,7 +91,13 @@ class BacktestTradingModel(TradingModel):
 
         Returns
         -------
+        report: Dict[str, float]
+            performance report
         '''
+
+        # store initial budget for performance measures
+        initial_budget = self.account.wallet['USDT']['available_balance']
+
         # create simulation data
         klines, topics = create_simulation_data(session=self.account.session,
                                                 symbols=symbols,
@@ -123,4 +128,95 @@ class BacktestTradingModel(TradingModel):
                                          side=side,
                                          qty=pos['size'],
                                          reduce_only=True)
-        return None
+        report = self.create_performance_report(initial_budget=initial_budget)
+
+        return report
+    
+    def create_performance_report(self, initial_budget: float) -> Dict[str, float]:
+        '''
+        Create performance report after backtest.
+        Report is created by iterating through executions and counting a trade if it exceeds or matches a previously open position.
+        A trade is a winning trade if its price is better than the position price before any partial closings.
+
+        Parameters
+        ----------
+        initial_budget: float
+            initial budget of USDT at start of backtest
+        
+        Returns
+        -------
+        report: Dict[str, float]
+            performance report
+        '''
+
+        # initialize kpis
+
+        # sign, price, size and value of current position
+        sign_pos = None
+        pos_price = None
+        pos_qty = 0
+        pos_value = 0
+
+        # initialize winning and total trades to zero
+        # a winning trade is one 
+        wins = 0
+        total_trades = 0
+
+        # iterate through executions
+        for exe in self.account.executions['BTCUSDT'].values():
+
+            # if trade opened a new position calculate new position value and continue
+            if pos_qty==0:
+                sign_pos = 2*((exe['side']=='Buy')-0.5)
+                pos_price = exe['price']
+                pos_qty = exe['exec_qty']
+                pos_value = pos_price * pos_qty
+                continue
+
+            # calculate sign of new trade
+            sign_new = 2*((exe['side']=='Buy')-0.5)
+            
+            # if trade was in same direction as position, calculate new position values and continue
+            if sign_new==sign_pos:
+                pos_value += exe['price']*exe['exec_qty']
+                pos_qty += exe['exec_qty']
+                pos_price = pos_value/pos_qty
+                continue
+
+            # if trade was in opposite direction and exceeded or matched old position in size:
+            # check if trade was a winning trade
+            # open new position with execution price and residual quantity
+            if exe['exec_qty']>=pos_qty:
+                if exe['price']*sign_pos>pos_price*sign_pos:
+                    wins+=1
+                    total_trades+=1
+                else:
+                    total_trades+=1
+
+                pos_price = exe['price']
+                pos_value = (exe['exec_qty']-pos_qty)*exe['price']
+                sign_pos = sign_new
+
+            # if trade did not match or exceed old position, reduce old position, but keep position price
+            else:
+                pos_value = abs(pos_value - exe['price']*exe['exec_qty'])
+                pos_qty = abs(pos_qty - exe['exec_qty'])
+        
+        # calculate total trading return and return in percentage of initial budget
+        trading_return= self.account.wallet['USDT']['available_balance']-initial_budget
+        trading_return_percent= trading_return/initial_budget
+
+        # create performance report
+        report={
+        'initial_budget': initial_budget,
+        'final_budget': self.account.wallet['USDT']['available_balance'],
+        'total_trades': total_trades,
+        'win_loss_ratio': wins/total_trades,
+        'trading_return': trading_return,
+        'trading_return_percent': trading_return_percent,
+        'avg_trade_return': trading_return/total_trades,
+        'avg_trade_return_per': trading_return_percent/total_trades}
+
+        return report
+
+
