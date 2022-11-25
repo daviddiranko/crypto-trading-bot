@@ -56,44 +56,76 @@ class TestBinanceFunctions(unittest.TestCase):
 
     def test_binance_to_bybit(self):
 
-        self.binance_msg = pd.DataFrame({
+        self.binance_msg = [[
+            1669075200000, '15781.29000000', '15792.20000000', '15771.85000000',
+            '15773.47000000', '177.50515000', 1669075259999, '2801323.85635350',
+            5042, '83.54770000', '1318604.78348070', '0'
+        ],
+                            [
+                                1669075260000, '15773.47000000',
+                                '15778.84000000', '15754.17000000',
+                                '15764.87000000', '239.19100000', 1669075319999,
+                                '3770939.10765890', 6760, '102.41369000',
+                                '1614619.67260330', '0'
+                            ]]
+        self.binance_df = pd.DataFrame({
             'start': {
-                pd.Timestamp('2022-11-22 00:01:00'):
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
                     pd.Timestamp('2022-11-22 00:00:00'),
-                pd.Timestamp('2022-11-22 00:02:00'):
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
                     pd.Timestamp('2022-11-22 00:01:00')
             },
             'open': {
-                pd.Timestamp('2022-11-22 00:01:00'): 15781.29,
-                pd.Timestamp('2022-11-22 00:02:00'): 15773.47
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
+                    15781.29,
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
+                    15773.47
             },
             'high': {
-                pd.Timestamp('2022-11-22 00:01:00'): 15792.2,
-                pd.Timestamp('2022-11-22 00:02:00'): 15778.84
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
+                    15792.2,
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
+                    15778.84
             },
             'low': {
-                pd.Timestamp('2022-11-22 00:01:00'): 15771.85,
-                pd.Timestamp('2022-11-22 00:02:00'): 15754.17
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
+                    15771.85,
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
+                    15754.17
             },
             'close': {
-                pd.Timestamp('2022-11-22 00:01:00'): 15773.47,
-                pd.Timestamp('2022-11-22 00:02:00'): 15764.87
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
+                    15773.47,
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
+                    15764.87
             },
             'volume': {
-                pd.Timestamp('2022-11-22 00:01:00'): 177.50515,
-                pd.Timestamp('2022-11-22 00:02:00'): 239.191
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
+                    177.50515,
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
+                    239.191
             },
             'end': {
-                pd.Timestamp('2022-11-22 00:01:00'):
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
                     pd.Timestamp('2022-11-22 00:01:00'),
-                pd.Timestamp('2022-11-22 00:02:00'):
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
                     pd.Timestamp('2022-11-22 00:02:00')
             },
             'turnover': {
-                pd.Timestamp('2022-11-22 00:01:00'): 2801323.8563535,
-                pd.Timestamp('2022-11-22 00:02:00'): 3770939.1076589
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
+                    2801323.8563535,
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
+                    3770939.1076589
+            },
+            'topic': {
+                (pd.Timestamp('2022-11-22 00:01:00'), "candle.1.BTCUSDT"):
+                    "candle.1.BTCUSDT",
+                (pd.Timestamp('2022-11-22 00:02:00'), "candle.1.BTCUSDT"):
+                    "candle.1.BTCUSDT"
             }
         })
+
+        self.binance_df.index.names = ['end', 'topic']
 
         self.bybit_response = [
             '{"topic": "candle.1.BTCUSDT", "data": [{"start": 1669075200.0, "end": 1669075260.0, "period": "1", "open": 15781.29, "close": 15773.47, "high": 15792.2, "low": 15771.85, "volume": 177.50515, "turnover": 2801323.8563535, "confirm": true, "cross_seq": 0, "timestamp": 1669075260000000000}], "timestamp_e6": 1669075260000000000}',
@@ -103,4 +135,5 @@ class TestBinanceFunctions(unittest.TestCase):
         self.binance_to_bybit = binance_to_bybit(klines=self.binance_msg,
                                                  topics=["candle.1.BTCUSDT"] *
                                                  len(self.binance_msg))
-        self.assertListEqual(self.bybit_response, self.binance_to_bybit)
+        self.assertListEqual(self.bybit_response, self.binance_to_bybit[0])
+        pd.testing.assert_frame_equal(self.binance_df, self.binance_to_bybit[1])

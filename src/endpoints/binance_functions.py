@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Any
+from typing import List, Any, Tuple
 from dotenv import load_dotenv
 import os
 import json
@@ -52,7 +52,8 @@ def format_historical_klines(msg: List[List[Any]]) -> pd.DataFrame:
     return df
 
 
-def binance_to_bybit(klines: List[List[Any]], topics: List[str]) -> List[str]:
+def binance_to_bybit(klines: List[List[Any]],
+                     topics: List[str]) -> Tuple[List[str], pd.DataFrame]:
     '''
     transform binance kline response to bybit websocket message for backtesting simulation.
     Parameters
@@ -66,6 +67,8 @@ def binance_to_bybit(klines: List[List[Any]], topics: List[str]) -> List[str]:
     -------
     messages: List[str]
         list of json response bodys (formatted as string), analog to bybit websocket messages
+    formatted_klines: pandas.DataFrame
+        formatted klines
     '''
     # initialize empty list of messages
     messages = []
@@ -107,4 +110,4 @@ def binance_to_bybit(klines: List[List[Any]], topics: List[str]) -> List[str]:
         # jsonify message and append to messages
         messages.append(json.dumps(bybit_msg))
 
-    return messages
+    return messages, formatted_klines

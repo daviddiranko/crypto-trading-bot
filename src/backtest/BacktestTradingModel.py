@@ -61,3 +61,11 @@ class BacktestTradingModel(TradingModel):
         self.model = model
         self.model_storage = model_storage
         self.model_args = model_args
+
+        # initialize empty simulation data
+
+        # formatted dataframe of binance candles
+        self.simulation_data = None
+
+        # list of bybit websocket messages
+        self.bybit_messages = None
