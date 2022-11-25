@@ -11,6 +11,7 @@ from src.backtest.BacktestAccountData import BacktestAccountData
 from src.backtest.BacktestMarketData import BacktestMarketData
 from binance.client import Client
 from src.endpoints.binance_functions import binance_to_bybit, create_simulation_data
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -106,7 +107,7 @@ class BacktestTradingModel(TradingModel):
         self.account.timestamp = self.simulation_data.index[0][0]
 
         # iterate through formated simulation data and run backtest
-        for msg in self.bybit_messages:
+        for msg in tqdm(self.bybit_messages):
             self.on_message(message=msg)
             self.account.timestamp = self.market_data.history[BACKTEST_SYMBOLS[
                 list(BACKTEST_SYMBOLS.keys())[0]]].index[-1]

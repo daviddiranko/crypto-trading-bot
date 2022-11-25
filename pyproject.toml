@@ -24,6 +24,7 @@ toml = "==0.10.2"
 mypy = "==0.982"
 coverage = "==6.5.0"
 jupyter = "==1.0.0"
+tqdm = "==4.64.1"
 
 [build-system]
 requires = ["poetry-core"]
