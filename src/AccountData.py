@@ -23,9 +23,7 @@ class AccountData:
     '''
 
     # initialize account data object with current values
-    def __init__(self,
-                 http_session: usdt_perpetual.HTTP,
-                 symbols: List[str]):
+    def __init__(self, http_session: usdt_perpetual.HTTP, symbols: List[str]):
         '''
         Parameters
         ----------

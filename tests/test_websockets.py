@@ -269,7 +269,8 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
                              })
 
         # construct start string
-        start_str = str(pd.Timestamp.now()-pd.Timedelta(self.start,self.start_unit))
+        start_str = str(pd.Timestamp.now() -
+                        pd.Timedelta(self.start, self.start_unit))
         end_str = str(pd.Timestamp.now())
 
         model.market_data.build_history(symbols={

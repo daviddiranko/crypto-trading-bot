@@ -66,7 +66,7 @@ async def main():
     start = 10
     start_unit = 'm'
 
-    symbol_list =[symbol[:3] for symbol in HIST_TICKERS]
+    symbol_list = [symbol[:3] for symbol in HIST_TICKERS]
     symbol_list.extend([symbol[3:] for symbol in HIST_TICKERS])
 
     # initialize http connection for trading
@@ -79,8 +79,7 @@ async def main():
 
     # initialize MarketData, AccountData and TradingModel objects
     market_data = MarketData(client=binance_client, topics=PUBLIC_TOPICS)
-    account_data = AccountData(http_session=session,
-                               symbols=symbol_list)
+    account_data = AccountData(http_session=session, symbols=symbol_list)
     model = TradingModel(market_data=market_data,
                          account=account_data,
                          model=mock_model,
@@ -91,7 +90,7 @@ async def main():
                          })
 
     # construct start string
-    start_str = str(pd.Timestamp.now()-pd.Timedelta(start,start_unit))
+    start_str = str(pd.Timestamp.now() - pd.Timedelta(start, start_unit))
     end_str = str(pd.Timestamp.now())
 
     model.market_data.build_history(symbols=BACKTEST_SYMBOLS,
