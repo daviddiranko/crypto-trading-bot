@@ -138,7 +138,7 @@ class MarketData:
         for symbol in symbols.keys():
             # load history as list of lists from binance
             ticker, interval = symbol.split('.')
-            msg = self.client.get_historical_klines(ticker=ticker,
+            msg = self.client.get_historical_klines(symbol=ticker,
                                                     start_str=start_str,
                                                     end_str=end_str,
                                                     interval=interval)

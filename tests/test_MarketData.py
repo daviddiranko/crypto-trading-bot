@@ -9,6 +9,7 @@ import unittest
 from src.MarketData import MarketData
 from binance.client import Client
 from dotenv import load_dotenv
+import numpy as np
 
 PUBLIC_TOPICS = ["candle.1.BTCUSDT"]
 PUBLIC_TOPICS_COLUMNS = [
@@ -129,3 +130,73 @@ class TestMarketData(unittest.TestCase):
             pd.Timestamp('2022-11-03 07:51:00'),
             pd.Timestamp('2022-11-03 07:52:00')
         ])
+
+    def test_build_history(self):
+        BACKTEST_SYMBOLS = {
+            'BTCUSDT.1m': 'candle.1.BTCUSDT',
+        }
+        self.market_data.build_history(symbols=BACKTEST_SYMBOLS,
+                                       start_str='2022-11-21 00:00:00',
+                                       end_str='2022-11-21 00:01:00')
+
+        history_1m = pd.DataFrame({
+            'start': {
+                pd.Timestamp('2022-11-21 00:01:00'):
+                    pd.Timestamp('2022-11-21 00:00:00'),
+                pd.Timestamp('2022-11-21 00:02:00'):
+                    pd.Timestamp('2022-11-21 00:01:00')
+            },
+            'open': {
+                pd.Timestamp('2022-11-21 00:01:00'): 16279.5,
+                pd.Timestamp('2022-11-21 00:02:00'): 16290.68
+            },
+            'high': {
+                pd.Timestamp('2022-11-21 00:01:00'): 16292.0,
+                pd.Timestamp('2022-11-21 00:02:00'): 16295.0
+            },
+            'low': {
+                pd.Timestamp('2022-11-21 00:01:00'): 16271.52,
+                pd.Timestamp('2022-11-21 00:02:00'): 16275.0
+            },
+            'close': {
+                pd.Timestamp('2022-11-21 00:01:00'): 16290.62,
+                pd.Timestamp('2022-11-21 00:02:00'): 16275.04
+            },
+            'volume': {
+                pd.Timestamp('2022-11-21 00:01:00'): 192.47,
+                pd.Timestamp('2022-11-21 00:02:00'): 139.0294
+            },
+            'end': {
+                pd.Timestamp('2022-11-21 00:01:00'):
+                    pd.Timestamp('2022-11-21 00:01:00'),
+                pd.Timestamp('2022-11-21 00:02:00'):
+                    pd.Timestamp('2022-11-21 00:02:00')
+            },
+            'turnover': {
+                pd.Timestamp('2022-11-21 00:01:00'): 3133808.7844379,
+                pd.Timestamp('2022-11-21 00:02:00'): 2264108.0740263
+            },
+            'period': {
+                pd.Timestamp('2022-11-21 00:01:00'): np.nan,
+                pd.Timestamp('2022-11-21 00:02:00'): np.nan
+            },
+            'confirm': {
+                pd.Timestamp('2022-11-21 00:01:00'): np.nan,
+                pd.Timestamp('2022-11-21 00:02:00'): np.nan
+            },
+            'cross_seq': {
+                pd.Timestamp('2022-11-21 00:01:00'): np.nan,
+                pd.Timestamp('2022-11-21 00:02:00'): np.nan
+            },
+            'timestamp': {
+                pd.Timestamp('2022-11-21 00:01:00'): np.nan,
+                pd.Timestamp('2022-11-21 00:02:00'): np.nan
+            }
+        })
+
+        history_1m[['period', 'confirm', 'cross_seq',
+                    'timestamp']] = history_1m[[
+                        'period', 'confirm', 'cross_seq', 'timestamp'
+                    ]].astype('object')
+        pd.testing.assert_frame_equal(
+            history_1m, self.market_data.history['candle.1.BTCUSDT'])
