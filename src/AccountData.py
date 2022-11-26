@@ -25,14 +25,14 @@ class AccountData:
     # initialize account data object with current values
     def __init__(self,
                  http_session: usdt_perpetual.HTTP,
-                 symbols: List[str] = None):
+                 symbols: List[str]):
         '''
         Parameters
         ----------
         http_session: usdt_perpetual.HTTP
             open http connection for account data initialization and trading
         symbols: List[str]
-            optional list of symbols to incorporate. If no list is provided, all available symbols are incorporated.
+            list of symbols to incorporate.
         Attributes
         ----------
         self.session: usdt_perpetual.HTTP

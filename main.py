@@ -40,6 +40,8 @@ PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
 
+BACKTEST_SYMBOLS = eval(os.getenv('BACKTEST_SYMBOLS'))
+
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
 
@@ -61,21 +63,24 @@ async def main():
     private_url = WS_PRIVATE_TEST_URL + "?" + param
 
     # generate parameters for historical data
-    ticker = "BTCUSDT"
-    frequency = 1
-    frequency_unit = 'm'
     start = 10
     start_unit = 'm'
+
+    symbol_list =[symbol[:3] for symbol in HIST_TICKERS]
+    symbol_list.extend([symbol[3:] for symbol in HIST_TICKERS])
 
     # initialize http connection for trading
     session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                   api_key=BYBIT_TEST_KEY,
                                   api_secret=BYBIT_TEST_SECRET)
 
+    # initialize binance client to pull historical data and add to market data history
+    binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
+
     # initialize MarketData, AccountData and TradingModel objects
-    market_data = MarketData(topics=PUBLIC_TOPICS)
+    market_data = MarketData(client=binance_client, topics=PUBLIC_TOPICS)
     account_data = AccountData(http_session=session,
-                               symbols=[ticker[:3], ticker[3:]])
+                               symbols=symbol_list)
     model = TradingModel(market_data=market_data,
                          account=account_data,
                          model=mock_model,
@@ -85,22 +90,13 @@ async def main():
                              'close': False
                          })
 
-    # pull historical data from binance and add to market data history
-    binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
-
     # construct start string
-    start_str = str(start) + ' ' + start_unit + ' ago'
+    start_str = str(pd.Timestamp.now()-pd.Timedelta(start,start_unit))
+    end_str = str(pd.Timestamp.now())
 
-    # load history as list of lists from binance
-    msg = binance_client.get_historical_klines(ticker,
-                                               interval=str(frequency) +
-                                               frequency_unit,
-                                               start_str=start_str)
-
-    # format payload to dataframe
-    klines = format_historical_klines(msg)
-
-    model.market_data.add_history(topic=PUBLIC_TOPICS[0], data=klines)
+    model.market_data.build_history(symbols=BACKTEST_SYMBOLS,
+                                    start_str=start_str,
+                                    end_str=end_str)
 
     # if connection is lost, immediately set up new connection
     while True:

@@ -17,6 +17,7 @@ from src.MarketData import MarketData
 from src.AccountData import AccountData
 from src.models.mock_model import mock_model
 from src.endpoints.binance_functions import format_historical_klines
+import pandas as pd
 
 load_dotenv()
 
@@ -268,18 +269,15 @@ class TestWebsocksets(unittest.IsolatedAsyncioTestCase):
                              })
 
         # construct start string
-        start_str = str(self.start) + ' ' + self.start_unit + ' ago'
+        start_str = str(pd.Timestamp.now()-pd.Timedelta(self.start,self.start_unit))
+        end_str = str(pd.Timestamp.now())
 
-        # load history as list of lists from binance
-        msg = binance_client.get_historical_klines(
-            self.ticker,
-            interval=str(self.frequency) + self.frequency_unit,
-            start_str=start_str)
-
-        # format payload to dataframe
-        klines = format_historical_klines(msg)
-
-        model.market_data.add_history(topic=PUBLIC_TOPICS[0], data=klines)
+        model.market_data.build_history(symbols={
+            '{}.{}{}'.format(self.ticker, self.frequency, self.frequency_unit):
+                PUBLIC_TOPICS[0]
+        },
+                                        start_str=start_str,
+                                        end_str=end_str)
 
         wallet_start = model.account.wallet['USDT']
 
