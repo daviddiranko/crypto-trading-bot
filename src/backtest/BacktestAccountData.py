@@ -6,19 +6,10 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 from typing import Any, Dict, List
-from dotenv import load_dotenv
-import os
 from binance.client import Client
 from src.endpoints import binance_functions
 from src.AccountData import AccountData
 import itertools
-
-load_dotenv()
-
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
-
-PUBLIC_TOPIC_MAPPING = eval(os.getenv('PUBLIC_TOPIC_MAPPING'))
 
 
 class BacktestAccountData(AccountData):
@@ -318,11 +309,8 @@ class BacktestAccountData(AccountData):
             updated position of traded symbol
         '''
 
-        # extract symbol from topic
-        symbol = PUBLIC_TOPIC_MAPPING[topic]
-
         # determine direction of old position
-        pos = self.positions[symbol]
+        pos = self.positions[topic]
 
         side = pos['side']
 
@@ -354,7 +342,7 @@ class BacktestAccountData(AccountData):
                               take_profit * (pos['take_profit'] or 0))
 
             # execute trade
-            self.execute(symbol=symbol,
+            self.execute(symbol=topic,
                          side=side_new,
                          qty=pos['size'],
                          execution_time=data['end'],
@@ -364,7 +352,7 @@ class BacktestAccountData(AccountData):
                          reduce_only=True)
 
             # determine direction of new position
-            pos = self.positions[symbol]
+            pos = self.positions[topic]
 
         # update position value according to new close price
         pos['position_value'] = pos['size'] * data['close']

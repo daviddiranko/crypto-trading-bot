@@ -21,7 +21,11 @@ load_dotenv()
 
 BINANCE_KEY = os.getenv('BINANCE_KEY')
 BINANCE_SECRET = os.getenv('BINANCE_SECRET')
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
+PUBLIC_TOPICS = ["candle.1.BTCUSDT", "candle.5.BTCUSDT"]
+BINANCE_BYBIT_MAPPING = {
+    'candle.1.BTCUSDT': 'BTCUSDT',
+    'candle.5.BTCUSDT': 'BTCUSDT'
+}
 
 
 class TestBacktestMarketData(unittest.TestCase):
@@ -38,9 +42,11 @@ class TestBacktestMarketData(unittest.TestCase):
                                                'BTC': 0,
                                                'USDT': 1000
                                            })
-        self.market_data = BacktestMarketData(account=self.account,
-                                              client=self.client,
-                                              topics=PUBLIC_TOPICS)
+        self.market_data = BacktestMarketData(
+            account=self.account,
+            client=self.client,
+            topics=PUBLIC_TOPICS,
+            toppic_mapping=BINANCE_BYBIT_MAPPING)
 
         self.order_time = pd.Timestamp('2022-10-01 09:33:00')
 

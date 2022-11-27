@@ -45,11 +45,14 @@ class MarketData:
         self.history: Dict[str, pandas.DataFrame]
             dictionary that stores historical data.
             the dictionary is indexed by the topic and stores a dataframe of candlesticks, indexed by the close timestamp.
+        self.topics: List[str]
+            topics to store
         '''
 
         # initialize history with empty dataframes and add client
         self.history = {}
         self.client = client
+        self.topics = topics
 
         for topic in topics:
             self.history[topic] = pd.DataFrame(columns=PUBLIC_TOPICS_COLUMNS)
@@ -79,7 +82,7 @@ class MarketData:
             topic = msg['topic']
 
             # check if topic is in private topics
-            if topic in PUBLIC_TOPICS:
+            if topic in self.topics:
 
                 # extract candlestick data
                 data = format_klines(msg=msg)

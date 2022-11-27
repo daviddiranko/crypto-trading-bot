@@ -20,8 +20,13 @@ load_dotenv()
 BINANCE_KEY = os.getenv('BINANCE_KEY')
 BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
+PUBLIC_TOPICS = ["candle.1.BTCUSDT"]
+PRIVATE_TOPICS = ["position", "execution", "order", "stop_order", "wallet"]
+
+BINANCE_BYBIT_MAPPING = {
+    'candle.1.BTCUSDT': 'BTCUSDT',
+    'candle.5.BTCUSDT': 'BTCUSDT'
+}
 
 
 class TestBacktestAccountData(unittest.TestCase):
@@ -34,9 +39,11 @@ class TestBacktestAccountData(unittest.TestCase):
                                                'USDT': 1000,
                                                'BTC': 0
                                            })
-        self.market_data = BacktestMarketData(account=self.account,
-                                              client=self.client,
-                                              topics=PUBLIC_TOPICS)
+        self.market_data = BacktestMarketData(
+            account=self.account,
+            client=self.client,
+            topics=PUBLIC_TOPICS,
+            toppic_mapping=BINANCE_BYBIT_MAPPING)
 
         self.order_time = pd.Timestamp('2022-10-01 09:33:12')
 
@@ -162,8 +169,8 @@ class TestBacktestAccountData(unittest.TestCase):
             'volume': 10,
             'turnover': 192000
         }
-        pos_1 = self.account.new_market_data(topic=PUBLIC_TOPICS[0],
-                                             data=market_data_1)
+        pos_1 = self.account.new_market_data(
+            topic=BINANCE_BYBIT_MAPPING[PUBLIC_TOPICS[0]], data=market_data_1)
 
         self.assertEqual(pos_1['size'], 0.01)
         self.assertAlmostEqual(pos_1['position_value'], 195.0)
@@ -181,8 +188,8 @@ class TestBacktestAccountData(unittest.TestCase):
             'volume': 10,
             'turnover': 192000
         }
-        pos_2 = self.account.new_market_data(topic=PUBLIC_TOPICS[0],
-                                             data=market_data_2)
+        pos_2 = self.account.new_market_data(
+            topic=BINANCE_BYBIT_MAPPING[PUBLIC_TOPICS[0]], data=market_data_2)
         fees_2 = self.account.executions['BTCUSDT'][1][
             'exec_fee'] + self.account.executions['BTCUSDT'][2]['exec_fee']
         self.assertEqual(pos_2['size'], 0)
@@ -207,8 +214,8 @@ class TestBacktestAccountData(unittest.TestCase):
             'volume': 10,
             'turnover': 192000
         }
-        pos_3 = self.account.new_market_data(topic=PUBLIC_TOPICS[0],
-                                             data=market_data_3)
+        pos_3 = self.account.new_market_data(
+            topic=BINANCE_BYBIT_MAPPING[PUBLIC_TOPICS[0]], data=market_data_3)
         fees_3 = fees_2 + self.account.executions['BTCUSDT'][3][
             'exec_fee'] + self.account.executions['BTCUSDT'][4]['exec_fee']
         self.assertEqual(pos_3['size'], 0)

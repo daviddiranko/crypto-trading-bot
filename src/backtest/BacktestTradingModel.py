@@ -22,6 +22,7 @@ PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
+BINANCE_BYBIT_MAPPING = eval(os.getenv('BINANCE_BYBIT_MAPPING'))
 BACKTEST_SYMBOLS = eval(os.getenv('BACKTEST_SYMBOLS'))
 
 
@@ -37,6 +38,8 @@ class BacktestTradingModel(TradingModel):
                  symbols: List[str],
                  budget: Dict[str, Any],
                  topics: List[str] = PUBLIC_TOPICS,
+                 topic_mapping: Dict[str, str] = BINANCE_BYBIT_MAPPING,
+                 backtest_symbols: Dict[str, str] = BACKTEST_SYMBOLS,
                  model_storage: Dict[str, Any] = {},
                  model_args: Dict[str, Any] = {}):
         '''
@@ -52,6 +55,10 @@ class BacktestTradingModel(TradingModel):
             start budget for all tickers as dictionary with key = symbol, value= budget
         topics: List[str]
             all topics to store in market data object
+        toppic_mapping: Dict[str,str]
+            mapping between binance symbols and bybit topics
+        backtest_symbols: Dict[str,str]
+            mapping between bybit topics and binance symbols
         model_storage: Dict[str, Any]
             additional storage so that the trading model can store results
         model_args: Dict[str, Any]
@@ -64,7 +71,12 @@ class BacktestTradingModel(TradingModel):
                                            budget=budget)
         self.market_data = BacktestMarketData(account=self.account,
                                               client=http_session,
-                                              topics=topics)
+                                              topics=topics,
+                                              toppic_mapping=topic_mapping)
+
+        self.topic_mapping = topic_mapping
+        self.backtest_symbols = backtest_symbols
+        self.topics = topics
         self.model = model
         self.model_storage = model_storage
         self.model_args = model_args
@@ -132,8 +144,8 @@ class BacktestTradingModel(TradingModel):
         # iterate through formated simulation data and run backtest
         for msg in tqdm(self.bybit_messages):
             self.on_message(message=msg)
-            self.account.timestamp = self.market_data.history[BACKTEST_SYMBOLS[
-                list(BACKTEST_SYMBOLS.keys())[0]]].index[-1]
+            self.account.timestamp = self.market_data.history[
+                self.topics[0]].index[-1]
 
         # close remaining open positions
         for pos in self.account.positions.values():
@@ -150,8 +162,8 @@ class BacktestTradingModel(TradingModel):
 
         return report
 
-    def create_performance_report(self,
-                                  initial_budget: float) -> Dict[str, float]:
+    def create_performance_report(
+            self, initial_budget: float) -> Dict[str, Dict[str, float]]:
         '''
         Create performance report after backtest.
         Report is created by iterating through executions and counting a trade if it exceeds or matches a previously open position.
@@ -161,94 +173,104 @@ class BacktestTradingModel(TradingModel):
         ----------
         initial_budget: float
             initial budget of USDT at start of backtest
-        
         Returns
         -------
-        report: Dict[str, float]
+        report: Dict[str, Dict[str,float]]
             performance report
         '''
+        report = {}
+        # iterate through all symbols
+        for symbol in self.account.executions.keys():
 
-        # initialize kpis
+            # initialize kpis
 
-        # sign, price, size and value of current position
-        sign_pos = None
-        pos_price = None
-        open = False
-        pos_qty = 0
-        pos_value = 0
+            # sign, price, size and value of current position
+            sign_pos = None
+            pos_price = None
+            open = False
+            pos_qty = 0
+            pos_value = 0
 
-        # initialize winning and total trades to zero
-        # a winning trade is one
-        wins = 0
-        total_trades = 0
+            # initialize winning and total trades to zero
+            # a winning trade is one
+            wins = 0
+            total_trades = 0
 
-        # iterate through executions
-        for exe in self.account.executions['BTCUSDT'].values():
+            # iterate through executions
+            for exe in self.account.executions[symbol].values():
 
-            # if trade opened a new position calculate new position value and continue
-            if pos_qty == 0:
-                sign_pos = 2 * ((exe['side'] == 'Buy') - 0.5)
-                pos_price = exe['price']
-                pos_qty = exe['exec_qty']
-                pos_value = pos_price * pos_qty
-                continue
-
-            # calculate sign of new trade
-            sign_new = 2 * ((exe['side'] == 'Buy') - 0.5)
-
-            # if trade was in same direction as position, calculate new position values and continue
-            if sign_new == sign_pos:
-                pos_value += exe['price'] * exe['exec_qty']
-                pos_qty += exe['exec_qty']
-                pos_price = pos_value / pos_qty
-                continue
-
-            # check if trade was a closing trade
-            if exe['open'] == False:
-
-                # if trade was in opposite direction and exceeded or matched old position in size:
-                # check if trade was a winning trade
-                # open new position with execution price and residual quantity
-                if exe['exec_qty'] >= pos_qty:
-                    if exe['price'] * sign_pos > pos_price * sign_pos:
-                        wins += 1
-                        total_trades += 1
-                    else:
-                        total_trades += 1
-
+                # if trade opened a new position calculate new position value and continue
+                if pos_qty == 0:
+                    sign_pos = 2 * ((exe['side'] == 'Buy') - 0.5)
                     pos_price = exe['price']
-                    pos_value = (exe['exec_qty'] - pos_qty) * exe['price']
-                    sign_pos = sign_new
+                    pos_qty = exe['exec_qty']
+                    pos_value = pos_price * pos_qty
+                    continue
 
-            # if trade did not match or exceed old position, reduce old position, but keep position price
+                # calculate sign of new trade
+                sign_new = 2 * ((exe['side'] == 'Buy') - 0.5)
+
+                # if trade was in same direction as position, calculate new position values and continue
+                if sign_new == sign_pos:
+                    pos_value += exe['price'] * exe['exec_qty']
+                    pos_qty += exe['exec_qty']
+                    pos_price = pos_value / pos_qty
+                    continue
+
+                # check if trade was a closing trade
+                if exe['open'] == False:
+
+                    # if trade was in opposite direction and exceeded or matched old position in size:
+                    # check if trade was a winning trade
+                    # open new position with execution price and residual quantity
+                    if exe['exec_qty'] >= pos_qty:
+                        if exe['price'] * sign_pos > pos_price * sign_pos:
+                            wins += 1
+                            total_trades += 1
+                        else:
+                            total_trades += 1
+
+                        pos_price = exe['price']
+                        pos_value = (exe['exec_qty'] - pos_qty) * exe['price']
+                        sign_pos = sign_new
+
+                # if trade did not match or exceed old position, reduce old position, but keep position price
+                else:
+                    pos_value = abs(pos_value - exe['price'] * exe['exec_qty'])
+                    pos_qty = abs(pos_qty - exe['exec_qty'])
+
+            # calculate total trading return and return in percentage of initial budget
+            trading_return = self.account.wallet['USDT'][
+                'available_balance'] - initial_budget
+            trading_return_percent = trading_return / initial_budget
+
+            if total_trades > 0:
+                wl_ratio = wins / total_trades
+                avg_trade_return = trading_return / total_trades
+                avg_trade_return_per = trading_return_percent / total_trades
             else:
-                pos_value = abs(pos_value - exe['price'] * exe['exec_qty'])
-                pos_qty = abs(pos_qty - exe['exec_qty'])
+                wl_ratio = 0
+                avg_trade_return = 0
+                avg_trade_return_per = 0
 
-        # calculate total trading return and return in percentage of initial budget
-        trading_return = self.account.wallet['USDT'][
-            'available_balance'] - initial_budget
-        trading_return_percent = trading_return / initial_budget
-
-        if total_trades > 0:
-            wl_ratio = wins / total_trades
-            avg_trade_return = trading_return / total_trades
-            avg_trade_return_per = trading_return_percent / total_trades
-        else:
-            wl_ratio = 0
-            avg_trade_return = 0
-            avg_trade_return_per = 0
-
-        # create performance report
-        report = {
-            'initial_budget': initial_budget,
-            'final_budget': self.account.wallet['USDT']['available_balance'],
-            'total_trades': total_trades,
-            'win_loss_ratio': wl_ratio,
-            'trading_return': trading_return,
-            'trading_return_percent': trading_return_percent,
-            'avg_trade_return': avg_trade_return,
-            'avg_trade_return_per': avg_trade_return_per
-        }
+            # create performance report
+            report[symbol] = {
+                'initial_budget':
+                    initial_budget,
+                'final_budget':
+                    self.account.wallet['USDT']['available_balance'],
+                'total_trades':
+                    total_trades,
+                'win_loss_ratio':
+                    wl_ratio,
+                'trading_return':
+                    trading_return,
+                'trading_return_percent':
+                    trading_return_percent,
+                'avg_trade_return':
+                    avg_trade_return,
+                'avg_trade_return_per':
+                    avg_trade_return_per
+            }
 
         return report

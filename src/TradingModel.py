@@ -60,6 +60,7 @@ class TradingModel:
         self.model = model
         self.model_storage = model_storage
         self.model_args = model_args
+        self.topics = topics
 
     def on_message(self, message: json) -> bool:
         '''
@@ -77,7 +78,7 @@ class TradingModel:
             # extract topic
             topic = msg['topic']
             # if public topic, forward to market_data and trigger model
-            if topic in PUBLIC_TOPICS:
+            if topic in self.topics:
 
                 response = self.market_data.on_message(message)
                 self.model(model=self)

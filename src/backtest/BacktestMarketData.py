@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 import os
 from typing import List, Dict, Any
 from src.endpoints.bybit_functions import format_klines
-from src.endpoints.binance_functions import format_historical_klines
 from src.MarketData import MarketData
 from src.backtest.BacktestAccountData import BacktestAccountData
 from binance.client import Client
@@ -21,6 +20,8 @@ PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
 PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
+BACKTEST_SYMBOLS = eval(os.getenv('BACKTEST_SYMBOLS'))
+BINANCE_BYBIT_MAPPING = eval(os.getenv('BINANCE_BYBIT_MAPPING'))
 
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
@@ -34,7 +35,8 @@ class BacktestMarketData(MarketData):
     def __init__(self,
                  account: BacktestAccountData,
                  client: Client,
-                 topics: List[str] = PUBLIC_TOPICS):
+                 topics: List[str] = PUBLIC_TOPICS,
+                 toppic_mapping: Dict[str, str] = BINANCE_BYBIT_MAPPING):
         '''
         Parameters
         ----------
@@ -45,6 +47,8 @@ class BacktestMarketData(MarketData):
             http session to pull historical data from
         topics: List[str]
             all topics to store
+        toppic_mapping: Dict[str,str]
+            mapping between binance symbols and bybit topics
 
         Attributes
         ----------
@@ -60,6 +64,7 @@ class BacktestMarketData(MarketData):
 
         super().__init__(client, topics)
         self.account = account
+        self.binance_bybit_mapping = toppic_mapping
 
     def on_message(self, message: json) -> Dict[str, Any]:
         '''
@@ -85,7 +90,7 @@ class BacktestMarketData(MarketData):
             topic = msg['topic']
 
             # check if topic is in private topics
-            if topic in PUBLIC_TOPICS:
+            if topic in self.topics:
 
                 # extract candlestick data
                 data = format_klines(msg=msg)
@@ -94,7 +99,8 @@ class BacktestMarketData(MarketData):
                 self.history[topic].loc[data['end']] = data
 
                 # trigger account data update
-                self.account.new_market_data(topic=topic, data=data)
+                self.account.new_market_data(
+                    topic=self.binance_bybit_mapping[topic], data=data)
 
                 return data
             else:

@@ -19,6 +19,10 @@ BINANCE_KEY = os.getenv('BINANCE_KEY')
 BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 
 PUBLIC_TOPICS = ["candle.1.BTCUSDT", "candle.15.BTCUSDT"]
+BINANCE_BYBIT_MAPPING = {
+    'candle.1.BTCUSDT': 'BTCUSDT',
+    'candle.15.BTCUSDT': 'BTCUSDT'
+}
 
 
 class TestBacktestTradingModel(unittest.TestCase):
@@ -33,6 +37,7 @@ class TestBacktestTradingModel(unittest.TestCase):
                                               'BTC': 0
                                           },
                                           topics=PUBLIC_TOPICS,
+                                          topic_mapping=BINANCE_BYBIT_MAPPING,
                                           model_args={
                                               'open': True,
                                               'reduce_only': True
