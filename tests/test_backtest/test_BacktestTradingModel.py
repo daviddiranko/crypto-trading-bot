@@ -1,6 +1,8 @@
 # !/usr/bin/env python
 # coding: utf-8
+import warnings
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import json
 from dotenv import load_dotenv
@@ -16,7 +18,7 @@ load_dotenv()
 BINANCE_KEY = os.getenv('BINANCE_KEY')
 BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
+PUBLIC_TOPICS = ["candle.1.BTCUSDT", "candle.15.BTCUSDT"]
 
 
 class TestBacktestTradingModel(unittest.TestCase):
@@ -92,25 +94,27 @@ class TestBacktestTradingModel(unittest.TestCase):
                 1: {
                     'symbol': 'BTCUSDT',
                     'side': 'Buy',
+                    'open': True,
                     'order_id': 1,
                     'exec_id': 1,
-                    'price': 15778.84,
+                    'price': 15773.47,
                     'order_qty': 0.001,
                     'exec_type': 'Trade',
                     'exec_qty': 0.001,
-                    'exec_fee': 0.001577884,
+                    'exec_fee': 0.001577347,
                     'trade_time': pd.Timestamp('2022-11-22 00:02:00')
                 },
                 2: {
                     'symbol': 'BTCUSDT',
                     'side': 'Sell',
+                    'open': False,
                     'order_id': 2,
                     'exec_id': 2,
-                    'price': 15754.17,
+                    'price': 15773.47,
                     'order_qty': 0.001,
                     'exec_type': 'Trade',
                     'exec_qty': 0.001,
-                    'exec_fee': 0.0015754170000000002,
+                    'exec_fee': 0.001577347,
                     'trade_time': pd.Timestamp('2022-11-22 00:02:00')
                 }
             },

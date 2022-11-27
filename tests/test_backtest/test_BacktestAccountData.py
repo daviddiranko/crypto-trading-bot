@@ -1,6 +1,8 @@
 # !/usr/bin/env python
 # coding: utf-8
+import warnings
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 from typing import Any, Dict, List
 from dotenv import load_dotenv
@@ -52,7 +54,7 @@ class TestBacktestAccountData(unittest.TestCase):
         # format klines and extract high and low
         quotes = binance_functions.format_historical_klines(msg)
 
-        spread = quotes.iloc[0]['high'] - quotes.iloc[0]['low']
+        # spread = quotes.iloc[0]['high'] - quotes.iloc[0]['low']
 
         self.account.timestamp = self.order_time
         open = self.account.place_order(symbol='BTCUSDT',
@@ -81,7 +83,7 @@ class TestBacktestAccountData(unittest.TestCase):
 
         balance_2 = self.account.wallet['USDT'][
             'available_balance'] + last_trade_1['exec_fee'] + last_trade_2[
-                'exec_fee'] + 0.01 * spread
+                'exec_fee']
 
         self.assertAlmostEqual(balance_1, 1000.0)
         self.assertAlmostEqual(balance_2, 1000.0)
@@ -89,7 +91,7 @@ class TestBacktestAccountData(unittest.TestCase):
         self.assertEqual(close['trade_time'], self.order_time_1)
         self.assertEqual(position_1['BTCUSDT']['size'], 0.01)
         self.assertAlmostEqual(position_1['BTCUSDT']['position_value'],
-                               193.2393)
+                               193.1234)
         self.assertEqual(position_1['BTCUSDT']['stop_loss'], 18000)
         self.assertEqual(position_1['BTCUSDT']['take_profit'], 20000)
         self.assertEqual(position_1['BTCUSDT']['side'], 'Buy')

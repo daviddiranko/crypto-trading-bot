@@ -1,6 +1,8 @@
 # !/usr/bin/env python
 # coding: utf-8
+import warnings
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import json
 from typing import Any, Dict, List

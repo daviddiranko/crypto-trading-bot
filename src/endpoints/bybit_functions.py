@@ -1,3 +1,6 @@
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 from typing import List, Dict, Any
 from pybit import usdt_perpetual
@@ -34,6 +37,7 @@ def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
     data['low'] = float(data['low'])
     data['volume'] = float(data['volume'])
     data['turnover'] = float(data['turnover'])
+    data['confirm'] = bool(data['confirm'])
 
     return data
 

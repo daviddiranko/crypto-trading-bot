@@ -1,6 +1,10 @@
 # !/usr/bin/env python
 # coding: utf-8
 
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 import pandas as pd
 import json
 from dotenv import load_dotenv
@@ -49,6 +53,8 @@ class MarketData:
 
         for topic in topics:
             self.history[topic] = pd.DataFrame(columns=PUBLIC_TOPICS_COLUMNS)
+            self.history[topic]["confirm"] = self.history[topic][
+                "confirm"].astype(bool)
 
     def on_message(self, message: json) -> Dict[str, Any]:
         '''

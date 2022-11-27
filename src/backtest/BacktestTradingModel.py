@@ -1,6 +1,8 @@
 # !/usr/bin/env python
 # coding: utf-8
+import warnings
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import json
 from dotenv import load_dotenv
@@ -163,6 +165,7 @@ class BacktestTradingModel(TradingModel):
         # sign, price, size and value of current position
         sign_pos = None
         pos_price = None
+        open = False
         pos_qty = 0
         pos_value = 0
 

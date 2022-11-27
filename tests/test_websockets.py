@@ -1,6 +1,8 @@
 # !/usr/bin/env python
 # coding: utf-8
+import warnings
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import hmac
 import json
 import time

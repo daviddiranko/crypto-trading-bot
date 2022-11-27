@@ -1,6 +1,9 @@
 # !/usr/bin/env python
 # coding: utf-8
 
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 from typing import Any, Dict, List
 from dotenv import load_dotenv
@@ -147,8 +150,8 @@ class BacktestAccountData(AccountData):
         # format klines and extract high and low
         quotes = binance_functions.format_historical_klines(msg)
 
-        price_sell = quotes.iloc[0]['low']
-        price_buy = quotes.iloc[0]['high']
+        price_sell = quotes.iloc[0]['open']
+        price_buy = quotes.iloc[0]['open']
 
         if order_type == 'Market':
 
@@ -227,11 +230,18 @@ class BacktestAccountData(AccountData):
         else:
             side_pos = "Sell"
 
-        # determine average position prize
+        # determine average position prize and determine if trade is openede or closed
         if pos['size'] != 0:
             pos_price = pos['position_value'] / pos['size']
+
+            # if traded qty is equal to position qty, but in different direction, the trade was closed
+            if (sign_pos != sign) and true_qty == pos['size']:
+                open = False
+            else:
+                open = None
         else:
             pos_price = trade_price
+            open = True
 
         # update positions
         self.update_positions([{
@@ -276,6 +286,7 @@ class BacktestAccountData(AccountData):
         execution = {
             "symbol": symbol,
             "side": side,
+            "open": open,
             "order_id": len(self.executions[symbol].keys()) + 1,
             "exec_id": len(self.executions[symbol].keys()) + 1,
             "price": trade_price,

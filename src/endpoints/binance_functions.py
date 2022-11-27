@@ -1,3 +1,6 @@
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 from typing import List, Any, Tuple, Dict
 from dotenv import load_dotenv
