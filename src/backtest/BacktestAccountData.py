@@ -238,7 +238,7 @@ class BacktestAccountData(AccountData):
             if (sign_pos != sign) and true_qty == pos['size']:
                 open = False
             else:
-                open = None
+                open = True
         else:
             pos_price = trade_price
             open = True
