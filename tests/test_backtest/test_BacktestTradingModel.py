@@ -24,6 +24,11 @@ BINANCE_BYBIT_MAPPING = {
     'candle.15.BTCUSDT': 'BTCUSDT'
 }
 
+BACKTEST_SYMBOLS = {
+    'BTCUSDT.1m': 'candle.1.BTCUSDT',
+    'BTCUSDT.5m': 'candle.5.BTCUSDT'
+}
+
 
 class TestBacktestTradingModel(unittest.TestCase):
 
@@ -38,6 +43,7 @@ class TestBacktestTradingModel(unittest.TestCase):
                                           },
                                           topics=PUBLIC_TOPICS,
                                           topic_mapping=BINANCE_BYBIT_MAPPING,
+                                          backtest_symbols=BACKTEST_SYMBOLS,
                                           model_args={
                                               'open': True,
                                               'reduce_only': True
@@ -138,6 +144,8 @@ class TestBacktestTradingModel(unittest.TestCase):
                                              'BTC': 0
                                          },
                                          topics=PUBLIC_TOPICS,
+                                         topic_mapping=BINANCE_BYBIT_MAPPING,
+                                         backtest_symbols=BACKTEST_SYMBOLS,
                                          model_args={
                                              'open': True,
                                              'reduce_only': False
