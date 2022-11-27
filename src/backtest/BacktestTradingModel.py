@@ -219,16 +219,25 @@ class BacktestTradingModel(TradingModel):
             'available_balance'] - initial_budget
         trading_return_percent = trading_return / initial_budget
 
+        if total_trades>0: 
+            wl_ratio = wins / total_trades
+            avg_trade_return = trading_return / total_trades
+            avg_trade_return_per = trading_return_percent / total_trades
+        else:
+            wl_ratio = 0
+            avg_trade_return = 0
+            avg_trade_return_per = 0
+
         # create performance report
         report = {
             'initial_budget': initial_budget,
             'final_budget': self.account.wallet['USDT']['available_balance'],
             'total_trades': total_trades,
-            'win_loss_ratio': wins / total_trades,
+            'win_loss_ratio': wl_ratio,
             'trading_return': trading_return,
             'trading_return_percent': trading_return_percent,
-            'avg_trade_return': trading_return / total_trades,
-            'avg_trade_return_per': trading_return_percent / total_trades
+            'avg_trade_return': avg_trade_return,
+            'avg_trade_return_per': avg_trade_return_per
         }
 
         return report
