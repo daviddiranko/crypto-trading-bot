@@ -128,7 +128,7 @@ class BacktestTradingModel(TradingModel):
                                        end_str=start_str)
 
         print('Done!')
-        
+
         # iterate through formated simulation data and run backtest
         for msg in tqdm(self.bybit_messages):
             self.on_message(message=msg)
@@ -203,19 +203,22 @@ class BacktestTradingModel(TradingModel):
                 pos_price = pos_value / pos_qty
                 continue
 
-            # if trade was in opposite direction and exceeded or matched old position in size:
-            # check if trade was a winning trade
-            # open new position with execution price and residual quantity
-            if exe['exec_qty'] >= pos_qty:
-                if exe['price'] * sign_pos > pos_price * sign_pos:
-                    wins += 1
-                    total_trades += 1
-                else:
-                    total_trades += 1
+            # check if trade was a closing trade
+            if exe['open'] == False:
 
-                pos_price = exe['price']
-                pos_value = (exe['exec_qty'] - pos_qty) * exe['price']
-                sign_pos = sign_new
+                # if trade was in opposite direction and exceeded or matched old position in size:
+                # check if trade was a winning trade
+                # open new position with execution price and residual quantity
+                if exe['exec_qty'] >= pos_qty:
+                    if exe['price'] * sign_pos > pos_price * sign_pos:
+                        wins += 1
+                        total_trades += 1
+                    else:
+                        total_trades += 1
+
+                    pos_price = exe['price']
+                    pos_value = (exe['exec_qty'] - pos_qty) * exe['price']
+                    sign_pos = sign_new
 
             # if trade did not match or exceed old position, reduce old position, but keep position price
             else:
