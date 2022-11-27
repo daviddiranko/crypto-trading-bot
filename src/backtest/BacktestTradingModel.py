@@ -103,6 +103,8 @@ class BacktestTradingModel(TradingModel):
         # store initial budget for performance measures
         initial_budget = self.account.wallet['USDT']['available_balance']
 
+        print('Creating simulation data...')
+
         # create simulation data
         klines, topics = create_simulation_data(session=self.account.session,
                                                 symbols=symbols,
@@ -113,14 +115,20 @@ class BacktestTradingModel(TradingModel):
         self.bybit_messages, self.simulation_data = binance_to_bybit(
             klines, topics=topics)
 
+        print('Done!')
+
         # set starting timestamp
         self.account.timestamp = self.simulation_data.index[0][0]
+
+        print('Loading historical data...')
 
         # add historical data for trading model
         self.market_data.build_history(symbols=symbols,
                                        start_str=start_history,
                                        end_str=start_str)
 
+        print('Done!')
+        
         # iterate through formated simulation data and run backtest
         for msg in tqdm(self.bybit_messages):
             self.on_message(message=msg)
