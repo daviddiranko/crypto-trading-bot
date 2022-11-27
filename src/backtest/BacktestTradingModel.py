@@ -219,7 +219,7 @@ class BacktestTradingModel(TradingModel):
             'available_balance'] - initial_budget
         trading_return_percent = trading_return / initial_budget
 
-        if total_trades>0: 
+        if total_trades > 0:
             wl_ratio = wins / total_trades
             avg_trade_return = trading_return / total_trades
             avg_trade_return_per = trading_return_percent / total_trades
