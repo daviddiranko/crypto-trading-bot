@@ -48,7 +48,8 @@ class BacktestMarketData(MarketData):
         topics: List[str]
             all topics to store
         toppic_mapping: Dict[str,str]
-            mapping between binance symbols and bybit topics
+            mapping between bybit websocket topics and binance symbols.
+            It is used to map simulated bybit websocket messages to account symbols for data updates, which are indexed by binance tickers.
 
         Attributes
         ----------

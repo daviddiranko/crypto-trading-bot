@@ -56,9 +56,10 @@ class BacktestTradingModel(TradingModel):
         topics: List[str]
             all topics to store in market data object
         toppic_mapping: Dict[str,str]
-            mapping between binance symbols and bybit topics
+            mapping between bybit websocket topics and binance symbols.
+            It is used to map simulated bybit websocket messages to account symbols for data updates, which are indexed by binance tickers.
         backtest_symbols: Dict[str,str]
-            mapping between bybit topics and binance symbols
+            mapping between bybit topics and binance symbols, used to simulate bybit websocket messages with binance data.
         model_storage: Dict[str, Any]
             additional storage so that the trading model can store results
         model_args: Dict[str, Any]

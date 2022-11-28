@@ -27,7 +27,7 @@ class BacktestAccountData(AccountData):
         binance_client: binance.client.Client
             binance http client to pull historical prices to mock a backtesting order
         symbols: List[str]
-            optional list of symbols to incorporate. If no list is provided, all available symbols are incorporated.
+            list of symbols to incorporate.
         budget: Dict[str, float]
             start budget for all tickers as dictionary with key = symbol, value= budget
 
