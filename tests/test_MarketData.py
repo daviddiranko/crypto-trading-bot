@@ -4,9 +4,7 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
-import json
 import os
-from typing import List
 import unittest
 from src.MarketData import MarketData
 from binance.client import Client

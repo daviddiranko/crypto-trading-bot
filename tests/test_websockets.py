@@ -15,10 +15,7 @@ import os
 import unittest
 from src.endpoints.bybit_functions import place_order, place_conditional_order
 from src.TradingModel import TradingModel
-from src.MarketData import MarketData
-from src.AccountData import AccountData
 from src.models.mock_model import mock_model
-from src.endpoints.binance_functions import format_historical_klines
 import pandas as pd
 
 load_dotenv()

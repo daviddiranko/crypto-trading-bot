@@ -3,10 +3,8 @@
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
-import pandas as pd
 import json
 import os
-from typing import List
 import unittest
 from src.AccountData import AccountData
 from pybit import usdt_perpetual

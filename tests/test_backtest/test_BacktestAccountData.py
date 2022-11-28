@@ -4,15 +4,12 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
-from typing import Any, Dict, List
 from dotenv import load_dotenv
 import os
 from binance.client import Client
-from src.endpoints import binance_functions, bybit_functions
+from src.endpoints import binance_functions
 from src.backtest.BacktestAccountData import BacktestAccountData
 from src.backtest.BacktestMarketData import BacktestMarketData
-from src.backtest.BacktestTradingModel import BacktestTradingModel
-import itertools
 import unittest
 
 load_dotenv()

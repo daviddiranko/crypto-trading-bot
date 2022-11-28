@@ -7,13 +7,10 @@ import pandas as pd
 import json
 from dotenv import load_dotenv
 import os
-from typing import List, Dict, Any
-from src.endpoints.bybit_functions import format_klines
 from src.backtest.BacktestMarketData import BacktestMarketData
 from src.backtest.BacktestAccountData import BacktestAccountData
 
 from binance.client import Client
-from src.endpoints import binance_functions, bybit_functions
 
 import unittest
 

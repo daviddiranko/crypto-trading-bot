@@ -4,10 +4,8 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
-import json
 from dotenv import load_dotenv
 import os
-from typing import Any, Dict
 from src.backtest.BacktestTradingModel import BacktestTradingModel
 from src.models.mock_model import mock_model
 import unittest

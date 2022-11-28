@@ -2,7 +2,6 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
-from typing import List, Dict, Any
 import unittest
 from src.endpoints.binance_functions import format_historical_klines, binance_to_bybit, create_simulation_data
 from binance.client import Client
