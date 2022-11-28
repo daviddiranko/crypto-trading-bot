@@ -251,13 +251,13 @@ class BacktestAccountData(AccountData):
                 stop_loss
         }])
 
-        wallet_1 = self.wallet[symbol[:3]]
-        wallet_2 = self.wallet[symbol[3:]]
+        wallet_1 = self.wallet[symbol[:-4]]
+        wallet_2 = self.wallet[symbol[-4:]]
 
         # update wallets
         self.update_wallet([{
             "coin":
-                symbol[:3],
+                symbol[:-4],
             "available_balance":
                 wallet_1["available_balance"] + sign * true_qty,
             "wallet_balance":
