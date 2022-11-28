@@ -232,9 +232,9 @@ class AccountData:
         for wallet in msg:
 
             # if no coin is propagated then it is USDT
-            try:
+            if 'coin' in wallet.keys():
                 self.wallet[wallet['coin']] = wallet
-            except:
+            else:
                 self.wallet['USDT'] = wallet
 
         return self.wallet

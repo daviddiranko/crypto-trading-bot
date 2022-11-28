@@ -180,8 +180,11 @@ class BacktestTradingModel(TradingModel):
             performance report
         '''
         report = {}
-        # iterate through all symbols
-        for symbol in self.account.executions.keys():
+        # iterate through all symbols with executed trades
+        for symbol in [
+                symbol for symbol in self.account.executions.keys()
+                if self.account.executions[symbol].values()
+        ]:
 
             # initialize kpis
 
@@ -234,6 +237,7 @@ class BacktestTradingModel(TradingModel):
                         pos_price = exe['price']
                         pos_value = (exe['exec_qty'] - pos_qty) * exe['price']
                         sign_pos = sign_new
+                        pos_qty = abs(exe['exec_qty'] - pos_qty)
 
                 # if trade did not match or exceed old position, reduce old position, but keep position price
                 else:
@@ -241,8 +245,8 @@ class BacktestTradingModel(TradingModel):
                     pos_qty = abs(pos_qty - exe['exec_qty'])
 
             # calculate total trading return and return in percentage of initial budget
-            trading_return = self.account.wallet['USDT'][
-                'available_balance'] - initial_budget
+            trading_return = self.account.wallet[
+                symbol[-4:]]['available_balance'] - initial_budget
             trading_return_percent = trading_return / initial_budget
 
             if total_trades > 0:
@@ -259,7 +263,7 @@ class BacktestTradingModel(TradingModel):
                 'initial_budget':
                     initial_budget,
                 'final_budget':
-                    self.account.wallet['USDT']['available_balance'],
+                    self.account.wallet[symbol[-4:]]['available_balance'],
                 'total_trades':
                     total_trades,
                 'win_loss_ratio':

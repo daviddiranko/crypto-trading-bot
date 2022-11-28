@@ -264,7 +264,7 @@ class BacktestAccountData(AccountData):
                 wallet_1["available_balance"] + sign * true_qty
         }, {
             "coin":
-                symbol[3:],
+                symbol[-4:],
             "available_balance":
                 wallet_2["available_balance"] - sign * true_qty * trade_price -
                 0.0001 * true_qty * trade_price,
