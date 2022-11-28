@@ -57,10 +57,10 @@ class TestBacktestTradingModel(unittest.TestCase):
 
     def test_run_backtest(self):
 
-        self.model.run_backtest(symbols=self.symbols,
-                                start_history='2022-11-21 23:59:00',
-                                start_str='2022-11-22 00:00:00',
-                                end_str='2022-11-22 00:03:00')
+        report = self.model.run_backtest(symbols=self.symbols,
+                                         start_history='2022-11-21 23:59:00',
+                                         start_str='2022-11-22 00:00:00',
+                                         end_str='2022-11-22 00:03:00')
 
         positions = {
             'BTCBTC': {
@@ -131,6 +131,53 @@ class TestBacktestTradingModel(unittest.TestCase):
             'USDTUSDT': {}
         }
 
+        new_executions = {
+            'BTCBTC': {},
+            'BTCUSDT': {
+                1: {
+                    'symbol': 'BTCUSDT',
+                    'side': 'Buy',
+                    'open': True,
+                    'order_id': 1,
+                    'exec_id': 1,
+                    'price': 15773.47,
+                    'order_qty': 0.001,
+                    'exec_type': 'Trade',
+                    'exec_qty': 0.001,
+                    'exec_fee': 0.001577347,
+                    'trade_time': pd.Timestamp('2022-11-22 00:02:00')
+                },
+                2: {
+                    'symbol': 'BTCUSDT',
+                    'side': 'Sell',
+                    'open': True,
+                    'order_id': 2,
+                    'exec_id': 2,
+                    'price': 15773.47,
+                    'order_qty': 10,
+                    'exec_type': 'Trade',
+                    'exec_qty': 10,
+                    'exec_fee': 15.77347,
+                    'trade_time': pd.Timestamp('2022-11-22 00:02:00')
+                },
+                3: {
+                    'symbol': 'BTCUSDT',
+                    'side': 'Buy',
+                    'open': False,
+                    'order_id': 3,
+                    'exec_id': 3,
+                    'price': 15805.58,
+                    'order_qty': 9.999,
+                    'exec_type': 'Trade',
+                    'exec_qty': 9.999,
+                    'exec_fee': 15.803999442000002,
+                    'trade_time': pd.Timestamp('2022-11-22 00:05:00')
+                }
+            },
+            'USDTBTC': {},
+            'USDTUSDT': {}
+        }
+
         self.assertDictEqual(self.model.account.executions, executions)
         self.assertDictEqual(self.model.account.positions, positions)
 
@@ -152,9 +199,31 @@ class TestBacktestTradingModel(unittest.TestCase):
                                              'open': False,
                                              'close': False
                                          })
-        new_model.run_backtest(symbols=self.symbols,
-                               start_history='2022-11-21 23:59:00',
-                               start_str='2022-11-22 00:00:00',
-                               end_str='2022-11-22 00:03:00')
+        new_report = new_model.run_backtest(symbols=self.symbols,
+                                            start_history='2022-11-21 23:59:00',
+                                            start_str='2022-11-22 00:00:00',
+                                            end_str='2022-11-22 00:03:00')
 
-        self.assertDictEqual(self.model.account.positions, positions)
+        self.assertDictEqual(new_model.account.positions, positions)
+        self.assertDictEqual(new_model.account.executions, new_executions)
+
+        trades = pd.DataFrame(
+            self.model.account.executions['BTCUSDT']).transpose()
+        trades['trading_value'] = -2 * (
+            (trades['side'] == 'Buy') -
+            0.5) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
+
+        new_trades = pd.DataFrame(
+            new_model.account.executions['BTCUSDT']).transpose()
+        new_trades['trading_value'] = -2 * (
+            (new_trades['side'] == 'Buy') - 0.5) * new_trades[
+                'exec_qty'] * new_trades['price'] - new_trades['exec_fee']
+
+        self.assertAlmostEqual(report['BTCUSDT']['trading_return'],
+                               trades['trading_value'].sum())
+        self.assertEqual(
+            report['BTCUSDT']['total_trades'],
+            len(self.model.account.executions['BTCUSDT'].keys()) / 2)
+
+        self.assertAlmostEqual(new_report['BTCUSDT']['trading_return'],
+                               new_trades['trading_value'].sum())
