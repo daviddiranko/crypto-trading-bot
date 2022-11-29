@@ -90,7 +90,7 @@ class BacktestTradingModel(TradingModel):
         self.bybit_messages = None
 
     def run_backtest(self, symbols: Dict[str, str], start_history: str,
-                     start_str: str, end_str: str) -> Dict[str, float]:
+                     start_str: str, end_str: str, save_output: bool =False) -> Dict[str, float]:
         '''
         Run a backtest by simulating websocket messages from bybit through historical klines from binance and return a performance report.
         Parameters
@@ -106,6 +106,8 @@ class BacktestTradingModel(TradingModel):
             start of simulation in format yyyy-mm-dd hh-mm-ss
         end_str: str
             end of simulation in format yyyy-mm-dd hh-mm-ss
+        save_output: bool
+            flag whether to export performance report and trade list to excel. Default is False
 
         Returns
         -------
@@ -159,12 +161,12 @@ class BacktestTradingModel(TradingModel):
                                          side=side,
                                          qty=pos['size'],
                                          reduce_only=True)
-        report = self.create_performance_report(initial_budget=initial_budget)
+        report = self.create_performance_report(initial_budget=initial_budget, save_output=save_output)
 
         return report
 
     def create_performance_report(
-            self, initial_budget: float) -> Dict[str, Dict[str, float]]:
+            self, initial_budget: float, save_output: bool = False) -> Dict[str, Dict[str, float]]:
         '''
         Create performance report after backtest.
         Report is created by iterating through executions and counting a trade if it exceeds or matches a previously open position.
@@ -174,6 +176,8 @@ class BacktestTradingModel(TradingModel):
         ----------
         initial_budget: float
             initial budget of USDT at start of backtest
+        save_output: bool
+            flag whether to export performance report and trade list to excel. Default is False
         Returns
         -------
         report: Dict[str, Dict[str,float]]
@@ -278,4 +282,9 @@ class BacktestTradingModel(TradingModel):
                     avg_trade_return_per
             }
 
+        if save_output:
+            pd.DataFrame(report).to_excel('performance_report.xlsx')
+            trades = pd.DataFrame(self.account.executions['BTCUSDT']).transpose()
+            trades['trading_value']=-2*((trades['side']=='Buy')-0.5)*trades['exec_qty']*trades['price']-trades['exec_fee']
+            trades.to_excel('trade_list.xlsx')
         return report
