@@ -60,7 +60,8 @@ class TestBacktestTradingModel(unittest.TestCase):
         report = self.model.run_backtest(symbols=self.symbols,
                                          start_history='2022-11-21 23:59:00',
                                          start_str='2022-11-22 00:00:00',
-                                         end_str='2022-11-22 00:03:00')
+                                         end_str='2022-11-22 00:03:00',
+                                         slice_length=3)
 
         positions = {
             'BTCBTC': {
@@ -202,7 +203,8 @@ class TestBacktestTradingModel(unittest.TestCase):
         new_report = new_model.run_backtest(symbols=self.symbols,
                                             start_history='2022-11-21 23:59:00',
                                             start_str='2022-11-22 00:00:00',
-                                            end_str='2022-11-22 00:03:00')
+                                            end_str='2022-11-22 00:03:00',
+                                            slice_length=3)
 
         self.assertDictEqual(new_model.account.positions, positions)
         self.assertDictEqual(new_model.account.executions, new_executions)

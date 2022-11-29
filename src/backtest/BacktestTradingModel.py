@@ -95,6 +95,7 @@ class BacktestTradingModel(TradingModel):
                      start_history: str,
                      start_str: str,
                      end_str: str,
+                     slice_length: int = 50000,
                      save_output: bool = False) -> Dict[str, float]:
         '''
         Run a backtest by simulating websocket messages from bybit through historical klines from binance and return a performance report.
@@ -111,6 +112,9 @@ class BacktestTradingModel(TradingModel):
             start of simulation in format yyyy-mm-dd hh-mm-ss
         end_str: str
             end of simulation in format yyyy-mm-dd hh-mm-ss
+        slice_length: int
+            length of partial time series to use for simulations.
+            Used to improve memory usage and speed up computation. Default is 50000.
         save_output: bool
             flag whether to export performance report and trade list to excel. Default is False
 
@@ -130,16 +134,18 @@ class BacktestTradingModel(TradingModel):
                                        start_str=start_history,
                                        end_str=start_str)
 
+        print('Done!')
         # slice long time series into shorter time series for faster computation
-        partial_series = helper_functions.slice_timestamps(start_str=start_str,
-                                                           end_str=end_str,
-                                                           freq='1min',
-                                                           slice_length=50000)
+        partial_series = helper_functions.slice_timestamps(
+            start_str=start_str,
+            end_str=end_str,
+            freq='1min',
+            slice_length=slice_length)
 
-        for timestamps in tqdm(partial_series):
+        for timestamps in partial_series:
 
             print('Creating simulation data...')
-            
+
             # create simulation data
             klines, topics = create_simulation_data(
                 session=self.account.session,
@@ -156,7 +162,6 @@ class BacktestTradingModel(TradingModel):
             # set starting timestamp
             self.account.timestamp = simulation_data.index[0][0]
 
-            print('Done!')
             print('Simulating backtest from {} to {}'.format(
                 timestamps[0], timestamps[1]))
 
@@ -172,29 +177,6 @@ class BacktestTradingModel(TradingModel):
                 [self.simulation_data, simulation_data])
 
             print('Done!')
-
-        # # create simulation data
-        # klines, topics = create_simulation_data(session=self.account.session,
-        #                                         symbols=symbols,
-        #                                         start_str=start_str,
-        #                                         end_str=end_str)
-
-        # # format data to bybit websocket messages
-        # self.bybit_messages, self.simulation_data = binance_to_bybit(
-        #     klines, topics=topics)
-
-        # print('Done!')
-
-        # # set starting timestamp
-        # self.account.timestamp = self.simulation_data.index[0][0]
-
-        # print('Done!')
-
-        # # iterate through formated simulation data and run backtest
-        # for msg in tqdm(self.bybit_messages):
-        #     self.on_message(message=msg)
-        #     self.account.timestamp = self.market_data.history[
-        #         self.topics[0]].index[-1]
 
         # close remaining open positions
         for pos in self.account.positions.values():
