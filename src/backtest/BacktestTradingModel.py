@@ -14,6 +14,7 @@ from src.backtest.BacktestMarketData import BacktestMarketData
 from binance.client import Client
 from src.endpoints.binance_functions import binance_to_bybit, create_simulation_data
 from tqdm import tqdm
+from src.helper_functions import helper_functions
 
 load_dotenv()
 
@@ -84,13 +85,17 @@ class BacktestTradingModel(TradingModel):
 
         # initialize empty simulation data
         # formatted dataframe of binance candles
-        self.simulation_data = None
+        self.simulation_data = pd.DataFrame()
 
         # list of bybit websocket messages
-        self.bybit_messages = None
+        self.bybit_messages = []
 
-    def run_backtest(self, symbols: Dict[str, str], start_history: str,
-                     start_str: str, end_str: str, save_output: bool =False) -> Dict[str, float]:
+    def run_backtest(self,
+                     symbols: Dict[str, str],
+                     start_history: str,
+                     start_str: str,
+                     end_str: str,
+                     save_output: bool = False) -> Dict[str, float]:
         '''
         Run a backtest by simulating websocket messages from bybit through historical klines from binance and return a performance report.
         Parameters
@@ -118,23 +123,6 @@ class BacktestTradingModel(TradingModel):
         # store initial budget for performance measures
         initial_budget = self.account.wallet['USDT']['available_balance']
 
-        print('Creating simulation data...')
-
-        # create simulation data
-        klines, topics = create_simulation_data(session=self.account.session,
-                                                symbols=symbols,
-                                                start_str=start_str,
-                                                end_str=end_str)
-
-        # format data to bybit websocket messages
-        self.bybit_messages, self.simulation_data = binance_to_bybit(
-            klines, topics=topics)
-
-        print('Done!')
-
-        # set starting timestamp
-        self.account.timestamp = self.simulation_data.index[0][0]
-
         print('Loading historical data...')
 
         # add historical data for trading model
@@ -142,13 +130,71 @@ class BacktestTradingModel(TradingModel):
                                        start_str=start_history,
                                        end_str=start_str)
 
-        print('Done!')
+        # slice long time series into shorter time series for faster computation
+        partial_series = helper_functions.slice_timestamps(start_str=start_str,
+                                                           end_str=end_str,
+                                                           freq='1min',
+                                                           slice_length=50000)
 
-        # iterate through formated simulation data and run backtest
-        for msg in tqdm(self.bybit_messages):
-            self.on_message(message=msg)
-            self.account.timestamp = self.market_data.history[
-                self.topics[0]].index[-1]
+        for timestamps in tqdm(partial_series):
+
+            print('Creating simulation data...')
+            
+            # create simulation data
+            klines, topics = create_simulation_data(
+                session=self.account.session,
+                symbols=symbols,
+                start_str=str(timestamps[0]),
+                end_str=str(timestamps[1]))
+
+            # format data to bybit websocket messages
+            bybit_messages, simulation_data = binance_to_bybit(klines,
+                                                               topics=topics)
+
+            print('Done!')
+
+            # set starting timestamp
+            self.account.timestamp = simulation_data.index[0][0]
+
+            print('Done!')
+            print('Simulating backtest from {} to {}'.format(
+                timestamps[0], timestamps[1]))
+
+            # iterate through formated simulation data and run backtest
+            for msg in tqdm(bybit_messages):
+                self.on_message(message=msg)
+                self.account.timestamp = self.market_data.history[
+                    self.topics[0]].index[-1]
+
+            # append simulation data to global simulation data
+            self.bybit_messages.extend(bybit_messages)
+            self.simulation_data = pd.concat(
+                [self.simulation_data, simulation_data])
+
+            print('Done!')
+
+        # # create simulation data
+        # klines, topics = create_simulation_data(session=self.account.session,
+        #                                         symbols=symbols,
+        #                                         start_str=start_str,
+        #                                         end_str=end_str)
+
+        # # format data to bybit websocket messages
+        # self.bybit_messages, self.simulation_data = binance_to_bybit(
+        #     klines, topics=topics)
+
+        # print('Done!')
+
+        # # set starting timestamp
+        # self.account.timestamp = self.simulation_data.index[0][0]
+
+        # print('Done!')
+
+        # # iterate through formated simulation data and run backtest
+        # for msg in tqdm(self.bybit_messages):
+        #     self.on_message(message=msg)
+        #     self.account.timestamp = self.market_data.history[
+        #         self.topics[0]].index[-1]
 
         # close remaining open positions
         for pos in self.account.positions.values():
@@ -161,12 +207,15 @@ class BacktestTradingModel(TradingModel):
                                          side=side,
                                          qty=pos['size'],
                                          reduce_only=True)
-        report = self.create_performance_report(initial_budget=initial_budget, save_output=save_output)
+        report = self.create_performance_report(initial_budget=initial_budget,
+                                                save_output=save_output)
 
         return report
 
     def create_performance_report(
-            self, initial_budget: float, save_output: bool = False) -> Dict[str, Dict[str, float]]:
+            self,
+            initial_budget: float,
+            save_output: bool = False) -> Dict[str, Dict[str, float]]:
         '''
         Create performance report after backtest.
         Report is created by iterating through executions and counting a trade if it exceeds or matches a previously open position.
@@ -284,7 +333,10 @@ class BacktestTradingModel(TradingModel):
 
         if save_output:
             pd.DataFrame(report).to_excel('performance_report.xlsx')
-            trades = pd.DataFrame(self.account.executions['BTCUSDT']).transpose()
-            trades['trading_value']=-2*((trades['side']=='Buy')-0.5)*trades['exec_qty']*trades['price']-trades['exec_fee']
+            trades = pd.DataFrame(
+                self.account.executions['BTCUSDT']).transpose()
+            trades['trading_value'] = -2 * (
+                (trades['side'] == 'Buy') -
+                0.5) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
             trades.to_excel('trade_list.xlsx')
         return report
