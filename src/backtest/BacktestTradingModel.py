@@ -172,9 +172,9 @@ class BacktestTradingModel(TradingModel):
                     self.topics[0]].index[-1]
 
             # append simulation data to global simulation data
-            self.bybit_messages.extend(bybit_messages)
-            self.simulation_data = pd.concat(
-                [self.simulation_data, simulation_data])
+            # self.bybit_messages.extend(bybit_messages)
+            # self.simulation_data = pd.concat(
+            #     [self.simulation_data, simulation_data])
 
             print('Done!')
 
