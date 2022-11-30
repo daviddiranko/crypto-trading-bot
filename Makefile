@@ -34,3 +34,6 @@ unittest: clean lint
 
 backtest:
 	poetry run python -m src.backtest.run_backtest --ticker 'BTCUSDT' --freqs '1 5' --start_history '2019-12-31 20:00:00' --start_str '2020-01-01' --end_str '2020-04-01'
+
+run:
+	poetry run python -m main

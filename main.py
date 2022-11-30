@@ -20,6 +20,7 @@ from src.MarketData import MarketData
 from src.AccountData import AccountData
 from src.TradingModel import TradingModel
 from src.models.mock_model import mock_model
+from src.models.checklist_model import checklist_model
 from src.endpoints.bybit_functions import format_klines, place_order, place_conditional_order
 
 # load environment variables
@@ -46,6 +47,7 @@ HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
 
 async def main():
+
     # Generate expires.
     expires = int((time.time() + 7200) * 1000)
 
@@ -63,86 +65,107 @@ async def main():
     private_url = WS_PRIVATE_TEST_URL + "?" + param
 
     # generate parameters for historical data
-    start = 10
-    start_unit = 'm'
+    start = 4
+    start_unit = 'h'
 
     symbol_list = [symbol[:3] for symbol in HIST_TICKERS]
     symbol_list.extend([symbol[3:] for symbol in HIST_TICKERS])
 
+    print('Establish Bybit HTTP session...')
     # initialize http connection for trading
     session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                   api_key=BYBIT_TEST_KEY,
                                   api_secret=BYBIT_TEST_SECRET)
 
+    print('Done!')
+
+    print('Establish Binance HTTP session...')
     # initialize binance client to pull historical data and add to market data history
     binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
 
-    # initialize MarketData, AccountData and TradingModel objects
-    market_data = MarketData(client=binance_client, topics=PUBLIC_TOPICS)
-    account_data = AccountData(http_session=session, symbols=symbol_list)
-    model = TradingModel(market_data=market_data,
-                         account=account_data,
-                         model=mock_model,
-                         model_args={'open': True},
+    print('Done!')
+
+    # initialize TradingModel object
+    model = TradingModel(client=binance_client,
+                        http_session=session,
+                        symbols=symbol_list,
+                        model=checklist_model,
+                         model_args={},
                          model_storage={
-                             'open': False,
-                             'close': False
-                         })
+                                 'entry_body_1': None,
+                                 'entry_close_1': None,
+                                 'entry_open_1': None,
+                                 'last_kline_time': pd.Timestamp(0)
+                            })
 
     # construct start string
     start_str = str(pd.Timestamp.now() - pd.Timedelta(start, start_unit))
     end_str = str(pd.Timestamp.now())
 
+    print('Load trading history for trading model...')
     model.market_data.build_history(symbols=BACKTEST_SYMBOLS,
                                     start_str=start_str,
                                     end_str=end_str)
 
+    print('Done!')
+
     # if connection is lost, immediately set up new connection
     while True:
-        # start listening to the public and private websockets "in parallel"
-        async with websockets.connect(private_url) as ws_private, \
-                    websockets.connect(public_url) as ws_public:
+        print('Connect to Bybit websockets...')
 
-            # subscribe to public and private topics
-            await ws_public.send(
-                json.dumps({
-                    "op": "subscribe",
-                    "args": PUBLIC_TOPICS
-                }))
-            await ws_private.send(
-                json.dumps({
-                    "op": "auth",
-                    "args": [BYBIT_TEST_KEY, expires, signature]
-                }))
-            await ws_private.send(
-                json.dumps({
-                    "op": "subscribe",
-                    "args": PRIVATE_TOPICS
-                }))
+        try:
+            # start listening to the public and private websockets "in parallel"
+            async with websockets.connect(private_url) as ws_private, \
+                        websockets.connect(public_url) as ws_public:
 
-            # create a task queue of websocket messages
-            channel = asyncio.Queue()
+                # subscribe to public and private topics
+                await ws_public.send(
+                    json.dumps({
+                        "op": "subscribe",
+                        "args": PUBLIC_TOPICS
+                    }))
+                await ws_private.send(
+                    json.dumps({
+                        "op": "auth",
+                        "args": [BYBIT_TEST_KEY, expires, signature]
+                    }))
+                await ws_private.send(
+                    json.dumps({
+                        "op": "subscribe",
+                        "args": PRIVATE_TOPICS
+                    }))
 
-            async def transmit(w, source):
-                while True:
-                    msg = await w.recv()
-                    message = json.loads(msg)
-                    # only include full candlesticks to avoid spamming
-                    try:
-                        if message['data'][0]['confirm'] == True:
+                print('Done!')
+
+                print('Starting trading...')
+
+                # create a task queue of websocket messages
+                channel = asyncio.Queue()
+
+                async def transmit(w, source):
+                    while True:
+                        msg = await w.recv()
+                        message = json.loads(msg)
+
+                        # only include full candlesticks to avoid spamming
+                        if 'data' in message.keys():
+                            if message['data'][0]['confirm'] == True:
+                                print('candle received!')
+                                await channel.put((source, msg))
+                        else:
                             await channel.put((source, msg))
-                    except:
                         await channel.put((source, msg))
-                    await channel.put((source, msg))
 
-            # create tasks for reception of public and private messages
-            asyncio.create_task(transmit(ws_public, 'public_source'))
-            asyncio.create_task(transmit(ws_private, 'private_source'))
+                # create tasks for reception of public and private messages
+                asyncio.create_task(transmit(ws_public, 'public_source'))
+                asyncio.create_task(transmit(ws_private, 'private_source'))
 
-            while True:
-                source, msg = await channel.get()
-                model.on_message(msg)
+                while True:
+                    source, msg = await channel.get()
+                    model.on_message(msg)
+        except:
+            print('Connection to Bybit websocket lost.')
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

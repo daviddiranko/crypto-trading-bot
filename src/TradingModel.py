@@ -45,7 +45,7 @@ class TradingModel:
         client: binance.client.Client
             http session to pull historical data from
         symbols: List[str]
-            optional list of symbols to incorporate into account data. If no list is provided, all available symbols are incorporated.
+            list of symbols to incorporate into account data.
         topics: List[str]
             all topics to store in market data object
         model_storage: Dict[str, Any]
