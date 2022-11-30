@@ -132,17 +132,11 @@ class BacktestAccountData(AccountData):
         # order time + 1 minute
         order_time_1 = pd.Timestamp(self.timestamp.value + 60000000000)
 
-        # pull historical kline, by requesting server until message is recceived
-        msg = None
-        while msg == None:
-            try:
-                msg = self.session.get_historical_klines(
-                    symbol,
-                    start_str=str(self.timestamp),
-                    end_str=str(order_time_1),
-                    interval='1m')
-            except:
-                pass
+        # pull historical kline
+        msg = self.session.get_historical_klines(symbol,
+                                                 start_str=str(self.timestamp),
+                                                 end_str=str(order_time_1),
+                                                 interval='1m')
 
         # format klines and extract high and low
         quotes = binance_functions.format_historical_klines(msg)
