@@ -26,3 +26,13 @@ def sma(data: pd.Series, window: int, new_col: str = 'sma') -> pd.Series:
     sma = data.rolling(window).mean()
     sma.name = '{}_{}'.format(new_col, window)
     return sma
+
+
+def get_highs(candles: pd.Series, min_int: int) -> pd.Series:
+    '''
+    Return highs of candles.
+    Highs are defined of points with lower min_int successors and predecessors. 
+    '''
+    highs = candles.loc[candles == candles.rolling(window=2 * min_int,
+                                                   center=True).max()]
+    return highs

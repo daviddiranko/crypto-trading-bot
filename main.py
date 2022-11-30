@@ -87,16 +87,16 @@ async def main():
 
     # initialize TradingModel object
     model = TradingModel(client=binance_client,
-                        http_session=session,
-                        symbols=symbol_list,
-                        model=checklist_model,
+                         http_session=session,
+                         symbols=symbol_list,
+                         model=checklist_model,
                          model_args={},
                          model_storage={
-                                 'entry_body_1': None,
-                                 'entry_close_1': None,
-                                 'entry_open_1': None,
-                                 'last_kline_time': pd.Timestamp(0)
-                            })
+                             'entry_body_1': None,
+                             'entry_close_1': None,
+                             'entry_open_1': None,
+                             'last_kline_time': pd.Timestamp(0)
+                         })
 
     # construct start string
     start_str = str(pd.Timestamp.now() - pd.Timedelta(start, start_unit))

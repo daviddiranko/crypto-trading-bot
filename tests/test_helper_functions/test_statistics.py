@@ -24,3 +24,25 @@ class TestStatistics(unittest.TestCase):
         sma = statistics.sma(data=sma_data, window=3)
 
         pd.testing.assert_series_equal(sma_result, sma)
+
+    def test_get_highs(self):
+        data = pd.Series({
+            (pd.Timestamp('2020-01-01 00:01:00'), 'candle.1.BTCUSDT'): 7195.24,
+            (pd.Timestamp('2020-01-01 00:02:00'), 'candle.1.BTCUSDT'): 7187.67,
+            (pd.Timestamp('2020-01-01 00:03:00'), 'candle.1.BTCUSDT'): 7184.41,
+            (pd.Timestamp('2020-01-01 00:04:00'), 'candle.1.BTCUSDT'): 7183.83,
+            (pd.Timestamp('2020-01-01 00:05:00'), 'candle.1.BTCUSDT'): 7185.54,
+            (pd.Timestamp('2020-01-01 00:06:00'), 'candle.1.BTCUSDT'): 7179.76,
+            (pd.Timestamp('2020-01-01 00:07:00'), 'candle.1.BTCUSDT'): 7180.0,
+            (pd.Timestamp('2020-01-01 00:08:00'), 'candle.1.BTCUSDT'): 7181.7,
+            (pd.Timestamp('2020-01-01 00:09:00'), 'candle.1.BTCUSDT'): 7183.9,
+            (pd.Timestamp('2020-01-01 00:10:00'), 'candle.1.BTCUSDT'): 7187.68
+        })
+
+        highs = pd.Series({
+            (pd.Timestamp('2020-01-01 00:05:00'), 'candle.1.BTCUSDT'): 7185.54
+        })
+
+        get_highs = statistics.get_highs(candles=data, min_int=2)
+
+        pd.testing.assert_series_equal(highs, get_highs)
