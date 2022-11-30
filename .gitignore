@@ -131,3 +131,6 @@ dmypy.json
 
 # ignore notebooks
 notebooks
+
+# ignore evaluations
+evaluations
