@@ -33,8 +33,7 @@ class TestBacktestMarketData(unittest.TestCase):
     # create new backtesting marketdata object through inheritance from MarketData
     def setUp(self):
         self.client = Client(BINANCE_KEY, BINANCE_SECRET)
-        self.account = BacktestAccountData(binance_client=self.client,
-                                           symbols=['BTC', 'USDT'],
+        self.account = BacktestAccountData(symbols=['BTC', 'USDT'],
                                            budget={
                                                'BTC': 0,
                                                'USDT': 1000

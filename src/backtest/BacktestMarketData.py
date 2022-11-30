@@ -56,11 +56,14 @@ class BacktestMarketData(MarketData):
 
         self.history: Dict[str, pandas.DataFrame]
             dictionary that stores historical data.
-            the dictionary is indexed by the topic and stores a dataframe of candlesticks, indexed by the close timestamp.
-        
+            the dictionary is indexed by the topic and stores a dataframe of candlesticks, indexed by the close timestamp.   
         self.account: BacktestAccountData
             account data object to send new market data point to.
             Necessary to update real time account data endpoints like positions, open orders etc.
+        self.simulation_data: pandas.DataFrame
+            formatted binance candles for backtesting
+        self.bybit_messages: List[Dict[str, Any]]
+            formatted candles from self.simulation data that simulate bybit websocket messages
         '''
 
         super().__init__(client, topics)

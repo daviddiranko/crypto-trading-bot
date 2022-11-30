@@ -150,9 +150,12 @@ def create_simulation_data(session: Client, symbols: Dict[str,
     topics = []
     for symbol in symbols:
         ticker, interval = symbol.split('.')
+
+        # extend data by one interval to close trades in the last timestamp
+        actual_end_str = str(pd.Timestamp(end_str) + pd.Timedelta(interval))
         bnc_data = session.get_historical_klines(ticker,
                                                  start_str=start_str,
-                                                 end_str=end_str,
+                                                 end_str=actual_end_str,
                                                  interval=interval)
         klines.extend(bnc_data)
         topics.extend([symbols[symbol]] * len(bnc_data))

@@ -6,8 +6,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 from typing import Any, Dict, List
-from binance.client import Client
-from src.endpoints import binance_functions
 from src.AccountData import AccountData
 import itertools
 
@@ -19,13 +17,10 @@ class BacktestAccountData(AccountData):
     '''
 
     # initialize account data object with current values
-    def __init__(self, binance_client: Client, symbols: List[str],
-                 budget: Dict[str, float]):
+    def __init__(self, symbols: List[str], budget: Dict[str, float]):
         '''
         Parameters
         ----------
-        binance_client: binance.client.Client
-            binance http client to pull historical prices to mock a backtesting order
         symbols: List[str]
             list of symbols to incorporate.
         budget: Dict[str, float]
@@ -33,8 +28,6 @@ class BacktestAccountData(AccountData):
 
         Attributes
         ----------
-        self.session: binance_client: binance.client.Client
-            binance http client to pull historical prices to mock a backtesting order
         self.positions: Dict[str, Dict[str, any]]
             dict of current open positions, indexed by symbol
         self.executions = Dict[str, Dict[str, Dict[str, Any]]]
@@ -57,6 +50,8 @@ class BacktestAccountData(AccountData):
             each symbol is indexed to another dict that holds balance, margin etc. for that symbol
         self.timestamp = pandas.Timestamp
             current timestamp in backtesting simulation
+        self.simulation_data: pandas.DataFrame
+            simulation data for backtesting, used in account for trade pricing.
         '''
 
         # build all possible tuples from symbols
@@ -64,8 +59,6 @@ class BacktestAccountData(AccountData):
             list(s)[0] + list(s)[1]
             for s in list(itertools.product(symbols, repeat=2))
         ]
-
-        self.session = binance_client
         self.positions = {
             symbol: {
                 "symbol": symbol,
@@ -87,6 +80,10 @@ class BacktestAccountData(AccountData):
             } for symbol in symbols
         }
         self.timestamp = None
+
+        # initialize empty simulation data
+        # formatted dataframe of binance candles
+        self.simulation_data = None
 
     def place_order(self,
                     symbol: str,
@@ -132,17 +129,11 @@ class BacktestAccountData(AccountData):
         # order time + 1 minute
         order_time_1 = pd.Timestamp(self.timestamp.value + 60000000000)
 
-        # pull historical kline
-        msg = self.session.get_historical_klines(symbol,
-                                                 start_str=str(self.timestamp),
-                                                 end_str=str(order_time_1),
-                                                 interval='1m')
-
-        # format klines and extract high and low
-        quotes = binance_functions.format_historical_klines(msg)
-
-        price_sell = quotes.iloc[0]['open']
-        price_buy = quotes.iloc[0]['open']
+        # get quotes from simulation data
+        quotes = self.simulation_data.loc[(order_time_1,
+                                           'candle.1.{}'.format(symbol))]
+        price_sell = quotes['open']
+        price_buy = quotes['open']
 
         if order_type == 'Market':
 

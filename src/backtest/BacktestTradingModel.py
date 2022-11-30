@@ -68,9 +68,7 @@ class BacktestTradingModel(TradingModel):
         '''
 
         # initialize attributes and instantiate market and account data objects
-        self.account = BacktestAccountData(binance_client=http_session,
-                                           symbols=symbols,
-                                           budget=budget)
+        self.account = BacktestAccountData(symbols=symbols, budget=budget)
         self.market_data = BacktestMarketData(account=self.account,
                                               client=http_session,
                                               topics=topics,
@@ -83,12 +81,8 @@ class BacktestTradingModel(TradingModel):
         self.model_storage = model_storage
         self.model_args = model_args
 
-        # initialize empty simulation data
-        # formatted dataframe of binance candles
-        self.simulation_data = pd.DataFrame()
-
-        # list of bybit websocket messages
-        self.bybit_messages = []
+        # list of bybit websocket messages for simulation
+        self.bybit_messages = None
 
     def run_backtest(self,
                      symbols: Dict[str, str],
@@ -104,7 +98,7 @@ class BacktestTradingModel(TradingModel):
         symbols: Dict[str, str]
             dictionary of relevant symbols for backtesting
             symbols for backtesting
-            keys have format binance_ticker.binacne_interval and values are coresponding bybit ws topics.
+            keys have format binance_ticker.binance_interval and values are coresponding bybit ws topics.
         start_history: str
             start of historical data to pull for model in format yyyy-mm-dd hh-mm-ss
             history will be pulled until start_str
@@ -148,25 +142,30 @@ class BacktestTradingModel(TradingModel):
 
             # create simulation data
             klines, topics = create_simulation_data(
-                session=self.account.session,
+                session=self.market_data.client,
                 symbols=symbols,
                 start_str=str(timestamps[0]),
                 end_str=str(timestamps[1]))
 
             # format data to bybit websocket messages
-            bybit_messages, simulation_data = binance_to_bybit(klines,
-                                                               topics=topics)
+            self.bybit_messages, self.account.simulation_data = binance_to_bybit(
+                klines, topics=topics)
+
+            # remove last elements of bybit messages that overlap with next partial series (one per topic)
+            # this is due to the design of create_simulation_data to pull one extra candle per topic
+            for symbol in symbols:
+                self.bybit_messages.pop()
 
             print('Done!')
 
             # set starting timestamp
-            self.account.timestamp = simulation_data.index[0][0]
+            self.account.timestamp = self.account.simulation_data.index[0][0]
 
             print('Simulating backtest from {} to {}'.format(
                 timestamps[0], timestamps[1]))
 
             # iterate through formated simulation data and run backtest
-            for msg in tqdm(bybit_messages):
+            for msg in tqdm(self.bybit_messages):
                 self.on_message(message=msg)
                 self.account.timestamp = self.market_data.history[
                     self.topics[0]].index[-1]

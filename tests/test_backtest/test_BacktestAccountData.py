@@ -30,8 +30,7 @@ class TestBacktestAccountData(unittest.TestCase):
 
     def setUp(self):
         self.client = Client(BINANCE_KEY, BINANCE_SECRET)
-        self.account = BacktestAccountData(binance_client=self.client,
-                                           symbols=['BTC', 'USDT'],
+        self.account = BacktestAccountData(symbols=['BTC', 'USDT'],
                                            budget={
                                                'USDT': 1000,
                                                'BTC': 0
@@ -42,7 +41,7 @@ class TestBacktestAccountData(unittest.TestCase):
             topics=PUBLIC_TOPICS,
             toppic_mapping=BINANCE_BYBIT_MAPPING)
 
-        self.order_time = pd.Timestamp('2022-10-01 09:33:12')
+        self.order_time = pd.Timestamp('2022-10-01 09:34:00')
 
         # order time + 1 minute
         self.order_time_1 = pd.Timestamp(self.order_time.value + 60000000000)
@@ -55,10 +54,12 @@ class TestBacktestAccountData(unittest.TestCase):
                                                 end_str=str(self.order_time_1),
                                                 interval='1m')
 
-        # format klines and extract high and low
-        quotes = binance_functions.format_historical_klines(msg)
+        topics = len(msg) * ['candle.1.BTCUSDT']
 
-        # spread = quotes.iloc[0]['high'] - quotes.iloc[0]['low']
+        # format klines and extract high and low
+        _, quotes = binance_functions.binance_to_bybit(msg, topics=topics)
+
+        self.account.simulation_data = quotes
 
         self.account.timestamp = self.order_time
         open = self.account.place_order(symbol='BTCUSDT',
