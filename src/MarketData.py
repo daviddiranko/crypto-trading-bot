@@ -23,6 +23,9 @@ PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
 
 HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
+BINANCE_KEY = os.getenv('BINANCE_KEY')
+BINANCE_SECRET = os.getenv('BINANCE_SECRET')
+
 
 class MarketData:
     '''
@@ -149,10 +152,17 @@ class MarketData:
         for symbol in symbols.keys():
             # load history as list of lists from binance
             ticker, interval = symbol.split('.')
-            msg = self.client.get_historical_klines(symbol=ticker,
-                                                    start_str=start_str,
-                                                    end_str=end_str,
-                                                    interval=interval)
+
+            msg = None
+            while msg == None:
+                try:
+                    msg = self.client.get_historical_klines(symbol=ticker,
+                                                            start_str=start_str,
+                                                            end_str=end_str,
+                                                            interval=interval)
+                except:
+                    self.client = Client(api_key=BINANCE_KEY,
+                                         api_secret=BINANCE_SECRET)
 
             # format payload to dataframe
             klines = format_historical_klines(msg)

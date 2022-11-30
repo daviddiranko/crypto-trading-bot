@@ -12,6 +12,9 @@ load_dotenv()
 
 HIST_COLUMNS = eval(os.getenv('HIST_COLUMNS'))
 
+BINANCE_KEY = os.getenv('BINANCE_KEY')
+BINANCE_SECRET = os.getenv('BINANCE_SECRET')
+
 
 def format_historical_klines(msg: List[List[Any]]) -> pd.DataFrame:
     '''
@@ -153,10 +156,16 @@ def create_simulation_data(session: Client, symbols: Dict[str,
 
         # extend data by one interval to close trades in the last timestamp
         actual_end_str = str(pd.Timestamp(end_str) + pd.Timedelta(interval))
-        bnc_data = session.get_historical_klines(ticker,
-                                                 start_str=start_str,
-                                                 end_str=actual_end_str,
-                                                 interval=interval)
+
+        bnc_data = None
+        while bnc_data == None:
+            try:
+                bnc_data = session.get_historical_klines(ticker,
+                                                         start_str=start_str,
+                                                         end_str=actual_end_str,
+                                                         interval=interval)
+            except:
+                session = Client(api_key=BINANCE_KEY, api_secret=BINANCE_SECRET)
         klines.extend(bnc_data)
         topics.extend([symbols[symbol]] * len(bnc_data))
 

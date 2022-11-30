@@ -16,6 +16,10 @@ load_dotenv()
 PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
+BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
+BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
+BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
+
 
 class AccountData:
     '''
@@ -62,8 +66,15 @@ class AccountData:
         self.session = http_session
 
         # pull current account data
-        account_data = initialize_account_data(session=self.session,
-                                               symbols=symbols)
+        account_data = None
+        while account_data == None:
+            try:
+                account_data = initialize_account_data(session=self.session,
+                                                       symbols=symbols)
+            except:
+                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                                   api_key=BYBIT_TEST_KEY,
+                                                   api_secret=BYBIT_TEST_SECRET)
         self.positions = account_data['position']
         self.executions = account_data['execution']
         self.orders = account_data['order']
@@ -317,21 +328,28 @@ class AccountData:
             response body from bybit
         '''
 
-        response = place_order(session=self.session,
-                               symbol=symbol,
-                               order_type=order_type,
-                               side=side,
-                               qty=qty,
-                               price=price,
-                               stop_loss=stop_loss,
-                               take_profit=take_profit,
-                               time_in_force=time_in_force,
-                               sl_trigger_by=sl_trigger_by,
-                               tp_trigger_by=tp_trigger_by,
-                               order_link_id=order_link_id,
-                               reduce_only=reduce_only,
-                               close_on_trigger=close_on_trigger,
-                               position_idx=position_idx)
+        response = None
+        while response == None:
+            try:
+                response = place_order(session=self.session,
+                                       symbol=symbol,
+                                       order_type=order_type,
+                                       side=side,
+                                       qty=qty,
+                                       price=price,
+                                       stop_loss=stop_loss,
+                                       take_profit=take_profit,
+                                       time_in_force=time_in_force,
+                                       sl_trigger_by=sl_trigger_by,
+                                       tp_trigger_by=tp_trigger_by,
+                                       order_link_id=order_link_id,
+                                       reduce_only=reduce_only,
+                                       close_on_trigger=close_on_trigger,
+                                       position_idx=position_idx)
+            except:
+                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                                   api_key=BYBIT_TEST_KEY,
+                                                   api_secret=BYBIT_TEST_SECRET)
         return response
 
     def place_conditional_order(
@@ -400,18 +418,25 @@ class AccountData:
         response: Dict[str, Any]
             response body from bybit
         '''
-
-        response = place_conditional_order(session=self.session,
-                                           symbol=symbol,
-                                           order_type=order_type,
-                                           side=side,
-                                           qty=qty,
-                                           price=price,
-                                           base_price=base_price,
-                                           stop_px=stop_px,
-                                           time_in_force=time_in_force,
-                                           trigger_by=trigger_by,
-                                           order_link_id=order_link_id,
-                                           reduce_only=reduce_only,
-                                           close_on_trigger=close_on_trigger)
+        response = None
+        while response == None:
+            try:
+                response = place_conditional_order(
+                    session=self.session,
+                    symbol=symbol,
+                    order_type=order_type,
+                    side=side,
+                    qty=qty,
+                    price=price,
+                    base_price=base_price,
+                    stop_px=stop_px,
+                    time_in_force=time_in_force,
+                    trigger_by=trigger_by,
+                    order_link_id=order_link_id,
+                    reduce_only=reduce_only,
+                    close_on_trigger=close_on_trigger)
+            except:
+                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                                   api_key=BYBIT_TEST_KEY,
+                                                   api_secret=BYBIT_TEST_SECRET)
         return response
