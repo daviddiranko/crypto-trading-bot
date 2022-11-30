@@ -150,7 +150,6 @@ async def main():
                         # only include full candlesticks to avoid spamming
                         if 'data' in message.keys():
                             if message['data'][0]['confirm'] == True:
-                                print('candle received!')
                                 await channel.put((source, msg))
                         else:
                             await channel.put((source, msg))
