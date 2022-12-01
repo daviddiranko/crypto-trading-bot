@@ -312,12 +312,12 @@ class BacktestTradingModel(TradingModel):
                     avg_trade_return_per
             }
 
-        if save_output:
-            pd.DataFrame(report).to_excel('evaluations/performance_report.xlsx')
-            trades = pd.DataFrame(
-                self.account.executions['BTCUSDT']).transpose()
-            trades['trading_value'] = -2 * (
-                (trades['side'] == 'Buy') -
-                0.5) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
-            trades.to_excel('evaluations/trade_list.xlsx')
+            if save_output:
+                pd.DataFrame(report).to_excel('evaluations/performance_report_{}.xlsx'.format(symbol))
+                trades = pd.DataFrame(
+                    self.account.executions['BTCUSDT']).transpose()
+                trades['trading_value'] = -2 * (
+                    (trades['side'] == 'Buy') -
+                    0.5) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
+                trades.to_excel('evaluations/trade_list_{}.xlsx'.format(symbol))
         return report
