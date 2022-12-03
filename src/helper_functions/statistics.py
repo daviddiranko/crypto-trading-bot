@@ -31,8 +31,15 @@ def sma(data: pd.Series, window: int, new_col: str = 'sma') -> pd.Series:
 def get_highs(candles: pd.Series, min_int: int) -> pd.Series:
     '''
     Return highs of candles.
-    Highs are defined of points with lower min_int successors and predecessors. 
+    Highs are defined of points with lower min_int successors and predecessors.
     '''
     highs = candles.loc[candles == candles.rolling(window=2 * min_int,
                                                    center=True).max()]
+
+    recent_high = candles.iloc[-(min_int - 1):].max()
+    recent_high_idx = candles.iloc[-(min_int - 1):].idxmax()
+
+    # if maximum of last min_int-1 candles is higher than last high append to highs for a lack of recent history
+    if recent_high > highs.iloc[-1]:
+        highs.loc[recent_high_idx] = recent_high
     return highs

@@ -40,7 +40,8 @@ class TestStatistics(unittest.TestCase):
         })
 
         highs = pd.Series({
-            (pd.Timestamp('2020-01-01 00:05:00'), 'candle.1.BTCUSDT'): 7185.54
+            (pd.Timestamp('2020-01-01 00:05:00'), 'candle.1.BTCUSDT'): 7185.54,
+            (pd.Timestamp('2020-01-01 00:10:00'), 'candle.1.BTCUSDT'): 7187.68
         })
 
         get_highs = statistics.get_highs(candles=data, min_int=2)
