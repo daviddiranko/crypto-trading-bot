@@ -40,6 +40,7 @@ def get_highs(candles: pd.Series, min_int: int) -> pd.Series:
     recent_high_idx = candles.iloc[-(min_int - 1):].idxmax()
 
     # if maximum of last min_int-1 candles is higher than last high append to highs for a lack of recent history
-    if recent_high > highs.iloc[-1]:
-        highs.loc[recent_high_idx] = recent_high
+    if not highs.empty:
+        if recent_high > highs.iloc[-1]:
+            highs.loc[recent_high_idx] = recent_high
     return highs
