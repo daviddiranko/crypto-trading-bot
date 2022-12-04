@@ -313,10 +313,10 @@ class BacktestTradingModel(TradingModel):
             }
 
             if save_output:
-                pd.DataFrame(report).to_excel(
+                pd.DataFrame(report[symbol]).to_excel(
                     'evaluations/performance_report_{}.xlsx'.format(symbol))
                 trades = pd.DataFrame(
-                    self.account.executions['BTCUSDT']).transpose()
+                    self.account.executions[symbol]).transpose()
                 trades['trading_value'] = -2 * (
                     (trades['side'] == 'Buy') - 0.5
                 ) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
