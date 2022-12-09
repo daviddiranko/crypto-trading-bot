@@ -313,7 +313,7 @@ class BacktestTradingModel(TradingModel):
             }
 
             if save_output:
-                pd.DataFrame(report[symbol]).to_excel(
+                pd.DataFrame(report).to_excel(
                     'evaluations/performance_report_{}.xlsx'.format(symbol))
                 trades = pd.DataFrame(
                     self.account.executions[symbol]).transpose()

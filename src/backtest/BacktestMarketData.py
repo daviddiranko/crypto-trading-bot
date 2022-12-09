@@ -102,6 +102,9 @@ class BacktestMarketData(MarketData):
                 # add to history
                 self.history[topic].loc[data['end']] = data
 
+                # restrict history to last 1000 datapoints
+                self.history[topic] = self.history[topic].iloc[-1000:]
+
                 # trigger account data update
                 self.account.new_market_data(
                     topic=self.binance_bybit_mapping[topic], data=data)

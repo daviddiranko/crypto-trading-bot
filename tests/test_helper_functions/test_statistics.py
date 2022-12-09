@@ -9,6 +9,21 @@ from src.helper_functions import statistics
 
 class TestStatistics(unittest.TestCase):
 
+    def setUp(self):
+        self.candles = pd.Series({
+            (pd.Timestamp('2020-01-01 00:01:00')): 7195.24,
+            (pd.Timestamp('2020-01-01 00:02:00')): 7187.67,
+            (pd.Timestamp('2020-01-01 00:03:00')): 7184.41,
+            (pd.Timestamp('2020-01-01 00:04:00')): 7183.83,
+            (pd.Timestamp('2020-01-01 00:05:00')): 7185.54,
+            (pd.Timestamp('2020-01-01 00:06:00')): 7179.76,
+            (pd.Timestamp('2020-01-01 00:07:00')): 7180.0,
+            (pd.Timestamp('2020-01-01 00:08:00')): 7179.9,
+            (pd.Timestamp('2020-01-01 00:09:00')): 7179.8,
+            (pd.Timestamp('2020-01-01 00:10:00')): 7182.68,
+            (pd.Timestamp('2020-01-01 00:11:00')): 7183.00,
+        })
+
     def test_sma(self):
         sma_data = pd.Series([
             0.86538941, 0.11460237, 0.65071004, 0.43218357, 0.02094688,
@@ -26,24 +41,34 @@ class TestStatistics(unittest.TestCase):
         pd.testing.assert_series_equal(sma_result, sma)
 
     def test_get_highs(self):
-        data = pd.Series({
-            (pd.Timestamp('2020-01-01 00:01:00'), 'candle.1.BTCUSDT'): 7195.24,
-            (pd.Timestamp('2020-01-01 00:02:00'), 'candle.1.BTCUSDT'): 7187.67,
-            (pd.Timestamp('2020-01-01 00:03:00'), 'candle.1.BTCUSDT'): 7184.41,
-            (pd.Timestamp('2020-01-01 00:04:00'), 'candle.1.BTCUSDT'): 7183.83,
-            (pd.Timestamp('2020-01-01 00:05:00'), 'candle.1.BTCUSDT'): 7185.54,
-            (pd.Timestamp('2020-01-01 00:06:00'), 'candle.1.BTCUSDT'): 7179.76,
-            (pd.Timestamp('2020-01-01 00:07:00'), 'candle.1.BTCUSDT'): 7180.0,
-            (pd.Timestamp('2020-01-01 00:08:00'), 'candle.1.BTCUSDT'): 7181.7,
-            (pd.Timestamp('2020-01-01 00:09:00'), 'candle.1.BTCUSDT'): 7183.9,
-            (pd.Timestamp('2020-01-01 00:10:00'), 'candle.1.BTCUSDT'): 7187.68
-        })
 
         highs = pd.Series({
-            (pd.Timestamp('2020-01-01 00:05:00'), 'candle.1.BTCUSDT'): 7185.54,
-            (pd.Timestamp('2020-01-01 00:10:00'), 'candle.1.BTCUSDT'): 7187.68
+            (pd.Timestamp('2020-01-01 00:05:00')): 7185.54,
+            # (pd.Timestamp('2020-01-01 00:10:00')): 7187.68
         })
 
-        get_highs = statistics.get_highs(candles=data, min_int=2)
+        get_highs = statistics.get_highs(candles=self.candles, min_int=2)
 
         pd.testing.assert_series_equal(highs, get_highs)
+
+    def test_get_alternate_highs_lows(self):
+
+        get_highs, get_lows = statistics.get_alternate_highs_lows(
+            candles=self.candles, min_int=2)
+
+        highs = pd.Series({
+            (pd.Timestamp('2020-01-01 00:05:00')): 7185.54,
+            (pd.Timestamp('2020-01-01 00:07:00')): 7180.0
+        })
+
+        highs.index.name = 'ts'
+
+        lows = pd.Series({
+            (pd.Timestamp('2020-01-01 00:06:00')): 7179.76,
+            (pd.Timestamp('2020-01-01 00:09:00')): 7179.8
+        })
+
+        lows.index.name = 'ts'
+
+        pd.testing.assert_series_equal(highs, get_highs)
+        pd.testing.assert_series_equal(lows, get_lows)

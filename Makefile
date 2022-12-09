@@ -33,10 +33,10 @@ unittest: clean lint
 	poetry run coverage erase
 
 backtest:
-	poetry run python -m src.backtest.run_backtest --ticker 'BTCUSDT' --freqs '1 5' --start_history '2021-12-31 20:00:00' --start_str '2022-01-01' --end_str '2022-04-01'
+	poetry run python -m src.backtest.run_backtest --ticker 'BTCUSDT' --freqs '1 5 15' --start_history '2021-12-31' --start_str '2022-01-01' --end_str '2022-04-01'
 
 main:
-	poetry run python -m 
+	poetry run python -m main
 
 # add arguments via --build-arg VARIABLE=value
 docker:
