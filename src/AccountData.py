@@ -440,3 +440,44 @@ class AccountData:
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
         return response
+
+    def set_stop_loss(self, symbol: str, side: str, stop_loss: float):
+        '''
+        Set stop loss of open position.
+
+        Parameters
+        ----------
+        symbol: str
+            symbol of position to set stop loss in
+        side: str
+            side of open position to set stop loss in
+        stop_loss: float
+            stop loss to set
+        '''
+        response = self.session.set_trading_stop(
+                                                symbol=symbol,
+                                                side=side,
+                                                stop_loss=stop_loss
+                                            )
+        return response
+
+    def set_take_profit(self, symbol: str, side: str, take_profit: float):
+        '''
+        Set stop loss of open position.
+
+        Parameters
+        ----------
+        symbol: str
+            symbol of position to set stop loss in
+        side: str
+            side of open position to set stop loss in
+        take_profit: float
+            take profit to set
+        '''
+        response = self.session.set_trading_stop(
+                                                symbol=symbol,
+                                                side=side,
+                                                take_profit=take_profit
+                                            )
+        return response
+

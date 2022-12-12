@@ -349,3 +349,35 @@ class BacktestAccountData(AccountData):
         pos['position_value'] = pos['size'] * data['close']
 
         return pos
+    
+    def set_stop_loss(self, symbol: str, side: str, stop_loss: float):
+        '''
+        Set stop loss of open position.
+
+        Parameters
+        ----------
+        symbol: str
+            symbol of position to set stop loss in
+        side: str
+            side of open position to set stop loss in
+        stop_loss: float
+            stop loss to set
+        '''
+        self.positions[symbol]['stop_loss'] = stop_loss
+        return self.positions[symbol]
+
+    def set_take_profit(self, symbol: str, side: str, take_profit: float):
+        '''
+        Set stop loss of open position.
+
+        Parameters
+        ----------
+        symbol: str
+            symbol of position to set stop loss in
+        side: str
+            side of open position to set stop loss in
+        take_profit: float
+            take profit to set
+        '''
+        self.positions[symbol]['take_proft'] = take_profit
+        return self.positions[symbol]
