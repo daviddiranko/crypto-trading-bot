@@ -454,11 +454,16 @@ class AccountData:
         stop_loss: float
             stop loss to set
         '''
-        response = self.session.set_trading_stop(
-                                                symbol=symbol,
-                                                side=side,
-                                                stop_loss=stop_loss
-                                            )
+        response = None
+        while response == None:
+            try:
+                response = self.session.set_trading_stop(symbol=symbol,
+                                                         side=side,
+                                                         stop_loss=stop_loss)
+            except:
+                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                                   api_key=BYBIT_TEST_KEY,
+                                                   api_secret=BYBIT_TEST_SECRET)
         return response
 
     def set_take_profit(self, symbol: str, side: str, take_profit: float):
@@ -474,10 +479,13 @@ class AccountData:
         take_profit: float
             take profit to set
         '''
-        response = self.session.set_trading_stop(
-                                                symbol=symbol,
-                                                side=side,
-                                                take_profit=take_profit
-                                            )
+        response = None
+        while response == None:
+            try:
+                response = self.session.set_trading_stop(
+                    symbol=symbol, side=side, take_profit=take_profit)
+            except:
+                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                                   api_key=BYBIT_TEST_KEY,
+                                                   api_secret=BYBIT_TEST_SECRET)
         return response
-

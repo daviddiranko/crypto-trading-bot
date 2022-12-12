@@ -297,3 +297,47 @@ def place_conditional_order(session: usdt_perpetual.HTTP,
         reduce_only=reduce_only,
         close_on_trigger=close_on_trigger)
     return response
+
+
+def set_stop_loss(session: usdt_perpetual.HTTP, symbol: str, side: str,
+                  stop_loss: float):
+    '''
+    Set stop loss of open position.
+
+    Parameters
+    ----------
+    session: usdt_perpetual.HTTP
+        active bybit http session
+    symbol: str
+        symbol of position to set stop loss in
+    side: str
+        side of open position to set stop loss in
+    stop_loss: float
+        stop loss to set
+    '''
+    response = session.set_trading_stop(symbol=symbol,
+                                        side=side,
+                                        stop_loss=stop_loss)
+    return response
+
+
+def set_take_profit(session: usdt_perpetual.HTTP, symbol: str, side: str,
+                    take_profit: float):
+    '''
+    Set stop loss of open position.
+
+    Parameters
+    ----------
+    session: usdt_perpetual.HTTP
+        active bybit http session
+    symbol: str
+        symbol of position to set stop loss in
+    side: str
+        side of open position to set stop loss in
+    take_profit: float
+        take profit to set
+    '''
+    response = session.set_trading_stop(symbol=symbol,
+                                        side=side,
+                                        take_profit=take_profit)
+    return response

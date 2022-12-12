@@ -220,3 +220,16 @@ class TestBacktestAccountData(unittest.TestCase):
         self.assertAlmostEqual(pos_3['position_value'], 0.0)
         self.assertEqual(self.account.wallet['USDT']['available_balance'],
                          1000 - fees_3)
+
+    def test_set_stop_loss(self):
+        self.account.set_stop_loss(symbol='BTCUSDT', side='Buy', stop_loss=1000)
+
+        self.assertEqual(self.account.positions['BTCUSDT']['stop_loss'], 1000)
+
+    def test_take_profit(self):
+        self.account.set_take_profit(symbol='BTCUSDT',
+                                     side='Buy',
+                                     take_profit=100000)
+
+        self.assertEqual(self.account.positions['BTCUSDT']['take_profit'],
+                         100000)
