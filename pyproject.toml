@@ -16,6 +16,7 @@ boto3 = "==1.24.86"
 pybit = "==2.4.0"
 python-binance = "==1.0.16"
 python-dotenv = "==0.20.0"
+statsmodels = "==0.14.0"
 
 [tool.poetry.dev-dependencies]
 isort = "==5.10.1"
