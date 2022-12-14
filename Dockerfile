@@ -14,4 +14,4 @@ COPY ./ src/
 WORKDIR /src
 ENV VERSION=${BUILD_NUMBER}
 EXPOSE 80
-CMD make backtest
+CMD make main
