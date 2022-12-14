@@ -5,12 +5,11 @@ description = "trading infrastructure to algorithmically trade crypto currencies
 authors = ["David Diranko"]
 readme = "README.md"
 classifiers = [
-        "Development Status :: 1 - Beta",
-        "Programming Language :: Python :: 3.9"]
+        "Programming Language :: Python :: 3.8"]
 packages = [{include = "crypto_trading"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.8,<4.0"
 pandas = "==1.5.0"
 boto3 = "==1.24.86"
 pybit = "==2.4.0"
