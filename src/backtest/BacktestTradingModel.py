@@ -313,12 +313,18 @@ class BacktestTradingModel(TradingModel):
             }
 
             if save_output:
+                # extract values of model_args, and turn them into string
+                model_args_str = list(map(str,self.model_args.values()))
+
+                # concatenate model_args_str to single string separated by '_'
+                args_str = '_'.join(model_args_str)
+
                 pd.DataFrame(report).to_excel(
-                    'evaluations/performance_report_{}.xlsx'.format(symbol))
+                    'evaluations/performance_report_{}.xlsx'.format(args_str))
                 trades = pd.DataFrame(
                     self.account.executions[symbol]).transpose()
                 trades['trading_value'] = -2 * (
                     (trades['side'] == 'Buy') - 0.5
                 ) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
-                trades.to_excel('evaluations/trade_list_{}.xlsx'.format(symbol))
+                trades.to_excel('evaluations/trade_list_{}.xlsx'.format(args_str))
         return report

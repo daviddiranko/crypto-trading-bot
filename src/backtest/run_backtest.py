@@ -33,6 +33,11 @@ def main():
         default="1 5",
         help="List of candle frequencies in minutes required by the model")
     parser.add_argument(
+        '--model_args',
+        type=str,
+        default=str({'n_candles': 15, 'high_factor': 0.5, 'retracement_factor': 0.5, 'max_abs_slope': 0.005, 'trend_candles': 3, 'sideways_factor': 2}),
+        help="optional arguments for trading model")
+    parser.add_argument(
         '--start_history',
         type=str,
         help=" start for historical data for modelformat yyyy-mm-dd hh:mm:ss")
@@ -47,6 +52,10 @@ def main():
     args = vars(args)
 
     freqs = args['freqs'].split()
+    model_args = eval(args['model_args'])
+    model_args['ticker']=args['ticker']
+
+    print(model_args)
 
     ticker = args['ticker']
     BACKTEST_SYMBOLS = {
@@ -72,7 +81,7 @@ def main():
                                  topics=PUBLIC_TOPICS,
                                  topic_mapping=BINANCE_BYBIT_MAPPING,
                                  backtest_symbols=BACKTEST_SYMBOLS,
-                                 model_args={},
+                                 model_args=model_args,
                                  model_storage={
                                      'entry_body_1': None,
                                      'entry_close_1': None,
