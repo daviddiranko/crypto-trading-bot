@@ -1,7 +1,17 @@
-SHELL := bash
 .DEFAULT_GOAL := help
 PROJECT_NAME:=$(shell poetry version | sed -e "s/ .*//g")
 ALL_PYTHON_FILES:=$(shell find ./src -name "*.py" 2> /dev/null && find ./tests -name "*.py" 2> /dev/null)
+
+AWS_ACCOUNT_ID=$(shell aws sts get-caller-identity --query "Account" --output text)
+AWS_REGION=$(shell aws configure get region)
+AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id)
+AWS_ACCESS_SECRET_KEY=$(shell aws configure get aws secret_access_key)
+AWS_CURRENT_ECS_TASKS=$(shell aws ecs list-tasks --cluster <cluster-name> --query "taskArns" --output text)
+
+AWS_ECS_CLUSTER:=<cluster-name>
+AWS_FARGATE:=<fargate-service-name>
+AWS_ECR:=<ecr-name>
+
 
 check:
 	poetry check
@@ -42,11 +52,32 @@ main:
 	
 # add arguments via --build-arg VARIABLE=value
 docker:
-	docker build .
+	docker build . --build-arg BUILD_NUMBER=$(version) -t $(AWS_ECR)
+
+publish: ecr login docker
+	docker tag $(AWS_ECR):latest $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(AWS_ECR):latest
+	docker push $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(AWS_ECR):latest
+	docker logout
+
+ecr:
+	aws ecr create-repository --repository-name $(AWS_ECR) > /dev/null || true
+
+login:
+	aws ecr get-login-password --region $(AWS_REGION) | docker login --usernanme AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+
 run: docker
-	docker run
+	docker run $(AWS_ECR):latest
+
+stop_tasks:
+	for task in $(AWS_CURRENT_ECS_TASKS); do \
+		aws ecs stop-task --cluster $(AWS_ECS_CLUSTER) --task $$task > /dev/null || true ; \
+	done
+
+deploy: publish stop_tasks
+	aws ecs update-service --cluster $(AWS_ECS_CLUSTER) --service $(AWS_FARGATE) --force-new-deployment > /dev/null || true
 
 make parallel_backtest:
 	make backtest args='{"n_candles": 5, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}' & \
 	make backtest args='{"n_candles": 10, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}' & \
 	make backtest args='{"n_candles": 15, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}'
+
