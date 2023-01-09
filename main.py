@@ -153,7 +153,6 @@ async def main():
                                 await channel.put((source, msg))
                         else:
                             await channel.put((source, msg))
-                        await channel.put((source, msg))
 
                 # create tasks for reception of public and private messages
                 asyncio.create_task(transmit(ws_public, 'public_source'))

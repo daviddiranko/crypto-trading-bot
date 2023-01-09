@@ -314,7 +314,7 @@ class BacktestTradingModel(TradingModel):
 
             if save_output:
                 # extract values of model_args, and turn them into string
-                model_args_str = list(map(str,self.model_args.values()))
+                model_args_str = list(map(str, self.model_args.values()))
 
                 # concatenate model_args_str to single string separated by '_'
                 args_str = '_'.join(model_args_str)
@@ -326,5 +326,6 @@ class BacktestTradingModel(TradingModel):
                 trades['trading_value'] = -2 * (
                     (trades['side'] == 'Buy') - 0.5
                 ) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
-                trades.to_excel('evaluations/trade_list_{}.xlsx'.format(args_str))
+                trades.to_excel(
+                    'evaluations/trade_list_{}.xlsx'.format(args_str))
         return report

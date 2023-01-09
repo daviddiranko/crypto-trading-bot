@@ -6,11 +6,11 @@ AWS_ACCOUNT_ID=$(shell aws sts get-caller-identity --query "Account" --output te
 AWS_REGION=$(shell aws configure get region)
 AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id)
 AWS_ACCESS_SECRET_KEY=$(shell aws configure get aws secret_access_key)
-AWS_CURRENT_ECS_TASKS=$(shell aws ecs list-tasks --cluster <cluster-name> --query "taskArns" --output text)
+AWS_CURRENT_ECS_TASKS=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --query "taskArns" --output text)
 
-AWS_ECS_CLUSTER:=<cluster-name>
-AWS_FARGATE:=<fargate-service-name>
-AWS_ECR:=<ecr-name>
+AWS_ECS_CLUSTER:=crypto-trading-cluster
+AWS_FARGATE:=crypto-trading-service
+AWS_ECR:=crypto_trading_ecr
 
 
 check:
@@ -63,7 +63,7 @@ ecr:
 	aws ecr create-repository --repository-name $(AWS_ECR) > /dev/null || true
 
 login:
-	aws ecr get-login-password --region $(AWS_REGION) | docker login --usernanme AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+	aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 
 run: docker
 	docker run $(AWS_ECR):latest

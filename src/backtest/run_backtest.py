@@ -32,11 +32,17 @@ def main():
         type=str,
         default="1 5",
         help="List of candle frequencies in minutes required by the model")
-    parser.add_argument(
-        '--model_args',
-        type=str,
-        default=str({'n_candles': 15, 'high_factor': 0.5, 'retracement_factor': 0.5, 'max_abs_slope': 0.005, 'trend_candles': 3, 'sideways_factor': 2}),
-        help="optional arguments for trading model")
+    parser.add_argument('--model_args',
+                        type=str,
+                        default=str({
+                            'n_candles': 15,
+                            'high_factor': 0.5,
+                            'retracement_factor': 0.5,
+                            'max_abs_slope': 0.005,
+                            'trend_candles': 3,
+                            'sideways_factor': 2
+                        }),
+                        help="optional arguments for trading model")
     parser.add_argument(
         '--start_history',
         type=str,
@@ -53,7 +59,7 @@ def main():
 
     freqs = args['freqs'].split()
     model_args = eval(args['model_args'])
-    model_args['ticker']=args['ticker']
+    model_args['ticker'] = args['ticker']
 
     print(model_args)
 
@@ -83,9 +89,12 @@ def main():
                                  backtest_symbols=BACKTEST_SYMBOLS,
                                  model_args=model_args,
                                  model_storage={
-                                     'entry_body_1': None,
-                                     'entry_close_1': None,
-                                     'entry_open_1': None,
+                                     'entry_body_1_long': None,
+                                     'entry_close_1_long': None,
+                                     'entry_open_1_long': None,
+                                     'entry_body_1_short': None,
+                                     'entry_close_1_short': None,
+                                     'entry_open_1_short': None,
                                      'last_kline_time': pd.Timestamp(0)
                                  })
 
