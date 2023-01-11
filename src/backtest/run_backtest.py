@@ -95,7 +95,7 @@ def main():
                                      'entry_body_1_short': None,
                                      'entry_close_1_short': None,
                                      'entry_open_1_short': None,
-                                     'last_kline_time': pd.Timestamp(0)
+                                     'last_price_time': pd.Timestamp(0)
                                  })
 
     # create performance report
