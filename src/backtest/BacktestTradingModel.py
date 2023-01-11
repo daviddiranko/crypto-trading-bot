@@ -151,9 +151,10 @@ class BacktestTradingModel(TradingModel):
             self.bybit_messages, self.account.simulation_data = binance_to_bybit(
                 klines, topics=topics)
 
-            # remove last elements of bybit messages that overlap with next partial series (one per topic)
+            # remove last elements of bybit messages that overlap with next partial series (two per topic)
             # this is due to the design of create_simulation_data to pull one extra candle per topic
             for symbol in symbols:
+                self.bybit_messages.pop()
                 self.bybit_messages.pop()
 
             print('Done!')
