@@ -29,6 +29,59 @@ def sma(data: pd.Series, window: int, new_col: str = 'sma') -> pd.Series:
     return sma
 
 
+def true_range(data: pd.DataFrame,
+               high: str = 'high',
+               low: str = 'low',
+               close: str = 'close') -> pd.Series:
+    '''
+    Calculate true range of a DataFrame of candles.
+    Definition can be found at https://www.investopedia.com/terms/a/atr.asp
+
+    Parameters
+    ----------
+    data: pandas.DataFrame
+        candle stick data. Each row is one candlestick
+    high: str
+        column name of high price
+    low: str
+        column name of low price
+    close: str
+        column name of close price
+    Returns
+    -------
+    tr: pandas.Series
+        true range of each candle
+    '''
+    tr_parts = ((data[high] - data[low]).abs(),
+                (data[high] - data[close].shift(1)).abs(),
+                (data[low] - data[close].shift(1)).abs())
+    tr = pd.DataFrame(tr_parts).transpose().max(axis=1)
+    tr.name = 'true_range'
+    return tr
+
+
+def avg_true_range(tr: pd.Series, window: int) -> pd.Series:
+    '''
+    Calculate the average true range of a true range of candlestick data
+    Definition can be found at https://www.investopedia.com/terms/a/atr.asp
+
+    Parameters
+    ----------
+    tr: pandas.Series
+        true range of candlestick data
+    window: int
+        window size of rolling average
+
+    Returns
+    -------
+    avg_tr: pandas.Series
+        average true range of tr
+    '''
+    avg_tr = tr.rolling(window).mean()
+    avg_tr.name = 'avg_true_range_{}'.format(window)
+    return avg_tr
+
+
 def get_highs(candles: pd.Series, min_int: int) -> pd.Series:
     '''
     Return highs of candles.

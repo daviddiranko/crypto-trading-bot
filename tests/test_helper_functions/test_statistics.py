@@ -40,6 +40,89 @@ class TestStatistics(unittest.TestCase):
 
         pd.testing.assert_series_equal(sma_result, sma)
 
+    def test_true_range(self):
+        tr_data = pd.DataFrame({
+            'start': {
+                pd.Timestamp('2022-01-01 00:15:00'):
+                    pd.Timestamp('2022-01-01 00:00:00'),
+                pd.Timestamp('2022-01-01 00:30:00'):
+                    pd.Timestamp('2022-01-01 00:15:00'),
+                pd.Timestamp('2022-01-01 00:45:00'):
+                    pd.Timestamp('2022-01-01 00:30:00')
+            },
+            'open': {
+                pd.Timestamp('2022-01-01 00:15:00'): 46216.93,
+                pd.Timestamp('2022-01-01 00:30:00'): 46332.52,
+                pd.Timestamp('2022-01-01 00:45:00'): 46375.42
+            },
+            'high': {
+                pd.Timestamp('2022-01-01 00:15:00'): 46527.26,
+                pd.Timestamp('2022-01-01 00:30:00'): 46421.27,
+                pd.Timestamp('2022-01-01 00:45:00'): 46689.42
+            },
+            'low': {
+                pd.Timestamp('2022-01-01 00:15:00'): 46208.37,
+                pd.Timestamp('2022-01-01 00:30:00'): 46236.27,
+                pd.Timestamp('2022-01-01 00:45:00'): 46360.19
+            },
+            'close': {
+                pd.Timestamp('2022-01-01 00:15:00'): 46332.51,
+                pd.Timestamp('2022-01-01 00:30:00'): 46375.42,
+                pd.Timestamp('2022-01-01 00:45:00'): 46610.81
+            },
+            'volume': {
+                pd.Timestamp('2022-01-01 00:15:00'): 386.65709,
+                pd.Timestamp('2022-01-01 00:30:00'): 319.99973,
+                pd.Timestamp('2022-01-01 00:45:00'): 386.08077
+            },
+            'end': {
+                pd.Timestamp('2022-01-01 00:15:00'):
+                    pd.Timestamp('2022-01-01 00:15:00'),
+                pd.Timestamp('2022-01-01 00:30:00'):
+                    pd.Timestamp('2022-01-01 00:30:00'),
+                pd.Timestamp('2022-01-01 00:45:00'):
+                    pd.Timestamp('2022-01-01 00:45:00')
+            },
+            'turnover': {
+                pd.Timestamp('2022-01-01 00:15:00'): 17922004.4758951,
+                pd.Timestamp('2022-01-01 00:30:00'): 14829190.1550472,
+                pd.Timestamp('2022-01-01 00:45:00'): 17967322.8022338
+            }
+        })
+
+        tr_result = pd.Series({
+            pd.Timestamp('2022-01-01 00:15:00'): 318.8899999999994,
+            pd.Timestamp('2022-01-01 00:30:00'): 185.0,
+            pd.Timestamp('2022-01-01 00:45:00'): 329.2299999999959
+        })
+        tr_result.name = 'true_range'
+
+        tr = statistics.true_range(data=tr_data)
+
+        pd.testing.assert_series_equal(tr_result, tr)
+
+    def test_avg_true_range(self):
+        avg_tr_data = pd.Series({
+            pd.Timestamp('2022-01-01 00:15:00'): 318.8899999999994,
+            pd.Timestamp('2022-01-01 00:30:00'): 185.0,
+            pd.Timestamp('2022-01-01 00:45:00'): 329.2299999999959,
+            pd.Timestamp('2022-01-01 01:00:00'): 155.62999999999738,
+            pd.Timestamp('2022-01-01 01:15:00'): 193.1800000000003
+        })
+
+        avg_tr_result = pd.Series({
+            pd.Timestamp('2022-01-01 00:15:00'): np.nan,
+            pd.Timestamp('2022-01-01 00:30:00'): np.nan,
+            pd.Timestamp('2022-01-01 00:45:00'): 277.7066666666651,
+            pd.Timestamp('2022-01-01 01:00:00'): 223.28666666666444,
+            pd.Timestamp('2022-01-01 01:15:00'): 226.0133333333312
+        })
+        avg_tr_result.name = 'avg_true_range_3'
+
+        avg_tr = statistics.avg_true_range(tr=avg_tr_data, window=3)
+
+        pd.testing.assert_series_equal(avg_tr_result, avg_tr)
+
     def test_get_highs(self):
 
         highs = pd.Series({
