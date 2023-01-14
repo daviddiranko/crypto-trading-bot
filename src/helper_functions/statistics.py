@@ -186,19 +186,22 @@ def get_alternate_highs_lows(candles: pd.Series,
     lows = lows.sort_index()
     highs = highs.sort_index()
 
-    # if last price breaks recent high and last low was before last high, add minimum between last price and last high as low
-    if candles[-1] >= highs[-1] and highs.index[-1] > lows.index[-1]:
-        last_low_index = candles.loc[highs.index[-1]:].idxmin()
-        last_low = candles.loc[highs.index[-1]:].min()
-        lows[last_low_index] = last_low
+    # check that highs and lows are not empty for stability
+    if not highs.empty and not lows.empty:
 
-    # if last price breaks recent low and last high was before last low, add maximum between last price and last low as high
-    if candles[-1] <= lows[-1] and lows.index[-1] > highs.index[-1]:
-        last_high_index = candles.loc[lows.index[-1]:].idxmax()
-        last_high = candles.loc[lows.index[-1]:].max()
-        highs[last_high_index] = last_high
+        # if last price breaks recent high and last low was before last high, add minimum between last price and last high as low
+        if candles[-1] >= highs[-1] and highs.index[-1] > lows.index[-1]:
+            last_low_index = candles.loc[highs.index[-1]:].idxmin()
+            last_low = candles.loc[highs.index[-1]:].min()
+            lows[last_low_index] = last_low
 
-    lows = lows.sort_index()
-    highs = highs.sort_index()
+        # if last price breaks recent low and last high was before last low, add maximum between last price and last low as high
+        if candles[-1] <= lows[-1] and lows.index[-1] > highs.index[-1]:
+            last_high_index = candles.loc[lows.index[-1]:].idxmax()
+            last_high = candles.loc[lows.index[-1]:].max()
+            highs[last_high_index] = last_high
+
+        lows = lows.sort_index()
+        highs = highs.sort_index()
 
     return highs, lows

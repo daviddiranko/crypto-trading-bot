@@ -113,7 +113,6 @@ async def main():
     while True:
         print('Connect to Bybit websockets...')
 
-        # try:
         # start listening to the public and private websockets "in parallel"
         async with websockets.connect(private_url) as ws_private, \
                     websockets.connect(public_url) as ws_public:
@@ -149,8 +148,7 @@ async def main():
 
                     # only include full candlesticks to avoid spamming
                     if 'data' in message.keys():
-                        if message['data'][0]['confirm'] == True:
-                            await channel.put((source, msg))
+                        await channel.put((source, msg))
                     else:
                         await channel.put((source, msg))
 
@@ -161,8 +159,6 @@ async def main():
             while True:
                 source, msg = await channel.get()
                 model.on_message(msg)
-        # except:
-        #     print('Connection to Bybit websocket lost.')
 
 
 if __name__ == "__main__":

@@ -80,4 +80,3 @@ make parallel_backtest:
 	make backtest args='{"n_candles": 5, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}' & \
 	make backtest args='{"n_candles": 10, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}' & \
 	make backtest args='{"n_candles": 15, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}'
-
