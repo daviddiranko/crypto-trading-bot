@@ -113,56 +113,56 @@ async def main():
     while True:
         print('Connect to Bybit websockets...')
 
-        # try:
-        # start listening to the public and private websockets "in parallel"
-        async with websockets.connect(private_url) as ws_private, \
-                    websockets.connect(public_url) as ws_public:
+        try:
+            # start listening to the public and private websockets "in parallel"
+            async with websockets.connect(private_url) as ws_private, \
+                        websockets.connect(public_url) as ws_public:
 
-            # subscribe to public and private topics
-            await ws_public.send(
-                json.dumps({
-                    "op": "subscribe",
-                    "args": PUBLIC_TOPICS
-                }))
-            await ws_private.send(
-                json.dumps({
-                    "op": "auth",
-                    "args": [BYBIT_TEST_KEY, expires, signature]
-                }))
-            await ws_private.send(
-                json.dumps({
-                    "op": "subscribe",
-                    "args": PRIVATE_TOPICS
-                }))
+                # subscribe to public and private topics
+                await ws_public.send(
+                    json.dumps({
+                        "op": "subscribe",
+                        "args": PUBLIC_TOPICS
+                    }))
+                await ws_private.send(
+                    json.dumps({
+                        "op": "auth",
+                        "args": [BYBIT_TEST_KEY, expires, signature]
+                    }))
+                await ws_private.send(
+                    json.dumps({
+                        "op": "subscribe",
+                        "args": PRIVATE_TOPICS
+                    }))
 
-            print('Done!')
+                print('Done!')
 
-            print('Starting trading...')
+                print('Starting trading...')
 
-            # create a task queue of websocket messages
-            channel = asyncio.Queue()
+                # create a task queue of websocket messages
+                channel = asyncio.Queue()
 
-            async def transmit(w, source):
-                while True:
-                    msg = await w.recv()
-                    message = json.loads(msg)
+                async def transmit(w, source):
+                    while True:
+                        msg = await w.recv()
+                        message = json.loads(msg)
 
-                    # only include full candlesticks to avoid spamming
-                    if 'data' in message.keys():
-                        if message['data'][0]['confirm'] == True:
+                        # only include full candlesticks to avoid spamming
+                        if 'data' in message.keys():
+                            if message['data'][0]['confirm'] == True:
+                                await channel.put((source, msg))
+                        else:
                             await channel.put((source, msg))
-                    else:
-                        await channel.put((source, msg))
 
-            # create tasks for reception of public and private messages
-            asyncio.create_task(transmit(ws_public, 'public_source'))
-            asyncio.create_task(transmit(ws_private, 'private_source'))
+                # create tasks for reception of public and private messages
+                asyncio.create_task(transmit(ws_public, 'public_source'))
+                asyncio.create_task(transmit(ws_private, 'private_source'))
 
-            while True:
-                source, msg = await channel.get()
-                model.on_message(msg)
-        # except:
-        #     print('Connection to Bybit websocket lost.')
+                while True:
+                    source, msg = await channel.get()
+                    model.on_message(msg)
+        except:
+            print('Connection to Bybit websocket lost.')
 
 
 if __name__ == "__main__":
