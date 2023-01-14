@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import os
 from pybit import usdt_perpetual
 from .endpoints.bybit_functions import *
+import time
 
 load_dotenv()
 
@@ -350,6 +351,7 @@ class AccountData:
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
+                time.sleep(5)
         return response
 
     def place_conditional_order(
@@ -439,6 +441,7 @@ class AccountData:
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
+                time.sleep(5)
         return response
 
     def set_stop_loss(self, symbol: str, side: str, stop_loss: float):
@@ -464,6 +467,7 @@ class AccountData:
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
+                time.sleep(5)
         return response
 
     def set_take_profit(self, symbol: str, side: str, take_profit: float):
@@ -488,4 +492,5 @@ class AccountData:
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
+                time.sleep(5)
         return response
