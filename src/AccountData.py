@@ -328,30 +328,31 @@ class AccountData:
         response: Dict[str, Any]
             response body from bybit
         '''
-
         response = None
-        while response == None:
+        counter = 0
+        while response == None and counter < 2:
             try:
                 response = place_order(session=self.session,
-                                       symbol=symbol,
-                                       order_type=order_type,
-                                       side=side,
-                                       qty=qty,
-                                       price=price,
-                                       stop_loss=stop_loss,
-                                       take_profit=take_profit,
-                                       time_in_force=time_in_force,
-                                       sl_trigger_by=sl_trigger_by,
-                                       tp_trigger_by=tp_trigger_by,
-                                       order_link_id=order_link_id,
-                                       reduce_only=reduce_only,
-                                       close_on_trigger=close_on_trigger,
-                                       position_idx=position_idx)
+                                    symbol=symbol,
+                                    order_type=order_type,
+                                    side=side,
+                                    qty=qty,
+                                    price=price,
+                                    stop_loss=stop_loss,
+                                    take_profit=take_profit,
+                                    time_in_force=time_in_force,
+                                    sl_trigger_by=sl_trigger_by,
+                                    tp_trigger_by=tp_trigger_by,
+                                    order_link_id=order_link_id,
+                                    reduce_only=reduce_only,
+                                    close_on_trigger=close_on_trigger,
+                                    position_idx=position_idx)
             except:
+                time.sleep(5)
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
-                time.sleep(5)
+                counter +=1
         return response
 
     def place_conditional_order(
@@ -421,7 +422,8 @@ class AccountData:
             response body from bybit
         '''
         response = None
-        while response == None:
+        counter = 0
+        while response == None and counter<2:
             try:
                 response = place_conditional_order(
                     session=self.session,
@@ -442,6 +444,7 @@ class AccountData:
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
                 time.sleep(5)
+                counter+=1
         return response
 
     def set_stop_loss(self, symbol: str, side: str, stop_loss: float):
@@ -458,7 +461,8 @@ class AccountData:
             stop loss to set
         '''
         response = None
-        while response == None:
+        counter = 0
+        while response == None and counter<2:
             try:
                 response = self.session.set_trading_stop(symbol=symbol,
                                                          side=side,
@@ -468,6 +472,7 @@ class AccountData:
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
                 time.sleep(5)
+                counter+=1
         return response
 
     def set_take_profit(self, symbol: str, side: str, take_profit: float):
@@ -484,7 +489,8 @@ class AccountData:
             take profit to set
         '''
         response = None
-        while response == None:
+        counter = 0
+        while response == None and counter < 2:
             try:
                 response = self.session.set_trading_stop(
                     symbol=symbol, side=side, take_profit=take_profit)
@@ -493,4 +499,5 @@ class AccountData:
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
                 time.sleep(5)
+                counter+=1
         return response
