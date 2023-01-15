@@ -95,7 +95,7 @@ async def main():
                              'entry_body_1': None,
                              'entry_close_1': None,
                              'entry_open_1': None,
-                             'last_price_time': pd.Timestamp(0)
+                             'last_price_time': pd.Timestamp.now()
                          })
 
     # construct start string

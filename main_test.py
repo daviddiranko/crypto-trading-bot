@@ -93,6 +93,8 @@ async def main():
                              'last_price_time': pd.Timestamp.now()
                          })
 
+    print('Start timestamp: {}'.format(pd.Timestamp.now()))
+    
     # generate parameters for historical data
     start = 4
     start_unit = 'h'
