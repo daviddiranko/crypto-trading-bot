@@ -258,10 +258,10 @@ class BacktestAccountData(AccountData):
                 symbol[-4:],
             "available_balance":
                 wallet_2["available_balance"] - sign * true_qty * trade_price -
-                0.0001 * true_qty * trade_price,
+                0.0006 * true_qty * trade_price,
             "wallet_balance":
                 wallet_2["available_balance"] - sign * true_qty * trade_price -
-                0.0001 * true_qty * trade_price
+                0.0006 * true_qty * trade_price
         }])
 
         # update executions
@@ -275,7 +275,7 @@ class BacktestAccountData(AccountData):
             "order_qty": true_qty,
             "exec_type": "Trade",
             "exec_qty": true_qty,
-            "exec_fee": 0.0001 * true_qty * trade_price,
+            "exec_fee": 0.0006 * true_qty * trade_price,
             "trade_time": execution_time
         }
         self.update_executions([execution])
