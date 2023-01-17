@@ -128,13 +128,13 @@ class AccountData:
                     return self.wallet
 
             else:
-                print('topic: {} is not known'.format(topic))
-                print(message)
+                # print('topic: {} is not known'.format(topic))
+                # print(message)
                 return False
 
         except:
-            print('AccountData: No data received!')
-            print(message)
+            # print('AccountData: No data received!')
+            # print(message)
             return False
 
     def update_positions(
