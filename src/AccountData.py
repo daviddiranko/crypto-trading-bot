@@ -464,9 +464,10 @@ class AccountData:
         counter = 0
         while response == None and counter < 2:
             try:
-                response = self.session.set_trading_stop(symbol=symbol,
-                                                         side=side,
-                                                         stop_loss=stop_loss)
+                response = set_stop_loss(session=self.session,
+                                         symbol=symbol,
+                                         side=side,
+                                         stop_loss=stop_loss)
             except:
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,
@@ -492,8 +493,10 @@ class AccountData:
         counter = 0
         while response == None and counter < 2:
             try:
-                response = self.session.set_trading_stop(
-                    symbol=symbol, side=side, take_profit=take_profit)
+                response = set_take_profit(session=self.session,
+                                           symbol=symbol,
+                                           side=side,
+                                           take_profit=take_profit)
             except:
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,

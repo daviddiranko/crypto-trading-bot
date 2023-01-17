@@ -9,6 +9,8 @@ import unittest
 from src.AccountData import AccountData
 from pybit import usdt_perpetual
 from dotenv import load_dotenv
+import time
+import numpy as np
 
 PUBLIC_TOPICS = ["candle.1.BTCUSDT"]
 PUBLIC_TOPICS_COLUMNS = [
@@ -307,6 +309,26 @@ class TestAccountData(unittest.TestCase):
         self.failure_1 = json.dumps({"topic": "no_topic", "data": [1]})
         self.failure_2 = json.dumps({"no_topic": "no_topic", "data": [1]})
 
+    def tearDown(self):
+        try:
+            self.account_data.place_order(symbol='BTCUSDT',
+                                          order_type='Market',
+                                          side='Sell',
+                                          qty=10,
+                                          reduce_only=True)
+            while self.account_data.get_active_order(
+                    symbol='BTCUSDT'
+            )['result']['data'][-1]['order_status'] != 'Filled':
+                time.sleep(1)
+        except:
+            pass
+
+        try:
+            self.account_data.session.cancel_all_conditional_orders(
+                symbol='BTCUSDT')
+        except:
+            pass
+
     def test_on_message(self):
 
         self.assertDictEqual(
@@ -351,3 +373,65 @@ class TestAccountData(unittest.TestCase):
         self.account_data.update_wallet(
             json.loads(self.wallet_response_1)['data'])
         self.assertDictEqual(self.account_data.wallet, self.wallet_success_1)
+
+    def test_stop_loss(self):
+        try:
+            self.account_data.session.set_leverage(symbol='BTCUSDT',
+                                                   sell_leverage=1,
+                                                   buy_leverage=1)
+        except:
+            pass
+        response_buy = self.account_data.place_order(symbol='BTCUSDT',
+                                                     order_type='Market',
+                                                     side='Buy',
+                                                     qty=0.001)
+
+        while self.account_data.session.query_active_order(
+                symbol='BTCUSDT', order_id=response_buy['result']
+            ['order_id'])['result']['order_status'] != 'Filled':
+            time.sleep(1)
+
+        stop_loss = np.floor(
+            self.account_data.session.my_position(
+                symbol="BTCUSDT")['result'][0]['entry_price'] * 0.5)
+
+        response = self.account_data.set_stop_loss(symbol="BTCUSDT",
+                                                   side='Buy',
+                                                   stop_loss=stop_loss)
+
+        new_stop_loss = self.account_data.session.my_position(
+            symbol="BTCUSDT")['result'][0]['stop_loss']
+
+        self.assertEqual(response['ret_msg'], "OK")
+        self.assertAlmostEqual(stop_loss, new_stop_loss)
+
+    def test_take_profit(self):
+        try:
+            self.account_data.session.set_leverage(symbol='BTCUSDT',
+                                                   sell_leverage=1,
+                                                   buy_leverage=1)
+        except:
+            pass
+        response_buy = self.account_data.place_order(symbol='BTCUSDT',
+                                                     order_type='Market',
+                                                     side='Buy',
+                                                     qty=0.001)
+
+        while self.account_data.session.query_active_order(
+                symbol='BTCUSDT', order_id=response_buy['result']
+            ['order_id'])['result']['order_status'] != 'Filled':
+            time.sleep(1)
+
+        take_profit = np.floor(
+            self.session.my_position(
+                symbol="BTCUSDT")['result'][0]['entry_price'] * 1.5)
+
+        response = self.account_data.set_take_profit(symbol="BTCUSDT",
+                                                     side='Buy',
+                                                     take_profit=take_profit)
+
+        new_take_profit = self.account_data.session.my_position(
+            symbol="BTCUSDT")['result'][0]['take_profit']
+
+        self.assertEqual(response['ret_msg'], "OK")
+        self.assertAlmostEqual(take_profit, new_take_profit)
