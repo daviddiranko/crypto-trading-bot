@@ -179,7 +179,6 @@ class TestBacktestTradingModel(unittest.TestCase):
             'USDTUSDT': {}
         }
 
-        # print(self.model.account.executions)
         self.assertDictEqual(self.model.account.executions, executions)
         self.assertDictEqual(self.model.account.positions, positions)
 
@@ -207,7 +206,6 @@ class TestBacktestTradingModel(unittest.TestCase):
                                             end_str='2022-11-22 00:03:00',
                                             slice_length=3)
 
-        print(new_model.account.executions)
         self.assertDictEqual(new_model.account.positions, positions)
         self.assertDictEqual(new_model.account.executions, new_executions)
 
