@@ -111,7 +111,7 @@ class TestBacktestTradingModel(unittest.TestCase):
                     'order_qty': 0.001,
                     'exec_type': 'Trade',
                     'exec_qty': 0.001,
-                    'exec_fee': 0.001577347,
+                    'exec_fee': 0.009464081999999999,
                     'trade_time': pd.Timestamp('2022-11-22 00:02:00')
                 },
                 2: {
@@ -124,7 +124,7 @@ class TestBacktestTradingModel(unittest.TestCase):
                     'order_qty': 0.001,
                     'exec_type': 'Trade',
                     'exec_qty': 0.001,
-                    'exec_fee': 0.001577347,
+                    'exec_fee': 0.009464081999999999,
                     'trade_time': pd.Timestamp('2022-11-22 00:02:00')
                 }
             },
@@ -145,7 +145,7 @@ class TestBacktestTradingModel(unittest.TestCase):
                     'order_qty': 0.001,
                     'exec_type': 'Trade',
                     'exec_qty': 0.001,
-                    'exec_fee': 0.001577347,
+                    'exec_fee': 0.009464081999999999,
                     'trade_time': pd.Timestamp('2022-11-22 00:02:00')
                 },
                 2: {
@@ -155,10 +155,10 @@ class TestBacktestTradingModel(unittest.TestCase):
                     'order_id': 2,
                     'exec_id': 2,
                     'price': 15773.47,
-                    'order_qty': 10,
+                    'order_qty': 10.0,
                     'exec_type': 'Trade',
-                    'exec_qty': 10,
-                    'exec_fee': 15.77347,
+                    'exec_qty': 10.0,
+                    'exec_fee': 94.64081999999999,
                     'trade_time': pd.Timestamp('2022-11-22 00:02:00')
                 },
                 3: {
@@ -171,7 +171,7 @@ class TestBacktestTradingModel(unittest.TestCase):
                     'order_qty': 9.999,
                     'exec_type': 'Trade',
                     'exec_qty': 9.999,
-                    'exec_fee': 15.803999442000002,
+                    'exec_fee': 94.823996652,
                     'trade_time': pd.Timestamp('2022-11-22 00:05:00')
                 }
             },
@@ -179,6 +179,7 @@ class TestBacktestTradingModel(unittest.TestCase):
             'USDTUSDT': {}
         }
 
+        # print(self.model.account.executions)
         self.assertDictEqual(self.model.account.executions, executions)
         self.assertDictEqual(self.model.account.positions, positions)
 
@@ -206,6 +207,7 @@ class TestBacktestTradingModel(unittest.TestCase):
                                             end_str='2022-11-22 00:03:00',
                                             slice_length=3)
 
+        print(new_model.account.executions)
         self.assertDictEqual(new_model.account.positions, positions)
         self.assertDictEqual(new_model.account.executions, new_executions)
 

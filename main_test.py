@@ -71,10 +71,12 @@ async def main():
     session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                   api_key=BYBIT_TEST_KEY,
                                   api_secret=BYBIT_TEST_SECRET)
-    
+
     query_symbols = session.query_symbol()['result']
 
-    relevant_symbols = [symbol for symbol in query_symbols if symbol['name']=='BTCUSDT']
+    relevant_symbols = [
+        symbol for symbol in query_symbols if symbol['name'] == 'BTCUSDT'
+    ]
     print(relevant_symbols)
 
     # pull historical data from binance and add to market data history
@@ -94,7 +96,7 @@ async def main():
                          })
 
     print('Start timestamp: {}'.format(pd.Timestamp.now()))
-    
+
     # generate parameters for historical data
     start = 4
     start_unit = 'h'
@@ -107,7 +109,6 @@ async def main():
     model.market_data.build_history(symbols=BACKTEST_SYMBOLS,
                                     start_str=start_str,
                                     end_str=end_str)
-
 
     print('Done!')
 

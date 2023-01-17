@@ -155,7 +155,7 @@ class BacktestTradingModel(TradingModel):
             # this is due to the design of create_simulation_data to pull one extra candle per topic
             for symbol in symbols:
                 self.bybit_messages.pop()
-                self.bybit_messages.pop()
+                # self.bybit_messages.pop()
 
             print('Done!')
 
