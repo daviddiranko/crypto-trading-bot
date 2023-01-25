@@ -368,14 +368,14 @@ class BacktestAccountData(AccountData):
 
     def set_take_profit(self, symbol: str, side: str, take_profit: float):
         '''
-        Set stop loss of open position.
+        Set take profit of open position.
 
         Parameters
         ----------
         symbol: str
-            symbol of position to set stop loss in
+            symbol of position to set take profit in
         side: str
-            side of open position to set stop loss in
+            side of open position to set take profit in
         take_profit: float
             take profit to set
         '''
