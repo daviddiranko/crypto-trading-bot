@@ -3,6 +3,7 @@
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
 import pandas as pd
 import json
 from dotenv import load_dotenv
@@ -15,6 +16,7 @@ from binance.client import Client
 from src.endpoints.binance_functions import binance_to_bybit, create_simulation_data
 from tqdm import tqdm
 from src.helper_functions import helper_functions
+import json
 
 load_dotenv()
 
@@ -42,7 +44,8 @@ class BacktestTradingModel(TradingModel):
                  topic_mapping: Dict[str, str] = BINANCE_BYBIT_MAPPING,
                  backtest_symbols: Dict[str, str] = BACKTEST_SYMBOLS,
                  model_storage: Dict[str, Any] = {},
-                 model_args: Dict[str, Any] = {}):
+                 model_args: Dict[str, Any] = {},
+                 model_stats: Dict[str, Any] = {}):
         '''
         Parameters
         ----------
@@ -65,6 +68,9 @@ class BacktestTradingModel(TradingModel):
             additional storage so that the trading model can store results
         model_args: Dict[str, Any]
             optional additional parameters for the trading model
+        model_stats: Dict[str, Any]
+            optional additional statistics that can be stored during the backtest to be included into the trade report.
+            each trade in each statistic must be indexed by the execution timestamp
         '''
 
         # initialize attributes and instantiate market and account data objects
@@ -80,6 +86,7 @@ class BacktestTradingModel(TradingModel):
         self.model = model
         self.model_storage = model_storage
         self.model_args = model_args
+        self.model_stats = model_stats
 
         # list of bybit websocket messages for simulation
         self.bybit_messages = None
@@ -123,12 +130,23 @@ class BacktestTradingModel(TradingModel):
 
         print('Loading historical data...')
 
+        # read history from csv
+        # for symbol in symbols.keys():
+        #     history = pd.read_csv('src/backtest/data/history_{}_{}_{}.csv'.format(symbols[symbol],start_history,start_str), parse_dates=['start','end'], dtype={'open':float,'high':float,'low':float,'close':float,'volume':float,'turnover':float})
+        #     history = history.set_index('end',drop=False)
+        #     self.market_data.history[symbols[symbol]] = pd.concat([history, self.market_data.history[symbols[symbol]]])
+
         # add historical data for trading model
         self.market_data.build_history(symbols=symbols,
                                        start_str=start_history,
                                        end_str=start_str)
 
+        # write history to csv
+        # for ticker in self.market_data.history.keys():
+        #     self.market_data.history[ticker].to_csv('src/backtest/data/history_{}_{}_{}.csv'.format(ticker,start_history,start_str))
+        
         print('Done!')
+
         # slice long time series into shorter time series for faster computation
         partial_series = helper_functions.slice_timestamps(
             start_str=start_str,
@@ -139,6 +157,12 @@ class BacktestTradingModel(TradingModel):
         for timestamps in partial_series:
 
             print('Creating simulation data...')
+            
+            # read simulation data from json files
+            # with open('src/backtest/data/klines_{}_{}.json'.format(timestamps[0],timestamps[1]), 'r') as f:
+            #     klines = json.load(f)
+            # with open('src/backtest/data/topics_{}_{}.json'.format(timestamps[0],timestamps[1]), 'r') as f:
+            #       topics = json.load(f)
 
             # create simulation data
             klines, topics = create_simulation_data(
@@ -146,6 +170,12 @@ class BacktestTradingModel(TradingModel):
                 symbols=symbols,
                 start_str=str(timestamps[0]),
                 end_str=str(timestamps[1]))
+            
+            # write simulation data to json files
+            # with open('src/backtest/data/klines_{}_{}.json'.format(timestamps[0],timestamps[1]), 'w') as f:
+            #     json.dump(klines, f)
+            # with open('src/backtest/data/topics_{}_{}.json'.format(timestamps[0],timestamps[1]), 'w') as f:
+            #     json.dump(topics, f)
 
             # format data to bybit websocket messages
             self.bybit_messages, self.account.simulation_data = binance_to_bybit(
@@ -190,6 +220,8 @@ class BacktestTradingModel(TradingModel):
                                          qty=pos['size'],
                                          reduce_only=True)
         report = self.create_performance_report(initial_budget=initial_budget,
+                                                start_str=start_str,
+                                                end_str=end_str,
                                                 save_output=save_output)
 
         return report
@@ -197,6 +229,8 @@ class BacktestTradingModel(TradingModel):
     def create_performance_report(
             self,
             initial_budget: float,
+            start_str: str,
+            end_str: str,
             save_output: bool = False) -> Dict[str, Dict[str, float]]:
         '''
         Create performance report after backtest.
@@ -207,6 +241,10 @@ class BacktestTradingModel(TradingModel):
         ----------
         initial_budget: float
             initial budget of USDT at start of backtest
+        start_str: str
+            starting timestamp of backtest formatted as string
+        end_str: str
+            ending timestamp of backtest formatted as string
         save_output: bool
             flag whether to export performance report and trade list to excel. Default is False
         Returns
@@ -315,7 +353,10 @@ class BacktestTradingModel(TradingModel):
 
             if save_output:
                 # extract values of model_args, and turn them into string
-                model_args_str = list(map(str, self.model_args.values()))
+                if type(self.model_args)==dict:
+                    model_args_str = list(map(str, self.model_args.values()))
+                else:
+                    model_args_str = str(self.model_args)
 
                 # concatenate model_args_str to single string separated by '_'
                 args_str = '_'.join(model_args_str)
@@ -327,6 +368,13 @@ class BacktestTradingModel(TradingModel):
                 trades['trading_value'] = -2 * (
                     (trades['side'] == 'Buy') - 0.5
                 ) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
+
+                # add potential trade statistics as additional columns
+                for stat in self.model_stats.keys():
+                    trades[stat]=None
+                    for id in trades.index:
+                        if str(trades.loc[id]['trade_time']) in self.model_stats[stat].keys():
+                            trades.loc[id,stat]=self.model_stats[stat][str(trades.loc[id]['trade_time'])]
                 trades.to_excel(
-                    'evaluations/trade_list_{}.xlsx'.format(args_str))
+                    'evaluations/trade_list_{}_{}_{}.xlsx'.format(args_str,start_str,end_str))
         return report

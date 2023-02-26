@@ -105,7 +105,7 @@ class BacktestMarketData(MarketData):
                 # restrict history to last 1000 datapoints
                 self.history[topic] = self.history[topic].iloc[-1000:]
 
-                # if new market data is recieved (i.e. one minute candle), trigger account data update
+                # if new market data is received (i.e. one minute candle), trigger account data update
                 if topic == self.topics[0]:
                     self.account.new_market_data(
                         topic=self.binance_bybit_mapping[topic], data=data)

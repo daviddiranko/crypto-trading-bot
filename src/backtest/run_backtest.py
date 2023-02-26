@@ -18,6 +18,7 @@ BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 
 # pull historical data from binance and add to market data history
 binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
+# binance_client = None
 
 
 def main():
@@ -30,17 +31,12 @@ def main():
     parser.add_argument(
         '--freqs',
         type=str,
-        default="1 5",
+        default="1 5 15",
         help="List of candle frequencies in minutes required by the model")
     parser.add_argument('--model_args',
                         type=str,
                         default=str({
-                            'n_candles': 15,
-                            'high_factor': 0.5,
-                            'retracement_factor': 0.5,
-                            'max_abs_slope': 0.005,
-                            'trend_candles': 3,
-                            'sideways_factor': 2
+                            'param':1
                         }),
                         help="optional arguments for trading model")
     parser.add_argument(
@@ -60,8 +56,6 @@ def main():
     freqs = args['freqs'].split()
     model_args = eval(args['model_args'])
     model_args['ticker'] = args['ticker']
-
-    print(model_args)
 
     ticker = args['ticker']
     BACKTEST_SYMBOLS = {
@@ -95,7 +89,9 @@ def main():
                                      'entry_body_1_short': None,
                                      'entry_close_1_short': None,
                                      'entry_open_1_short': None,
-                                     'last_price_time': pd.Timestamp(0)
+                                     'exit_long_higher_lows': [],
+                                    'exit_short_lower_highs':[],
+                                     'entry_bar_time': pd.Timestamp(0)
                                  })
 
     # create performance report

@@ -22,6 +22,7 @@ from src.TradingModel import TradingModel
 from src.models.mock_model import mock_model
 from src.models.checklist_model import checklist_model
 from src.endpoints.bybit_functions import format_klines, place_order, place_conditional_order
+import argparse
 
 # load environment variables
 load_dotenv()
@@ -37,17 +38,42 @@ BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
 WS_PUBLIC_TEST_URL = os.getenv('WS_PUBLIC_TEST_URL')
 WS_PRIVATE_TEST_URL = os.getenv('WS_PRIVATE_TEST_URL')
 
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
-PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
-
-BACKTEST_SYMBOLS = eval(os.getenv('BACKTEST_SYMBOLS'))
-
-HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
-
 
 async def main():
 
+    # parse arguments
+    parser = argparse.ArgumentParser(
+        description="Run Live Trading Model for bybit trading.")
+
+    parser.add_argument('--ticker', type=str, default="BTCUSDT")
+    parser.add_argument(
+        '--freqs',
+        type=str,
+        default="1 5 15",
+        help="List of candle frequencies in minutes required by the model")
+    parser.add_argument('--model_args',
+                        type=str,
+                        default=str({
+                            'param':1
+                        }),
+                        help="optional arguments for trading model")
+    args = parser.parse_args()
+    args = vars(args)
+
+    freqs = args['freqs'].split()
+    model_args = eval(args['model_args'])
+    model_args['ticker'] = args['ticker']
+
+    ticker = args['ticker']
+
+    BACKTEST_SYMBOLS = {
+        '{}.{}m'.format(ticker, freq): 'candle.{}.{}'.format(freq, ticker)
+        for freq in freqs
+    }
+
+    HIST_TICKERS = [ticker]
+    PUBLIC_TOPICS = ["candle.{}.{}".format(freq, ticker) for freq in freqs]
     # Generate expires.
     expires = int((time.time() + 7200) * 1000)
 
@@ -65,11 +91,11 @@ async def main():
     private_url = WS_PRIVATE_TEST_URL + "?" + param
 
     # generate parameters for historical data
-    start = 4
-    start_unit = 'h'
+    start = 2
+    start_unit = 'd'
 
-    symbol_list = [symbol[:3] for symbol in HIST_TICKERS]
-    symbol_list.extend([symbol[3:] for symbol in HIST_TICKERS])
+    symbol_list = [symbol[:-4] for symbol in HIST_TICKERS]
+    symbol_list.extend([symbol[-4:] for symbol in HIST_TICKERS])
 
     print('Establish Bybit HTTP session...')
     # initialize http connection for trading
@@ -89,15 +115,34 @@ async def main():
     model = TradingModel(client=binance_client,
                          http_session=session,
                          symbols=symbol_list,
+                         topics=PUBLIC_TOPICS,
                          model=checklist_model,
-                         model_args={},
+                         model_args=model_args,
                          model_storage={
-                             'entry_body_1': None,
-                             'entry_close_1': None,
-                             'entry_open_1': None,
-                             'last_price_time': pd.Timestamp.now()
+                             'entry_body_1_long': None,
+                            'entry_close_1_long': None,
+                            'entry_open_1_long': None,
+                            'entry_body_1_short': None,
+                            'entry_close_1_short': None,
+                            'entry_open_1_short': None,
+                            'exit_long_higher_lows': [],
+                            'exit_short_lower_highs':[],
+                            'entry_bar_time': pd.Timestamp.now()
                          })
 
+    # close potential open positions upfront
+    for pos in model.account.positions.values():
+        if (pos['size'] > 0) and (pos['symbol']==ticker):
+            if pos['side'] == 'Buy':
+                side = 'Sell'
+            else:
+                side = 'Buy'
+            model.account.place_order(symbol=pos['symbol'],
+                                        side=side,
+                                        order_type='Market',
+                                        qty=pos['size'],
+                                        reduce_only=True)
+                
     # construct start string
     start_str = str(pd.Timestamp.now() - pd.Timedelta(start, start_unit))
     end_str = str(pd.Timestamp.now())
@@ -118,7 +163,7 @@ async def main():
             async with websockets.connect(private_url) as ws_private, \
                         websockets.connect(public_url) as ws_public:
 
-                # subscribe to public and private topics
+                # subscribe to public and private top‚ics
                 await ws_public.send(
                     json.dumps({
                         "op": "subscribe",
@@ -149,7 +194,11 @@ async def main():
 
                         # only include full candlesticks to avoid spamming
                         if 'data' in message.keys():
-                            if message['data'][0]['confirm'] == True:
+                            if 'confirm' in message['data'][0].keys():
+                                if message['data'][0]['confirm'] == True:
+                                    await channel.put((source, msg))
+                            else:
+                                # print(message)
                                 await channel.put((source, msg))
                         else:
                             await channel.put((source, msg))

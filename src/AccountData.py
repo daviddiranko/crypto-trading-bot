@@ -76,6 +76,7 @@ class AccountData:
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)
+                
         self.positions = account_data['position']
         self.executions = account_data['execution']
         self.orders = account_data['order']
@@ -265,7 +266,7 @@ class AccountData:
                     order_link_id: str = None,
                     reduce_only: bool = False,
                     close_on_trigger: bool = False,
-                    position_idx: int = None) -> Dict[str, Any]:
+                    position_idx: int = 0) -> Dict[str, Any]:
         '''
         Place a regular active order.
 
@@ -333,22 +334,22 @@ class AccountData:
         while response == None and counter < 2:
             try:
                 response = place_order(session=self.session,
-                                       symbol=symbol,
-                                       order_type=order_type,
-                                       side=side,
-                                       qty=qty,
-                                       price=price,
-                                       stop_loss=stop_loss,
-                                       take_profit=take_profit,
-                                       time_in_force=time_in_force,
-                                       sl_trigger_by=sl_trigger_by,
-                                       tp_trigger_by=tp_trigger_by,
-                                       order_link_id=order_link_id,
-                                       reduce_only=reduce_only,
-                                       close_on_trigger=close_on_trigger,
-                                       position_idx=position_idx)
+                                        symbol=symbol,
+                                        order_type=order_type,
+                                        side=side,
+                                        qty=qty,
+                                        price=price,
+                                        stop_loss=stop_loss,
+                                        take_profit=take_profit,
+                                        time_in_force=time_in_force,
+                                        sl_trigger_by=sl_trigger_by,
+                                        tp_trigger_by=tp_trigger_by,
+                                        order_link_id=order_link_id,
+                                        reduce_only=reduce_only,
+                                        close_on_trigger=close_on_trigger,
+                                        position_idx=position_idx)
             except:
-                time.sleep(5)
+                time.sleep(1)
                 self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
                                                    api_key=BYBIT_TEST_KEY,
                                                    api_secret=BYBIT_TEST_SECRET)

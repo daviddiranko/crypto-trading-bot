@@ -132,7 +132,7 @@ def place_order(session: usdt_perpetual.HTTP,
                 order_link_id: str = None,
                 reduce_only: bool = False,
                 close_on_trigger: bool = False,
-                position_idx: int = None) -> Dict[str, Any]:
+                position_idx: int = 0) -> Dict[str, Any]:
     '''
     Place a regular active order.
 

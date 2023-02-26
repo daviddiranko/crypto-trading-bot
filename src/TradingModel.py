@@ -77,9 +77,9 @@ class TradingModel:
         if 'topic' in msg.keys():
             # extract topic
             topic = msg['topic']
+
             # if public topic, forward to market_data and trigger model
             if topic in self.topics:
-
                 response = self.market_data.on_message(message)
                 self.model(model=self)
                 return response

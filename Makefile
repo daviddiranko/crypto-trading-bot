@@ -6,12 +6,18 @@ AWS_ACCOUNT_ID=$(shell aws sts get-caller-identity --query "Account" --output te
 AWS_REGION=$(shell aws configure get region)
 AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id)
 AWS_ACCESS_SECRET_KEY=$(shell aws configure get aws secret_access_key)
-AWS_CURRENT_ECS_TASKS=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --query "taskArns" --output text)
+AWS_CURRENT_ECS_TASKS_BTC=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --service crypto-trading-service-btc --query "taskArns" --output text)
+AWS_CURRENT_ECS_TASKS_ETH=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --service crypto-trading-service-eth --query "taskArns" --output text)
 
 AWS_ECS_CLUSTER:=crypto-trading-cluster
-AWS_FARGATE:=crypto-trading-service
-AWS_ECR:=crypto_trading_ecr
 
+AWS_FARGATE:=crypto-trading-service-btc
+AWS_ECR:=crypto_trading_ecr_btc
+TICKER:=BTCUSDT
+
+# AWS_FARGATE:=crypto-trading-service-eth
+# AWS_ECR:=crypto_trading_ecr_eth
+# TICKER:=ETHUSDT
 
 check:
 	poetry check
@@ -44,11 +50,22 @@ unittest: clean lint
 	poetry run coverage erase
 
 backtest:
-	poetry run python -m src.backtest.run_backtest --ticker 'BTCUSDT' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-12-31' --start_str '2022-01-01' --end_str '2022-04-01'
+	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-09-30' --start_str '2021-10-01' --end_str '2022-01-01'
 
+evaluate_backtest:
+	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2023-02-19' --start_str '2023-02-21' --end_str '2023-02-26'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-12-31' --start_str '2022-01-01' --end_str '2022-04-01'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-03-31' --start_str '2022-04-01' --end_str '2022-07-01'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-06-30' --start_str '2022-07-01' --end_str '2022-10-01'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-09-30' --start_str '2022-10-01' --end_str '2023-01-01'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-12-31' --start_str '2022-01-01' --end_str '2022-04-01'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-03-31' --start_str '2022-04-01' --end_str '2022-07-01'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-06-30' --start_str '2022-07-01' --end_str '2022-10-01'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-09-30' --start_str '2022-10-01' --end_str '2023-01-01'
+	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2017-12-31' --start_str '2018-01-01' --end_str '2023-01-01'
 main:
 	make install no_dev=--no-dev
-	poetry run python -m main
+	poetry run python -m main --ticker '$(TICKER)' --freqs '1 5 15'
 	
 # add arguments via --build-arg VARIABLE=value
 docker:
@@ -73,10 +90,25 @@ stop_tasks:
 		aws ecs stop-task --cluster $(AWS_ECS_CLUSTER) --task $$task > /dev/null || true ; \
 	done
 
+	@if [ $(TICKER) = BTCUSDT ]; then\
+		for task in $(AWS_CURRENT_ECS_TASKS_BTC); do \
+			aws ecs stop-task --cluster $(AWS_ECS_CLUSTER) --task $$task > /dev/null || true ; \
+		done; \
+	else \
+		for task in $(AWS_CURRENT_ECS_TASKS_ETH); do \
+			aws ecs stop-task --cluster $(AWS_ECS_CLUSTER) --task $$task > /dev/null || true ; \
+		done; \
+	fi
+
 deploy: publish stop_tasks
 	aws ecs update-service --cluster $(AWS_ECS_CLUSTER) --service $(AWS_FARGATE) --force-new-deployment > /dev/null || true
 
-make parallel_backtest:
-	make backtest args='{"n_candles": 5, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}' & \
-	make backtest args='{"n_candles": 10, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}' & \
-	make backtest args='{"n_candles": 15, "high_factor": 0.5, "retracement_factor": 0.5, "max_abs_slope": 0.005, "trend_candles": 3, "sideways_factor": 2}'
+make parallel_backtests:
+	for param in $(params) ; do \
+    	make backtest args='{"param":'$$param'}'; \
+	done
+
+make parallel_evaluate_backtests:
+	for param in $(params) ; do \
+    	make evaluate_backtest args='{"param":'$$param'}'; \
+	done
