@@ -198,8 +198,6 @@ class BacktestTradingModel(TradingModel):
             # iterate through formated simulation data and run backtest
             for msg in tqdm(self.bybit_messages):
                 self.on_message(message=msg)
-                self.account.timestamp = self.market_data.history[
-                    self.topics[0]].index[-1]
 
             # append simulation data to global simulation data
             # self.bybit_messages.extend(bybit_messages)

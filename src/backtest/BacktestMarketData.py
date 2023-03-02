@@ -102,6 +102,10 @@ class BacktestMarketData(MarketData):
                 # add to history
                 self.history[topic].loc[data['end']] = data
 
+                # update timestamp of account 
+                self.account.timestamp = self.history[
+                    self.topics[0]].index[-1]
+                
                 # restrict history to last 1000 datapoints
                 self.history[topic] = self.history[topic].iloc[-1000:]
 

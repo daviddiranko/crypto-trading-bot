@@ -53,7 +53,7 @@ backtest:
 	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-09-30' --start_str '2021-10-01' --end_str '2022-01-01'
 
 evaluate_backtest:
-	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2023-02-19' --start_str '2023-02-21' --end_str '2023-02-26'
+	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2023-02-21' --start_str '2023-02-23' --end_str '2023-02-28'
 	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-12-31' --start_str '2022-01-01' --end_str '2022-04-01'
 	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-03-31' --start_str '2022-04-01' --end_str '2022-07-01'
 	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-06-30' --start_str '2022-07-01' --end_str '2022-10-01'

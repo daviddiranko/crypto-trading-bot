@@ -331,29 +331,29 @@ class AccountData:
         '''
         response = None
         counter = 0
-        while response == None and counter < 2:
-            try:
-                response = place_order(session=self.session,
-                                        symbol=symbol,
-                                        order_type=order_type,
-                                        side=side,
-                                        qty=qty,
-                                        price=price,
-                                        stop_loss=stop_loss,
-                                        take_profit=take_profit,
-                                        time_in_force=time_in_force,
-                                        sl_trigger_by=sl_trigger_by,
-                                        tp_trigger_by=tp_trigger_by,
-                                        order_link_id=order_link_id,
-                                        reduce_only=reduce_only,
-                                        close_on_trigger=close_on_trigger,
-                                        position_idx=position_idx)
-            except:
-                time.sleep(1)
-                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                                                   api_key=BYBIT_TEST_KEY,
-                                                   api_secret=BYBIT_TEST_SECRET)
-                counter += 1
+        # while response == None and counter < 2:
+        #     try:
+        response = place_order(session=self.session,
+                                symbol=symbol,
+                                order_type=order_type,
+                                side=side,
+                                qty=qty,
+                                price=price,
+                                stop_loss=stop_loss,
+                                take_profit=take_profit,
+                                time_in_force=time_in_force,
+                                sl_trigger_by=sl_trigger_by,
+                                tp_trigger_by=tp_trigger_by,
+                                order_link_id=order_link_id,
+                                reduce_only=reduce_only,
+                                close_on_trigger=close_on_trigger,
+                                position_idx=position_idx)
+            # except:
+            #     time.sleep(1)
+            #     self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+            #                                        api_key=BYBIT_TEST_KEY,
+            #                                        api_secret=BYBIT_TEST_SECRET)
+            #     counter += 1
         return response
 
     def place_conditional_order(

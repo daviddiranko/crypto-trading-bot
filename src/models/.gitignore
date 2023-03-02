@@ -1,0 +1,6 @@
+# ignore everything
+# *
+
+# except mock model
+# !mock_model.py
+# !__init__.py
