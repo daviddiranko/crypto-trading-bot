@@ -13,7 +13,11 @@ from src.TradingModel import TradingModel
 from src.backtest.BacktestAccountData import BacktestAccountData
 from src.backtest.BacktestMarketData import BacktestMarketData
 from binance.client import Client
-from src.endpoints.binance_functions import binance_to_bybit, create_simulation_data
+from src.endpoints import binance_functions, ibkr_functions
+# from src.endpoints.binance_functions import binance_to_bybit, create_simulation_data
+# from src.endpoints.ibkr_functions import klines_to_bybit, create_simulation_data
+
+
 from tqdm import tqdm
 from src.helper_functions import helper_functions
 import json
@@ -27,6 +31,8 @@ HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
 BINANCE_BYBIT_MAPPING = eval(os.getenv('BINANCE_BYBIT_MAPPING'))
 BACKTEST_SYMBOLS = eval(os.getenv('BACKTEST_SYMBOLS'))
+
+BASE_CUR = os.getenv('BASE_CUR')
 
 
 class BacktestTradingModel(TradingModel):
@@ -126,9 +132,11 @@ class BacktestTradingModel(TradingModel):
         '''
 
         # store initial budget for performance measures
-        initial_budget = self.account.wallet['USDT']['available_balance']
+        initial_budget = self.account.wallet[BASE_CUR]['available_balance']
 
         print('Loading historical data...')
+
+        ###################### For Crypto Backtest with Binance ###########################################
 
         # read history from csv
         # for symbol in symbols.keys():
@@ -137,14 +145,37 @@ class BacktestTradingModel(TradingModel):
         #     self.market_data.history[symbols[symbol]] = pd.concat([history, self.market_data.history[symbols[symbol]]])
 
         # add historical data for trading model
-        self.market_data.build_history(symbols=symbols,
-                                       start_str=start_history,
-                                       end_str=start_str)
+        # self.market_data.build_history(symbols=symbols,
+        #                                start_str=start_history,
+        #                                end_str=start_str)
 
         # write history to csv
         # for ticker in self.market_data.history.keys():
         #     self.market_data.history[ticker].to_csv('src/backtest/data/history_{}_{}_{}.csv'.format(ticker,start_history,start_str))
         
+
+        ######################################################################################################
+            
+        ###################### For Futures Markets with data from files ######################################
+
+        # add history for all relevant candles
+        for symbol in symbols.keys():
+            # identify ticker and interval (in minutes)
+            ticker, interval = symbol.split('.')
+            interval_length = int(interval[:-1])
+            interval_unit = interval[-1]
+
+            # import data and format it according to requirements of market data object
+            history = pd.read_csv('src/backtest/data/{}_{}.txt'.format(ticker,interval), names=['start', 'open', 'high', 'low', 'close', 'volume'], parse_dates=[0])
+            history['end']=history['start']+pd.Timedelta(interval_length,unit=interval_unit)
+            history = history.set_index('end',drop=False)
+            history = history.loc[history.index>=pd.Timestamp(start_history)]
+            history = history.loc[history.index<=pd.Timestamp(start_str)]
+
+            self.market_data.add_history(topic=symbols[symbol],data=history)
+
+        ######################################################################################################
+
         print('Done!')
 
         # slice long time series into shorter time series for faster computation
@@ -158,6 +189,9 @@ class BacktestTradingModel(TradingModel):
 
             print('Creating simulation data...')
             
+
+            ###################### For Crypto Backtest with Binance ###########################################
+            
             # read simulation data from json files
             # with open('src/backtest/data/klines_{}_{}.json'.format(timestamps[0],timestamps[1]), 'r') as f:
             #     klines = json.load(f)
@@ -165,11 +199,11 @@ class BacktestTradingModel(TradingModel):
             #       topics = json.load(f)
 
             # create simulation data
-            klines, topics = create_simulation_data(
-                session=self.market_data.client,
-                symbols=symbols,
-                start_str=str(timestamps[0]),
-                end_str=str(timestamps[1]))
+            # klines, topics = binance_functions.create_simulation_data(
+            #     session=self.market_data.client,
+            #     symbols=symbols,
+            #     start_str=str(timestamps[0]),
+            #     end_str=str(timestamps[1]))
             
             # write simulation data to json files
             # with open('src/backtest/data/klines_{}_{}.json'.format(timestamps[0],timestamps[1]), 'w') as f:
@@ -178,8 +212,23 @@ class BacktestTradingModel(TradingModel):
             #     json.dump(topics, f)
 
             # format data to bybit websocket messages
-            self.bybit_messages, self.account.simulation_data = binance_to_bybit(
+            # self.bybit_messages, self.account.simulation_data = binance_functions.binance_to_bybit(
+            #     klines, topics=topics)
+
+            ######################################################################################################
+            
+            ###################### For Futures Markets with data from files ######################################
+
+            # create simulation data
+            klines, topics = ibkr_functions.create_simulation_data(
+                symbols=symbols,
+                start_str=str(timestamps[0]),
+                end_str=str(timestamps[1]))
+            
+            self.bybit_messages, self.account.simulation_data = ibkr_functions.klines_to_bybit(
                 klines, topics=topics)
+
+            ######################################################################################################
 
             # remove last elements of bybit messages that overlap with next partial series (two per topic)
             # this is due to the design of create_simulation_data to pull one extra candle per topic
@@ -238,7 +287,7 @@ class BacktestTradingModel(TradingModel):
         Parameters
         ----------
         initial_budget: float
-            initial budget of USDT at start of backtest
+            initial budget of base currency at start of backtest
         start_str: str
             starting timestamp of backtest formatted as string
         end_str: str
@@ -317,7 +366,7 @@ class BacktestTradingModel(TradingModel):
 
             # calculate total trading return and return in percentage of initial budget
             trading_return = self.account.wallet[
-                symbol[-4:]]['available_balance'] - initial_budget
+                symbol[-len(BASE_CUR):]]['available_balance'] - initial_budget
             trading_return_percent = trading_return / initial_budget
 
             if total_trades > 0:
@@ -334,7 +383,7 @@ class BacktestTradingModel(TradingModel):
                 'initial_budget':
                     initial_budget,
                 'final_budget':
-                    self.account.wallet[symbol[-4:]]['available_balance'],
+                    self.account.wallet[symbol[-len(BASE_CUR):]]['available_balance'],
                 'total_trades':
                     total_trades,
                 'win_loss_ratio':
@@ -370,9 +419,51 @@ class BacktestTradingModel(TradingModel):
                 # add potential trade statistics as additional columns
                 for stat in self.model_stats.keys():
                     trades[stat]=None
+                    # initialize last trade id
+                    previous_id = None
+
+                    # iterate through trade ids and add trade statistics
                     for id in trades.index:
-                        if str(trades.loc[id]['trade_time']) in self.model_stats[stat].keys():
-                            trades.loc[id,stat]=self.model_stats[stat][str(trades.loc[id]['trade_time'])]
+                        
+                        # check if statisitics for current trade is available (indexed by trading time)
+                        # if not then add "None"
+                        if not str(trades.loc[id]['trade_time']) in self.model_stats[stat].keys():
+                            
+                            self.model_stats[stat][str(trades.loc[id]['trade_time'])] = {}
+
+                        # check if trade is an opening trade
+                        if trades.loc[id]['open']:
+                            
+                            if not 'long' in self.model_stats[stat][str(trades.loc[id]['trade_time'])].keys():
+                                self.model_stats[stat][str(trades.loc[id]['trade_time'])]['long'] = None
+                            
+                            if not 'short' in self.model_stats[stat][str(trades.loc[id]['trade_time'])].keys():
+                                self.model_stats[stat][str(trades.loc[id]['trade_time'])]['short'] = None
+
+                            # check if trade was long
+                            if trades.loc[id]['side']=='Buy':
+                                trades.loc[id,stat]=self.model_stats[stat][str(trades.loc[id]['trade_time'])]['long']
+                            else:
+                                trades.loc[id,stat]=self.model_stats[stat][str(trades.loc[id]['trade_time'])]['short']
+                        
+                        # otherwise add trade statisitics of open trade
+                        else:
+                            if not 'long' in self.model_stats[stat][str(trades.loc[previous_id]['trade_time'])].keys():
+                                self.model_stats[stat][str(trades.loc[previous_id]['trade_time'])]['long'] = None
+                            
+                            if not 'short' in self.model_stats[stat][str(trades.loc[previous_id]['trade_time'])].keys():
+                                self.model_stats[stat][str(trades.loc[previous_id]['trade_time'])]['short'] = None
+
+                            # check if open trade was long
+                            if trades.loc[previous_id]['side']=='Buy':
+                                trades.loc[id,stat]=self.model_stats[stat][str(trades.loc[previous_id]['trade_time'])]['long']
+                            else:
+                                trades.loc[id,stat]=self.model_stats[stat][str(trades.loc[previous_id]['trade_time'])]['short']
+                        
+                        # save previous trade id
+                        previous_id = id
+
+                # export report to excel
                 trades.to_excel(
                     'evaluations/trade_list_{}_{}_{}.xlsx'.format(args_str,start_str,end_str))
         return report

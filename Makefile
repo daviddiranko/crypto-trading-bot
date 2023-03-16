@@ -9,15 +9,17 @@ AWS_ACCESS_SECRET_KEY=$(shell aws configure get aws secret_access_key)
 AWS_CURRENT_ECS_TASKS_BTC=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --service crypto-trading-service-btc --query "taskArns" --output text)
 AWS_CURRENT_ECS_TASKS_ETH=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --service crypto-trading-service-eth --query "taskArns" --output text)
 
-AWS_ECS_CLUSTER:=crypto-trading-cluster
+# AWS_ECS_CLUSTER:=crypto-trading-cluster
 
-AWS_FARGATE:=crypto-trading-service-btc
-AWS_ECR:=crypto_trading_ecr_btc
-TICKER:=BTCUSDT
+# AWS_FARGATE:=crypto-trading-service-btc
+# AWS_ECR:=crypto_trading_ecr_btc
+# TICKER:=BTCUSDT
 
 # AWS_FARGATE:=crypto-trading-service-eth
 # AWS_ECR:=crypto_trading_ecr_eth
 # TICKER:=ETHUSDT
+
+TICKER:=RTYUSD
 
 check:
 	poetry check
@@ -50,19 +52,11 @@ unittest: clean lint
 	poetry run coverage erase
 
 backtest:
-	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-09-30' --start_str '2021-10-01' --end_str '2022-01-01'
+	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-09-29' --start_str '2022-10-01' --end_str '2023-01-01'
 
 evaluate_backtest:
-	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2023-02-21' --start_str '2023-02-23' --end_str '2023-02-28'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-12-31' --start_str '2022-01-01' --end_str '2022-04-01'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-03-31' --start_str '2022-04-01' --end_str '2022-07-01'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-06-30' --start_str '2022-07-01' --end_str '2022-10-01'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-09-30' --start_str '2022-10-01' --end_str '2023-01-01'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-12-31' --start_str '2022-01-01' --end_str '2022-04-01'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-03-31' --start_str '2022-04-01' --end_str '2022-07-01'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-06-30' --start_str '2022-07-01' --end_str '2022-10-01'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-09-30' --start_str '2022-10-01' --end_str '2023-01-01'
-	# poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2017-12-31' --start_str '2018-01-01' --end_str '2023-01-01'
+	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-12-29' --start_str '2022-01-01' --end_str '2023-01-01'	
+
 main:
 	make install no_dev=--no-dev
 	poetry run python -m main --ticker '$(TICKER)' --freqs '1 5 15'

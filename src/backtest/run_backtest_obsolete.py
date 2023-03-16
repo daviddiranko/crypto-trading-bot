@@ -2,32 +2,25 @@ import sys
 
 sys.path.append('../')
 
-from binance.client import Client
-from dotenv import load_dotenv
 from src.backtest.BacktestTradingModel import BacktestTradingModel
 from src.models.checklist_model import checklist_model
 import os
 import pandas as pd
 from src.helper_functions.statistics import sma
 import argparse
+from dotenv import load_dotenv
 
 load_dotenv()
 
-BINANCE_KEY = os.getenv('BINANCE_KEY')
-BINANCE_SECRET = os.getenv('BINANCE_SECRET')
-
 BASE_CUR = os.getenv('BASE_CUR')
 
-# pull historical data from binance and add to market data history
-binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
-# binance_client = None
-
+binance_client = None
 
 def main():
 
     # parse arguments
     parser = argparse.ArgumentParser(
-        description="Run backtest for trading.")
+        description="Run backtest for futures trading.")
 
     parser.add_argument('--ticker', type=str, default="RTYUSD")
     parser.add_argument(

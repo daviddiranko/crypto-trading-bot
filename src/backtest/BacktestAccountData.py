@@ -9,6 +9,12 @@ from typing import Any, Dict, List
 from src.AccountData import AccountData
 import itertools
 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+BASE_CUR = os.getenv('BASE_CUR')
 
 class BacktestAccountData(AccountData):
     '''
@@ -127,11 +133,18 @@ class BacktestAccountData(AccountData):
             response body for execution
         '''
         # order time + 1 minute
-        order_time_1 = pd.Timestamp(self.timestamp.value + 60000000000)
+        # order_time_1 = pd.Timestamp(self.timestamp.value + 60000000000)
 
+        # get next available timestamp
+        short_term_history_index = self.simulation_data.loc[self.simulation_data.index.get_level_values(1)=='candle.1.{}'.format(symbol)].index
+        exec_time_index = short_term_history_index[short_term_history_index.get_level_values(0)>self.timestamp][0]
+        
         # get quotes from simulation data
-        quotes = self.simulation_data.loc[(order_time_1,
-                                           'candle.1.{}'.format(symbol))]
+        # quotes = self.simulation_data.loc[(order_time_1,
+        #                                    'candle.1.{}'.format(symbol))]
+        quotes = self.simulation_data.loc[exec_time_index]
+
+        execution_time = quotes['start']
         price_sell = quotes['open']
         price_buy = quotes['open']
 
@@ -145,7 +158,7 @@ class BacktestAccountData(AccountData):
             execution = self.execute(symbol=symbol,
                                      side=side,
                                      qty=qty,
-                                     execution_time=order_time_1,
+                                     execution_time=execution_time,
                                      trade_price=trade_price,
                                      stop_loss=stop_loss,
                                      take_profit=take_profit,
@@ -242,26 +255,28 @@ class BacktestAccountData(AccountData):
                 stop_loss
         }])
 
-        wallet_1 = self.wallet[symbol[:-4]]
-        wallet_2 = self.wallet[symbol[-4:]]
+        wallet_1 = self.wallet[symbol[:-len(BASE_CUR)]]
+        wallet_2 = self.wallet[symbol[-len(BASE_CUR):]]
 
         # update wallets
         self.update_wallet([{
             "coin":
-                symbol[:-4],
+                symbol[:-len(BASE_CUR)],
             "available_balance":
                 wallet_1["available_balance"] + sign * true_qty,
             "wallet_balance":
                 wallet_1["available_balance"] + sign * true_qty
         }, {
             "coin":
-                symbol[-4:],
+                symbol[-len(BASE_CUR):],
             "available_balance":
                 wallet_2["available_balance"] - sign * true_qty * trade_price -
-                0.0006 * true_qty * trade_price,
+                1.37,
+            #     0.0006 * true_qty * trade_price,
             "wallet_balance":
                 wallet_2["available_balance"] - sign * true_qty * trade_price -
-                0.0006 * true_qty * trade_price
+                1.37, 
+            #    0.0006 * true_qty * trade_price
         }])
 
         # update executions
@@ -275,7 +290,8 @@ class BacktestAccountData(AccountData):
             "order_qty": true_qty,
             "exec_type": "Trade",
             "exec_qty": true_qty,
-            "exec_fee": 0.0006 * true_qty * trade_price,
+            # "exec_fee": 0.0006 * true_qty * trade_price,
+            "exec_fee": 1.37,
             "trade_time": execution_time
         }
         self.update_executions([execution])
