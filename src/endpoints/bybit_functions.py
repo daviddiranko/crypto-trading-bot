@@ -2,14 +2,273 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from pybit import usdt_perpetual
+from binance.helpers import date_to_milliseconds
 from dotenv import load_dotenv
 import os
 import itertools
 
+import time
+from datetime import datetime
+import src.endpoints.bybit_ws as bb
+
 load_dotenv()
+
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
+BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
+BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
+
+
+def get_historical_klines(symbol: str,
+                          interval: str,
+                          start_str: str,
+                          end_str: str = None) -> List[Dict[str, Any]]:
+    '''Get Historical Klines from Bybit
+
+    this code is based on get_historical_data() from python-binance module 
+    https://github.com/sammchardy/python-binance
+    it also requires pybybit.py available from this page 
+    https://note.mu/mtkn1/n/n9ef3460e4085 
+    (where pandas & websocket-client are needed) 
+
+    See dateparse docs for valid start and end string formats http://dateparser.readthedocs.io/en/latest/
+    If using offset strings for dates add "UTC" to date string e.g. "now UTC", "11 hours ago UTC"
+    
+    Parameter
+    ----------
+    symbol: str
+        Name of symbol pair -- BTCUSD, ETCUSD, EOSUSD, XRPUSD 
+    interval: str
+        Bybit Kline interval -- 1 3 5 15 30 60 120 240 360 720 "D" "M" "W" "Y"
+    start_str: str
+        Start date string in UTC format
+    end_str: str
+        optional - end date string in UTC format
+    
+    Return
+    --------
+    output_data: List[Dict[str, Any]] list of OHLCV values
+    '''
+
+    # instantiate bybit object
+    bybit = bb.Bybit(api_key=BYBIT_TEST_KEY,
+                     secret=BYBIT_TEST_SECRET,
+                     symbol=symbol,
+                     test=True,
+                     ws=False)
+
+    # set parameters for kline()
+    if interval[-1] == 'm':
+        timeframe = str(interval[:-1])
+    else:
+        timeframe = str(interval)
+    limit = 200
+    # start_ts = int(date_to_milliseconds(start_str)/1000)
+    start_ts = int(date_to_milliseconds(start_str))
+    end_ts = None
+    if end_str:
+        # end_ts = int(date_to_milliseconds(end_str)/1000)
+        end_ts = int(date_to_milliseconds(end_str))
+    else:
+        # end_ts = int(date_to_milliseconds('now')/1000)
+        end_ts = int(date_to_milliseconds('now'))
+
+    # init our list
+    output_data = []
+
+    # loop counter
+    idx = 0
+    # it can be difficult to know when a symbol was listed on Binance so allow start time to be before list date
+    symbol_existed = False
+    while True:
+        # fetch the klines from start_ts up to max 200 entries
+        temp_dict = bybit.kline(symbol=symbol,
+                                interval=timeframe,
+                                _start=start_ts,
+                                _end=end_ts,
+                                limit=limit)
+        # temp_dict = bybit.kline(symbol=symbol, interval=timeframe, _from=start_ts, limit=limit)
+
+        # handle the case where our start date is before the symbol pair listed on Binance
+        if not symbol_existed and len(temp_dict):
+            symbol_existed = True
+
+        if symbol_existed:
+            # extract data and convert to list
+            # temp_data = [list(i.values())[2:] for i in temp_dict['result']]
+            temp_data = temp_dict['result']['list']
+            # temp_data.sort()
+
+            # format temp_data to fit binance format
+            # add 4 0s in the end
+            list(map(lambda x: x.extend([0, 0, 0, 0]), temp_data))
+
+            # insert end timestamp of candle
+            list(
+                map(
+                    lambda x: x.insert(
+                        6,
+                        int(x[0]) + int(pd.Timedelta(interval).value / 1000000)
+                    ), temp_data))
+
+            # append this loops data to our output data
+            output_data += temp_data
+
+            # update our start timestamp using the last value in the array and add the interval timeframe
+            # NOTE: current implementation ignores inteval of D/W/M/Y  for now
+            # start_ts = temp_data[len(temp_data) - 1][0] + interval*60
+
+            # start_ts = int(temp_data[len(temp_data) - 1][0]) + int(pd.Timedelta('1m').value/1000000)
+            end_ts = int(temp_data[len(temp_data) - 1][0]) - int(
+                pd.Timedelta('1m').value / 1000000)
+
+        else:
+            # it wasn't listed yet, increment our start date
+            end_ts -= int(pd.Timedelta(interval).value / 1000000)
+
+        idx += 1
+
+        # check if we received less than the required limit and exit the loop
+        if len(temp_data) < limit:
+            # exit the while loop
+            break
+
+        # sleep after every 3rd call to be kind to the API
+        if idx % 3 == 0:
+            time.sleep(0.2)
+
+    output_data.sort()
+
+    return output_data
+
+
+def get_historical_klines_pd(symbol: str,
+                             interval: str,
+                             start_str: str,
+                             end_str: str = None) -> pd.DataFrame:
+    '''Get Historical Klines from Bybit
+
+    See dateparse docs for valid start and end string formats 
+    http://dateparser.readthedocs.io/en/latest/
+    If using offset strings for dates add "UTC" to date string 
+    e.g. "now UTC", "11 hours ago UTC"
+
+    Parameter
+    ----------
+    symbol: str
+        Name of symbol pair -- BTCUSD, ETCUSD, EOSUSD, XRPUSD 
+    interval: str
+        Bybit Kline interval -- 1 3 5 15 30 60 120 240 360 720 "D" "M" "W" "Y"
+    start_str: str
+        Start date string in UTC format
+    end_str: str
+        optional - end date string in UTC format
+    
+    Return
+    --------
+    df: pandas.DataFrame
+        formatted list of OHLCV values
+
+    '''
+
+    # instantiate bybit object
+    bybit = bb.Bybit(api_key=BYBIT_TEST_KEY,
+                     secret=BYBIT_TEST_SECRET,
+                     symbol=symbol,
+                     test=True,
+                     ws=False)
+
+    # set parameters for kline()
+    if interval[-1] == 'm':
+        timeframe = str(interval[:-1])
+    else:
+        timeframe = str(interval)
+    limit = 200
+    # start_ts = int(date_to_milliseconds(start_str)/1000)
+    start_ts = int(date_to_milliseconds(start_str))
+    end_ts = None
+    if end_str:
+        # end_ts = int(date_to_milliseconds(end_str)/1000)
+        end_ts = int(date_to_milliseconds(end_str))
+    else:
+        # end_ts = int(date_to_milliseconds('now')/1000)
+        end_ts = int(date_to_milliseconds('now'))
+
+    # init our list
+    output_data = []
+
+    # loop counter
+    idx = 0
+    # it can be difficult to know when a symbol was listed on Binance so allow start time to be before list date
+    symbol_existed = False
+    while True:
+
+        # fetch the klines from start_ts up to max 200 entries
+        temp_dict = bybit.kline(symbol=symbol,
+                                interval=timeframe,
+                                _start=start_ts,
+                                _end=end_ts,
+                                limit=limit)
+        # temp_dict = bybit.kline(symbol=symbol, interval=timeframe, _from=start_ts, limit=limit)
+
+        # handle the case where our start date is before the symbol pair listed on Binance
+        if not symbol_existed and len(temp_dict):
+            symbol_existed = True
+
+        if symbol_existed:
+            # extract data and convert to list
+            # temp_data = [list(i.values())[2:] for i in temp_dict['result']]
+            temp_data = temp_dict['result']['list']
+
+            # format temp_data to fit binance format
+            # add 4 0s in the end
+            list(map(lambda x: x.extend([0, 0, 0, 0]), temp_data))
+
+            # insert end timestamp of candle
+            list(
+                map(
+                    lambda x: x.insert(
+                        6,
+                        int(x[0]) + int(pd.Timedelta(interval).value / 1000000)
+                    ), temp_data))
+
+            # append this loops data to our output data
+            output_data += temp_data
+
+            # update our start timestamp using the last value in the array and add the interval timeframe
+            # NOTE: current implementation ignores inteval of D/W/M/Y  for now
+            # start_ts = temp_data[len(temp_data) - 1][0] + interval*60
+            # start_ts = int(temp_data[len(temp_data) - 1][0]) + int(pd.Timedelta('1m').value/1000000)
+            end_ts = int(temp_data[len(temp_data) - 1][0]) - int(
+                pd.Timedelta('1m').value / 1000000)
+
+        else:
+            # it wasn't listed yet, increment our start date
+            end_ts -= int(pd.Timedelta(interval).value / 1000000)
+
+        idx += 1
+        # check if we received less than the required limit and exit the loop
+        if len(temp_data) < limit:
+            # exit the while loop
+            break
+
+        # sleep after every 3rd call to be kind to the API
+        if idx % 3 == 0:
+            time.sleep(0.2)
+
+    output_data.sort()
+
+    # convert to data frame
+    df = pd.DataFrame(
+        output_data,
+        columns=['start', 'open', 'high', 'low', 'close', 'volume', 'turnover'])
+    df['Date'] = [
+        datetime.fromtimestamp(i).strftime('%Y-%m-%d %H:%M:%S.%d')[:-3]
+        for i in df['TimeStamp']
+    ]
+
+    return df
 
 
 def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
@@ -40,6 +299,50 @@ def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
     data['confirm'] = bool(data['confirm'])
 
     return data
+
+
+def create_simulation_data(symbols: Dict[str, str], start_str: str,
+                           end_str: str) -> Tuple[List[List[Any]], List[str]]:
+    '''
+    Create simulation data.
+    Pull all relevant candles from bybit and add them to a single list.
+    for each list index, add the bybit topic in another list
+
+    Parameters
+    ----------
+    symbols: Dict[str, str]
+        dictionary of relevant symbols for backtesting
+        symbols for backtesting
+        keys have format binance_ticker.binacne_interval and values are coresponding bybit ws topics.
+    start_str: str
+        start of simulation in format yyyy-mm-dd hh-mm-ss
+    end_str: str
+        end of simulation in format yyyy-mm-dd hh-mm-ss
+
+    Returns
+    --------
+    klines: List[List[Any]]
+        list of raw klines
+    
+    topics: List[str]
+        list of respective websocket topics
+    '''
+    klines = []
+    topics = []
+    for symbol in symbols:
+        ticker, interval = symbol.split('.')
+
+        # extend data by one interval to close trades in the last timestamp
+        actual_end_str = str(pd.Timestamp(end_str) + pd.Timedelta(interval))
+
+        bybit_data = get_historical_klines(ticker,
+                                           start_str=start_str,
+                                           end_str=actual_end_str,
+                                           interval=interval)
+        klines.extend(bybit_data)
+        topics.extend([symbols[symbol]] * len(bybit_data))
+
+    return klines, topics
 
 
 def initialize_account_data(session: usdt_perpetual.HTTP,

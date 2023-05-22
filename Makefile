@@ -13,14 +13,14 @@ AWS_CURRENT_ECS_TASKS_ETH=$(shell aws ecs list-tasks --cluster crypto-trading-cl
 
 # AWS_FARGATE:=crypto-trading-service-btc
 # AWS_ECR:=crypto_trading_ecr_btc
-# TICKER:=BTCUSDT
+# TICKERS:=BTCUSDT
 
 # AWS_FARGATE:=crypto-trading-service-eth
 # AWS_ECR:=crypto_trading_ecr_eth
-# TICKER:=ETHUSDT
+# TICKERS:=ETHUSDT
 
-TICKER:=RTYUSD
-
+TICKERS:=RTYUSD
+TRADING_FREQS:=1 5
 check:
 	poetry check
 
@@ -52,14 +52,26 @@ unittest: clean lint
 	poetry run coverage erase
 
 backtest:
-	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2022-09-29' --start_str '2022-10-01' --end_str '2023-01-01'
+	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2022-09-29' --start_str '2022-10-01' --end_str '2023-01-01'
 
-evaluate_backtest:
-	poetry run python -m src.backtest.run_backtest --ticker '$(TICKER)' --freqs '1 5 15' --model_args '$(args)' --start_history '2021-12-29' --start_str '2022-01-01' --end_str '2023-01-01'	
+evaluate_backtest_2022:
+	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2021-12-29' --start_str '2022-01-01' --end_str '2023-01-01'
+
+evaluate_backtest_2021:
+	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2020-12-29' --start_str '2021-01-01' --end_str '2022-01-01'
+
+evaluate_backtest_2020:
+	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2019-12-29' --start_str '2020-01-01' --end_str '2021-01-01'
+
+evaluate_backtest_2019:
+	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2018-12-29' --start_str '2019-01-01' --end_str '2020-01-01'
+
+evaluate_backtest_2018:
+	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2018-01-02' --start_str '2018-01-03' --end_str '2019-01-01'
 
 main:
 	make install no_dev=--no-dev
-	poetry run python -m main --ticker '$(TICKER)' --freqs '1 5 15'
+	poetry run python -m main --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)'
 	
 # add arguments via --build-arg VARIABLE=value
 docker:
@@ -102,7 +114,27 @@ make parallel_backtests:
     	make backtest args='{"param":'$$param'}'; \
 	done
 
-make parallel_evaluate_backtests:
+make parallel_evaluate_backtests_2018:
 	for param in $(params) ; do \
-    	make evaluate_backtest args='{"param":'$$param'}'; \
+    	make evaluate_backtest_2018 args='{"param":'$$param'}'; \
+	done
+
+make parallel_evaluate_backtests_2019:
+	for param in $(params) ; do \
+    	make evaluate_backtest_2019 args='{"param":'$$param'}'; \
+	done
+
+make parallel_evaluate_backtests_2020:
+	for param in $(params) ; do \
+    	make evaluate_backtest_2020 args='{"param":'$$param'}'; \
+	done
+
+make parallel_evaluate_backtests_2021:
+	for param in $(params) ; do \
+    	make evaluate_backtest_2021 args='{"param":'$$param'}'; \
+	done
+
+make parallel_evaluate_backtests_2022:
+	for param in $(params) ; do \
+    	make evaluate_backtest_2022 args='{"param":'$$param'}'; \
 	done

@@ -1,12 +1,15 @@
 import warnings
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 from typing import Dict, Any
 from src.TradingModel import TradingModel
-from src.helper_functions.statistics import sma, get_alternate_highs_lows, get_slopes_highs_lows
+from src.helper_functions.statistics import sma, get_alternate_highs_lows, get_slopes_highs_lows, true_range
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from src.endpoints.bybit_functions import *
+from src.helper_functions.checklist_utils import *
 import os
 from dotenv import load_dotenv
 
@@ -14,31 +17,40 @@ load_dotenv()
 
 BASE_CUR = os.getenv('BASE_CUR')
 
-def checklist_model(model: TradingModel):
+
+def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
     '''
     checklist-based trend following model
     '''
 
     # declare ticker
     # ticker = 'RTYUSD'
-    ticker = model.model_args['ticker']
+    ticker = ticker
+    trading_freq = trading_freq
+    
+    # frequency to determine trading strategy
+    # trading_freq = 5
+
+    # frequency to check updates in exit strategy, must be at least as frequent as trading_freq
+    min_action_freq = trading_freq
 
     # declare topics
-    # topic = 'candle.1.{}'.format(ticker)
-    topic = 'candle.5.{}'.format(ticker)
-    long_term_topic = 'candle.5.{}'.format(ticker)
-    trend_topic = 'candle.15.{}'.format(ticker)
-    short_term_topic = 'candle.5.{}'.format(ticker)
+    topic = 'candle.{}.{}'.format(trading_freq, ticker)
+    long_term_topic = 'candle.{}.{}'.format(trading_freq, ticker)
+    trend_15_topic = 'candle.15.{}'.format(ticker)
+    trend_5_topic = 'candle.5.{}'.format(ticker)
+    min_action_topic = 'candle.{}.{}'.format(min_action_freq, ticker)
+    exit_topic = 'candle.{}.{}'.format(trading_freq, ticker)
 
     # initialize checklist counter and total rules counter
     long_checklist = 0
     short_checklist = 0
-    core_long_checklist = 0
-    core_short_checklist = 0
+    long_checklist = 0
+    short_checklist = 0
     checklist = 0
-    core_checklist = 0
+    checklist = 0
     rules = 0
-    core_rules = 0
+    rules = 0
 
     ######################################## PARAMETERS ########################################
 
@@ -55,12 +67,15 @@ def checklist_model(model: TradingModel):
     n_candles_diff = 5
     # n_candles_diff = model.model_args['n_candles']
 
+    # number of preceeding candles that must not be below candle to be minimum for drift assessment
+    n_candles_drift = 5
+
     # Sideways: multiple of length of entry bar to incorporate into the sideways candles
-    sideways_factor = 1
+    sideways_factor = 2
     # sideways_factor = model.model_args['param']
 
     # Sideways: all candles in sideways must be smaller eqal factor times entry bar
-    small_bars_50 = 0.5
+    small_bars_50 = 0.50
     # small_bars_50 = model.model_args['param']
 
     # Sideways: last 2 candles before entry bar must be smaller equal parameter times entry bar
@@ -68,7 +83,7 @@ def checklist_model(model: TradingModel):
     # small_bars_25 = model.model_args['param']
 
     # Opposite 1/5ths: the wigs of the entry bar must be smaller equal 20% of the candle (High to low)
-    opposite_fifths = 0.2
+    opposite_fifths = 0.20
     # opposite_fifths = model.model_args['param']
 
     # number of candles to consider for strategy
@@ -81,50 +96,52 @@ def checklist_model(model: TradingModel):
     # Chart height in TradingView
     chart_height = 3.2
 
-    # minimum amount of calculated sideways candles required for potential entry
-    minimum_sideways = 10
-
-    # number of candles before entry candle to watch for drift
-    drift_length = 5
-    # drift_length = model.model_args['param']
-
-    # open of first drift candle to close of candle prior to entry bar must be smaller than drift_height times body of entry bar
-    drift_height = 0.35
-    # drift_height = model.model_args['param']
+    # amount of drift between last low and open of entrybar relative to body of entry bar to not have drift
+    drift_factor = 0.5
 
     # multiple of body of entry bar that amplitude (i.e. maximum open or close - minimum of open or close) of sideways candles can have
-    surprise_factor = 1.2
+    surprise_factor = 1
     # surprise_factor = model.model_args['param']
 
-    # percentage of trading screen height (i.e. maximum high to minimum low within candle_window) the entry bar has to fill to be a surprise.
-    # 0.2 is currently best, 0.15 and 0.1 is too small
-    surprise_factor_2 = 0.2
-    # surprise_factor_2 = model.model_args['param']
-
-    # Blue increasing: determine number of candles to require a trend in before entering (increase in sma8)
-    trend_candles = 3
-    # trend_candles = model.model_args['param']
+    # maximum amplitude of sma8 (blue) during sideways, measured as percentage of entry bar body
+    blue_amplitude_2 = 0.4
 
     # High and low definition: last high must be 50% higher than previous high
     # To be a breaking high, 50% of the entry candle body has to above the preceding high
-    high_factor = 0.5
+    high_factor = 0.3
     # high_factor = model.model_args['param']
 
-    # High and low definition: set factor that the last low must be above the previous low to be a higher low
-    retracement_factor = 0.5
-    # retracement_factor = model.model_args['param']
-
-    # Set maximum relative difference between highs / lows to count as support or resistance
-    support_resistance_diff = 0.001
-    # support_resistance_diff = model.model_args['param']
-    
     # maximum slope of purple for rule 1.10.1
     slope_purple_param = 0.3
     # slope_purple_param = model.model_args['param']
 
-    # maximum slope of purple for rule 1.10.1
-    sma_flat_param = 0.3
-    # sma_flat_param = model.model_args['param']
+    # maximum absolute value of true range for two candles before entry bar
+    ATR_small_bars_25 = 10 / 1800
+
+    # maximum relative slope of sideways, measured relative to size of trading screen
+    max_slope_sideways = 0.8
+    # max_slope_sideways = model.model_args['param']
+
+    # determine minimum movement of entry bar in fraction to open price
+    minimum_movement = 0.0011
+
+    # maximum distance of sma_8 to its regression line relative to size of entry bar
+    max_sma_8_dist = 1.0
+
+    # maximum relative slope of sma_8
+    max_slope_blue = 5.0
+
+    # tolerance of sma8 exit strategy
+    sma_8_exit_tolerance = 3 / 1800
+
+    # absolute threshold for candle in exit strategy to be "sizable"
+    sizable_body_exit_abs = 0.5 / 1800
+
+    # relative threshold to trading window for candle in exit strategy to be "sizable"
+    sizable_body_exit_rel = 0.02
+
+    # profit threshold to adjust stop loss to trade price
+    take_profit_stoploss = 2.0 / 1800
 
     # set tick size of orders as number of decimal digits
     # 0 rounds on whole numbers, negative numbers round integers on whole "tens"
@@ -136,24 +153,18 @@ def checklist_model(model: TradingModel):
 
     # last relevant candles for strategy
     entry_bar = model.market_data.history[topic].iloc[-1]
-    last_trend_candle = model.market_data.history[trend_topic].iloc[-1]
-    last_short_term_candle = model.market_data.history[short_term_topic].iloc[-1]
-    last_long_term_candle = model.market_data.history[long_term_topic].iloc[-1]
-    
+    last_exit_candle = model.market_data.history[exit_topic].iloc[-1]
+    last_action_candle = model.market_data.history[min_action_topic].iloc[-1]
 
-    # Only proceed if new 5min candle is received, i.e. ignore 1m candles
-    # Remove if actions are performed for 1m candles
-    if entry_bar.name <= model.model_storage['entry_bar_time']:
+    # Only proceed if new action topic candle is received, i.e. ignore all smaller candles
+    # Adjust "action_freq" if actions are performed for smaller candles
+    if last_action_candle.name <= model.model_storage['action_bar_time']:
         return None
-    
-    # check timedelta between trend topic and topic to ensure that is not larger than 14 minutes
-    # if larger, then new topic candle was received before new trend topic and one must wait until new trend topic arrives
-    topic_trend_topic_delta = entry_bar.name - last_trend_candle.name
-
-    # check timedelta between long term topic and topic to ensure that is not larger than 4 minutes
-    # if larger, then new topic candle was received before new long term topic and one must wait until new long term topic arrives
-    topic_long_term_topic_delta = entry_bar.name - last_long_term_candle.name
-
+    else:
+        # update last received action candle to current candle
+        model.model_storage['action_bar_time'] = model.market_data.history[
+            min_action_topic].iloc[-1].name
+        
     # simple moving averages
     sma_24 = sma(model.market_data.history[long_term_topic]['close'], window=24)
     sma_8 = sma(model.market_data.history[long_term_topic]['close'], window=8)
@@ -167,214 +178,154 @@ def checklist_model(model: TradingModel):
     low_close_1 = abs(entry_bar['close'] - entry_bar['low'])
 
     # calculate body of two candles before entry bar
-    body_3_1 = (model.market_data.history[topic].iloc[-3:-1]['close'] -
-                model.market_data.history[topic].iloc[-3:-1]['open']).abs()
+    body_3_1 = get_body(data=model.market_data.history[topic], column_1='close', column_2='open', start=3, end=1).abs()
+
+    # calculate atr of two candles before entry bar
+    atr_3_1 = true_range(data=model.market_data.history[topic].iloc[-3:-1])
 
     # calculate high and low of last "candle_window" candles as a reference point on how to scale visual inspections according to charts
-    high_candle_window = model.market_data.history[topic].iloc[
-        -candle_window:]['high'].max()
-    low_candle_window = model.market_data.history[topic].iloc[
-        -candle_window:]['low'].min()
-    high_low_candle_window = abs(high_candle_window - low_candle_window)
+    high_low_candle_window = get_trading_window(data=model.market_data.history[topic], window_size=candle_window)
 
     # count sideways according to chart visuals
-    sideways_count = max(
-        int(
-            np.floor(
-                (open_close_1 / (high_low_candle_window+0.00001)) * chart_height *
-                sideways_factor * (candle_window / chart_width))), 2)
+    sideways_count = get_sideways(entry_body=open_close_1, 
+                                  trading_window=high_low_candle_window, 
+                                  sideways_factor=sideways_factor,
+                                  window_size=candle_window,
+                                  chart_height=chart_height,
+                                  chart_width=chart_width)
 
-    # calculate the body of the sideways candles
-    body_sideway_count_1 = (
-        model.market_data.history[topic].iloc[-sideways_count:-1]['close'] -
-        model.market_data.history[topic].iloc[-sideways_count:-1]['open']
-    ).abs()
 
-    long_term_series = model.market_data.history[long_term_topic]['close'].copy()
+    # count core sideways (1 x entrybar) according to chart visuals
+    sideways_count_core = get_sideways(entry_body=open_close_1, 
+                                  trading_window=high_low_candle_window, 
+                                  sideways_factor=sideways_factor,
+                                  window_size=candle_window,
+                                  chart_height=chart_height,
+                                  chart_width=chart_width)
 
-    # if last timestamp of topic and long term topic are not identical, append last timestamp of topic to long term topic
-    if topic_long_term_topic_delta>pd.Timedelta(minutes=1):
-        long_term_series[entry_bar.name]=entry_bar['close']
 
-    # calculate alternating highs and lows of trading line
-    highs, lows = get_alternate_highs_lows(
-        candles=long_term_series,
+    # calculate the body of the core sideways candles
+    body_sideway_count_core_1 = get_body(data=model.market_data.history[topic], column_1='close', column_2='open', start=sideways_count_core, end=1).abs()
+    
+    # get trend series with appended entry bar if necessary
+    # also get timedeltas between trend series and entry bar
+    long_term_series, topic_long_term_topic_delta = get_trend_series(data=model.market_data.history[long_term_topic],
+                                    entry_bar=entry_bar,
+                                    ref_column='close')
+
+    trend_series_15, topic_trend_topic_15_delta = get_trend_series(data=model.market_data.history[trend_15_topic],
+                                    entry_bar=entry_bar,
+                                    ref_column='close')
+    
+    trend_series_5, topic_trend_topic_5_delta = get_trend_series(data=model.market_data.history[trend_5_topic],
+                                    entry_bar=entry_bar,
+                                    ref_column='close')
+
+
+    # calculate alternating highs and lows of trend line
+    highs_trend_15, lows_trend_15 = get_alternate_highs_lows(
+        candles=trend_series_15,
         min_int=n_candles,
         sma_diff=high_low_sma,
         min_int_diff=n_candles_diff)
-    
-    trend_series = model.market_data.history[trend_topic]['close'].copy()
-
-    # calculate frequency of trend series, the minimum is necessary to prevent distortions during time shifts
-    freq = (trend_series.index[1:]-trend_series.index[:-1]).min()
-
-    # if last timestamp of topic and trend topic are not identical, append last timestamp of topic to trend topic
-    if topic_trend_topic_delta>pd.Timedelta(minutes=1):
-        trend_series[entry_bar.name]=entry_bar['close']
 
     # calculate alternating highs and lows of trend line
-    highs_trend, lows_trend = get_alternate_highs_lows(
-        candles=trend_series,
-        min_int=n_candles, 
-        sma_diff=high_low_sma, 
+    highs_trend_5, lows_trend_5 = get_alternate_highs_lows(
+        candles=trend_series_5,
+        min_int=n_candles,
+        sma_diff=high_low_sma,
         min_int_diff=n_candles_diff)
 
-    # calculate the last resistance line as two consecutive highs that are close together and not succeed by a higher high
-    resistances = highs_trend.loc[(highs_trend.diff()/highs_trend).abs()<=support_resistance_diff]
-    if not resistances.empty:
-        highs_over_resistance = highs_trend.loc[highs_trend>(resistances[-1]*(1+1.1*support_resistance_diff))]
-    else:
-        highs_over_resistance = pd.Series()
-
-    # check if highs_over_resistance is not empty for stability of calculation
-    if not highs_over_resistance.empty:
-
-        # check if last high that exceeds resistance was prior to establishment of resistance:
-        if highs_over_resistance.index[-1] < resistances.index[-1]:
-            resistance = resistances[-1]*(1+1.1*support_resistance_diff)
-        else:
-            resistance = None
-            
-    elif not resistances.empty:
-        resistance = resistances[-1]*(1+1.1*support_resistance_diff)
-    else:
-        resistance = None
-    
-    # calculate the last support line as two consecutive lows that are close together and not broken by a lower low
-    supports = lows_trend.loc[(lows_trend.diff()/lows_trend).abs()<=support_resistance_diff]
-    if not supports.empty:
-        lows_under_support = lows_trend.loc[lows_trend<(supports[-1]*(1-1.1*support_resistance_diff))]
-    else:
-        lows_under_support = pd.Series()
-
-    # check if lows_under_support is not empty for stability of calculation
-    if not lows_under_support.empty:
-
-        # check if last low that breaks support was prior to establishment of support:
-        if lows_under_support.index[-1] < supports.index[-1]:
-            support = supports[-1]*(1-1.1*support_resistance_diff)
-        else:
-            support = None
-    elif not supports.empty:
-        support = supports[-1]*(1-1.1*support_resistance_diff)
-    else:
-        support = None
-
-    # calculate slopes of connection lines between highs and lows of trend series
-    high_low_slopes_trend = get_slopes_highs_lows(lows=lows_trend, highs=highs_trend, freq=freq)
-    
 
     # calculate maximum spread between open and close prices of sideways candles
-    sideways_count_max = max(
-        model.market_data.history[topic].iloc[-sideways_count:-1]
-        ['open'].max(),
-        model.market_data.history[topic].iloc[-sideways_count:-1]
-        ['close'].max())
-    sideways_count_min = min(
-        model.market_data.history[topic].iloc[-sideways_count:-1]
-        ['open'].min(),
-        model.market_data.history[topic].iloc[-sideways_count:-1]
-        ['close'].min())
+    sideways_spread = get_max_spread(data=model.market_data.history[topic],
+                                     column_1='open',
+                                     column_2='close',
+                                     start=sideways_count,
+                                     end=1)
 
-    # reference index is first sideways candles
-    ref_index = model.market_data.history[topic].index[-sideways_count]
+    # determine if purple is flat or strong
+    purple_strong_up = get_strong(data=sma_24,
+                                num_samples=11,
+                                threshold=0.2,
+                                start=15,
+                                end=-1,
+                                up=True)
 
-    # linear regression of sma_24 since reference index
-    # scale x-axis between 0 and number of candles
-    purple = sma_24.loc[ref_index:]
-    X_purple = np.array(range(len(purple))).reshape(-1, 1)
+    purple_strong_down = get_strong(data=sma_24,
+                                    num_samples=11,
+                                    threshold=-0.2,
+                                    start=15,
+                                    end=-1,
+                                    up=False)
+    
+    purple_flat = not (purple_strong_down or purple_strong_up)
 
-    # calculate linear regression within sma_24 to identify a potential trend
-    sk_lr_purple = LinearRegression()
-    sk_results_purple = sk_lr_purple.fit(X_purple, purple)
 
+    sk_results_purple = get_linear_regression(data=sma_24,
+                                              start=sideways_count,
+                                              end=0)
     # extract slope of regression line
     slope_purple = sk_results_purple.coef_[0]
 
-    slope_sideways = sma_24.diff().loc[ref_index:]
+    # Define increasing (with respect to sma24)
 
-    # check if at no point 3 candles in a row have a slope of less than -0.3
-    slope_sideways_long = ((slope_sideways<-slope_purple_param).rolling(3).sum()==3.0).sum()==0
+    # increasing: curvature across last 5 candles > 0
+    increasing_purple = get_increasing(data=sma_24,
+                                       num_samples=5,
+                                       start=10,
+                                       end=0,
+                                       increasing=True)
+    
+    decreasing_purple = get_increasing(data=sma_24,
+                                       num_samples=5,
+                                       start=10,
+                                       end=0,
+                                       increasing=False)
 
-    # check if at no point 3 candles in a row have a slope of more than 0.3
-    slope_sideways_short = ((slope_sideways>slope_purple_param).rolling(3).sum()==3.0).sum()==0
-
+    # decreasing: curvature across last 5 candles < 0
+    decreasing_purple = (sma_24.diff().diff().iloc[-5:].max() < 0)
 
     # Define smooth, strong, flat and increasing (all with respect to sma8)
 
-    # increasing: mean of curvature across last 5 candles > 0 AND last slope > 0
-    increasing = (sma_8.diff().diff().iloc[-5:].mean()>0) and (sma_8.diff().iloc[-1]>0)
+    # increasing: curvature across last 5 candles > 0
+    increasing_blue = (sma_8.diff().diff().iloc[-5:].min() > 0)
 
-    # decreasing: mean of curvature across last 5 candles < 0 AND last slope < 0
-    decreasing = (sma_8.diff().diff().iloc[-5:].mean()<0) and (sma_8.diff().iloc[-1]<0)
-
-    # filter all time points thar have three consecutive increases or decreases
-    # series shows if it was increase or decrease through the sign
-    consecutive_increase = sma_8.diff().iloc[-sideways_count:].loc[(sma_8.diff().iloc[-sideways_count:]>0).rolling(3).sum()==3.0]
-    consecutive_decrease = sma_8.diff().iloc[-sideways_count:].loc[(sma_8.diff().iloc[-sideways_count:]<0).rolling(3).sum()==3.0]
-
-    # concatenate both series and sort by index to get alternating series
-    consecutives = pd.concat([consecutive_increase,consecutive_decrease]).sort_index()
-
-    # show change in slope by multiplying each entry (=slope) with its successor
-    # a change in the slope is identified by a negative sign (increasing to decreasing or vice versa)
-    changing_signs = (consecutives*consecutives.shift(1)<0).sum()
-
-    # determine last indices that had three consecutive signs in their slopes and 
-    # first indices that had three consecutive signs in their slope after a shift in slope
-    before_indices = consecutives.loc[consecutives*consecutives.shift(-1)<0].index
-    after_indices = consecutives.loc[consecutives*consecutives.shift(1)<0].index.map(lambda x: sma_8.diff().index[sma_8.diff().index<x][-2])
-    
-    # determine slopes of prices before and after consecutive change in direction
-    slopes_before_change = sma_8.diff().loc[before_indices].reset_index(drop=True)
-    slopes_after_change = sma_8.diff().loc[after_indices].reset_index(drop=True)
-
-    # determine curvature of price change
-    curvatures_at_change = (slopes_after_change - slopes_before_change).abs()
-
-    # smooth: maximum 2 changes in slopes, but only count changes if they persist for at least 3 candles AND curvature at change <2 
-    smooth = changing_signs<=2 and (curvatures_at_change>=2).sum()==0
-
-    # strong: mean of slopes across last 5 candles > 0.5 for long and < -0.5 for short
-    strong_long = sma_8.diff().iloc[-5:].mean() > 0.5
-    strong_short = sma_8.diff().iloc[-5:].mean() < -0.5
-
-    # flat: no three candles in a row can have a slope of more than 0.3 or less than -0.3
-    flat_increase = ((sma_8.diff().iloc[-sideways_count:-5]>sma_flat_param).rolling(3).sum()==3.0).sum()==0
-    flat_decrease = ((sma_8.diff().iloc[-sideways_count:-5]<-sma_flat_param).rolling(3).sum()==3.0).sum()==0
-    flat = flat_increase and flat_decrease
+    # decreasing: curvature across last 5 candles < 0
+    decreasing_blue = (sma_8.diff().diff().iloc[-5:].max() < 0)
 
 
-    # linear regression of sma_24 since second last low of trading line for long side
+    # abrupt: change of sign in derivative and absolute value of curvature > 2
+    # not allowed across last 5 candles
+    abrupt_blue, large_curvature = get_abrupt(data=sma_8,
+                                              n=5,
+                                              threshold=2.0)
+
+    # determine size of corridor for smooth relative to entry bar
+    max_dist = 0.5 * open_close_1 * max_sma_8_dist
+    _, _, slope_blue = get_smooth(data=sma_8,
+                                max_dist=max_dist,
+                                start=sideways_count,
+                                end=1)
+
+    volatile = get_volatile(data=sma_8,
+                            num_samples=5,
+                            max_curvature=1.0,
+                            start=sideways_count,
+                            end=0)
+
+
+    # linear regression over sideways candles
     # scale x-axis between 0 and number of candles
-    trend_series_long = sma_24.loc[lows.index[-2]:]
-    X_sma_long = np.array(range(len(trend_series_long))).reshape(-1, 1)
-
-    # scale sma_24 by high-low spread of last 75 candles to normalize the slope of the candles
-    Y_sma_long = trend_series_long / (high_low_candle_window+0.00001)
-
-    # calculate linear regression within sma_24 to identify a potential trend
-    sk_lr_sma_long = LinearRegression()
-    sk_results_sma_long = sk_lr_sma_long.fit(X_sma_long, Y_sma_long)
-
+    sideways_candles = model.market_data.history[topic].iloc[-sideways_count:-1]
+    lr_sideways_results = get_linear_regression(data=model.market_data.history[topic]['close'],
+                                              start=sideways_count,
+                                              end=1)
     # extract slope of regression line
-    slope_sma_long = sk_results_sma_long.coef_[0]
+    slope_sideways_lr = lr_sideways_results.coef_[0]
 
-    # linear regression of sma_24 since second last high of trading line for short side
-    # scale x-axis between 0 and number of candles
-    trend_series_short = sma_24.loc[highs.index[-2]:]
-    X_sma_short = np.array(range(len(trend_series_short))).reshape(-1, 1)
-
-    # scale sma_24 by high-low spread of last 75 candles to normalize the slope of the candles
-    Y_sma_short = trend_series_short / (high_low_candle_window+0.00001)
-
-    # calculate linear regression within sma_24 to identify a potential trend
-    sk_lr_sma_short = LinearRegression()
-    sk_results_sma_short = sk_lr_sma_short.fit(X_sma_short, Y_sma_short)
-
-    # extract slope of regression line
-    slope_sma_short = sk_results_sma_short.coef_[0]
-
+    last_min, last_max = get_recent_high_low(data=sideways_candles[['open', 'close']],
+                                             n=n_candles_drift)
 
     ######################################## END DEFINITION VARIABLES ########################################
 
@@ -395,15 +346,19 @@ def checklist_model(model: TradingModel):
     # exit strategy for long side
     if (model.account.positions[ticker]['size'] >
             0.0) and model.account.positions[ticker]['side'] == 'Buy':
-        
-        new_stop_loss_long = np.round(max(model.model_storage['entry_close_1_long'],
-                            model.model_storage['entry_open_1_long']) - 0.5 * model.model_storage['entry_open_close_1_long'], tick_size)
 
-        new_stop_loss_long_2 = np.round(max(model.model_storage['entry_close_1_long'],
-                            model.model_storage['entry_open_1_long']) - 0.25 * model.model_storage['entry_open_close_1_long'], tick_size)
+        new_stop_loss_long = np.round(
+            max(model.model_storage['entry_close_1_long'],
+                model.model_storage['entry_open_1_long']) -
+            0.5 * model.model_storage['entry_open_close_1_long'], tick_size)
 
-        # if the last close price is below the sma_8, close position
-        if (entry_bar['close'] < sma_8[-1]):
+        # check if last candle is in the profit zone, otherwise increase exit candle counter
+        if last_exit_candle['close'] < last_trade['price']:
+            model.model_storage['exit_candles'] += 1
+
+        # if the last close price is below the sma_8 - some tolerance, close position
+        if (last_exit_candle['close'] <
+            (sma_8[-1] - sma_8_exit_tolerance * last_exit_candle['close'])):
             model.account.place_order(
                 symbol=ticker,
                 side='Sell',
@@ -412,60 +367,111 @@ def checklist_model(model: TradingModel):
                 stop_loss=None,
                 take_profit=None,
                 reduce_only=True)
-        
-        # if the last closing price is above the trade price + the trading fee, adjust stop loss to the trade price + the trading fee
-        elif (last_short_term_candle['close'] > np.round(last_trade['price'] + 0.1, tick_size)) and (np.round(last_trade['price'] + 0.1, tick_size) > model.account.positions[ticker]['stop_loss']):
-            
+
+        # if after 3 candles the trade is still not in the profit zone and the last candle is red, exit the trade
+        elif (model.model_storage['exit_candles'] >=
+              3) and (last_exit_candle['close'] < last_exit_candle['open']):
+            model.account.place_order(
+                symbol=ticker,
+                side='Sell',
+                qty=np.ceil(model.account.positions[ticker]['size']),
+                order_type='Market',
+                stop_loss=None,
+                take_profit=None,
+                reduce_only=True)
+
+        # if the last closing price is above the trade price + 0.25 * body of entry bar
+        # or above the trade price + 5 points, adjust stop loss to the trade price + the trading fee
+        elif (
+            ((last_exit_candle['close'] > np.round(
+                last_trade['price'] + 0.1 *
+                model.model_storage['entry_open_close_1_long'], tick_size)) or
+             (last_exit_candle['close'] > np.round(
+                 last_trade['price'] +
+                 last_exit_candle['close'] * take_profit_stoploss, tick_size)))
+                and (np.round(last_trade['price'] + 0.1, tick_size) >
+                     model.account.positions[ticker]['stop_loss'])):
+
             model.account.set_stop_loss(symbol=ticker,
                                         side='Buy',
                                         stop_loss=np.round(
-                                            last_trade['price'] + 0.1, tick_size))
-            model.model_storage['exit_long_higher_lows'].append(last_short_term_candle['open'])
+                                            last_trade['price'] + 0.1,
+                                            tick_size))
 
-        # otherwise if the stop loss is below the traded price, but above 0.75 times entry bar, 
-        # increase stop loss to the traded price minus 0.25 times the entry body
-        elif model.account.positions[ticker]['stop_loss'] < last_trade[
-                'price'] and (new_stop_loss_long_2 < last_short_term_candle['close']) and (new_stop_loss_long_2 > model.account.positions[ticker]['stop_loss']):
+            # check if open of candle was above trade price and candle is blue candle, then add it as first higher low
+            if (min(last_exit_candle['open'], last_exit_candle['close']) >=
+                    last_trade['price']) and (last_exit_candle['close'] >
+                                              last_exit_candle['open']):
+                if len(model.model_storage['exit_long_higher_lows']) == 0:
+                    model.model_storage['exit_long_higher_lows'].append(
+                        min(last_exit_candle['open'],
+                            last_exit_candle['close']))
+                elif min(
+                        last_exit_candle['open'], last_exit_candle['close']
+                ) and (last_exit_candle['close'] > last_exit_candle['open']
+                      ) < model.model_storage['exit_long_higher_lows'][-1]:
+                    model.model_storage['exit_long_higher_lows'].append(
+                        min(last_exit_candle['open'],
+                            last_exit_candle['close']))
+
+        # otherwise, increase stop loss to the traded price minus 0.5 times the entry body
+        elif (new_stop_loss_long < last_exit_candle['close']) and (
+                new_stop_loss_long >
+                model.account.positions[ticker]['stop_loss']):
 
             model.account.set_stop_loss(symbol=ticker,
-                                            side='Buy',
-                                            stop_loss=new_stop_loss_long_2)
+                                        side='Buy',
+                                        stop_loss=new_stop_loss_long)
 
-        # otherwise if the stop loss is below the traded price - 0.25 times entry bar, but above - 0.5 times entry bar,
-        # increase stop loss to the traded price minus 0.5 times the entry body
-        elif model.account.positions[ticker]['stop_loss'] < last_trade[
-                'price'] and (new_stop_loss_long < last_short_term_candle['close']) and (new_stop_loss_long_2 >= last_short_term_candle['close']) and (new_stop_loss_long > model.account.positions[ticker]['stop_loss']):
-
-            model.account.set_stop_loss(symbol=ticker,
-                                            side='Buy',
-                                            stop_loss=new_stop_loss_long)
-            
         # if stop loss is already in the profit zone:
         # track higher lows and exit as soon as 2 lows are broken
         # only count candles that have "sizable" body
-        elif len(model.model_storage['exit_long_higher_lows'])>0 and (abs(last_short_term_candle['open']-last_short_term_candle['close'])>0.02*model.model_storage['entry_open_close_1_long']):
-            
-            # if new candle is higher low, add to higher lows list
-            if (last_short_term_candle['open']>model.model_storage['exit_long_higher_lows'][-1]) and (last_short_term_candle['close']>model.model_storage['exit_long_higher_lows'][-1]):
-            
-                model.model_storage['exit_long_higher_lows'].append(min(last_short_term_candle['open'],last_short_term_candle['close']))
+        elif (
+            (last_trade['price'] < model.account.positions[ticker]['stop_loss'])
+                and (abs(last_exit_candle['open'] - last_exit_candle['close']) >
+                     min(sizable_body_exit_rel * high_low_candle_window,
+                         sizable_body_exit_abs * last_exit_candle['close']))):
+
+            # set reference for higher low
+            if len(model.model_storage['exit_long_higher_lows']) > 0:
+                higher_low = model.model_storage['exit_long_higher_lows'][-1]
+            else:
+                higher_low = 0
+
+            # if new candle is higher low and candle is blue, add to higher lows list
+            if ((last_exit_candle['open'] > higher_low) and
+                (last_exit_candle['close'] > higher_low) and
+                (last_exit_candle['close'] > last_exit_candle['open'])):
+
+                model.model_storage['exit_long_higher_lows'].append(
+                    min(last_exit_candle['open'], last_exit_candle['close']))
 
                 # if higher lows list exceeds 2, pop first low as only last two are relevant
-                if len(model.model_storage['exit_long_higher_lows'])>2:
-                    
+                # and increase stop loss to first higher low
+                if len(model.model_storage['exit_long_higher_lows']) > 2:
+
                     model.model_storage['exit_long_higher_lows'].pop(0)
-            
+
+                    # model.account.set_stop_loss(symbol=ticker,
+                    #                         side='Buy',
+                    #                         stop_loss=np.round(model.model_storage['exit_long_higher_lows'][0] + 0.1, tick_size))
+
             # if new candle is not a higher low and breaks the second highest low, exit the trade
-            elif len(model.model_storage['exit_long_higher_lows'])>1:
-                if min(last_short_term_candle['open'],last_short_term_candle['close']) < model.model_storage['exit_long_higher_lows'][-2]:
+            elif len(model.model_storage['exit_long_higher_lows']) > 1:
+                if min(last_exit_candle['open'], last_exit_candle['close']
+                      ) < model.model_storage['exit_long_higher_lows'][-2]:
                     model.account.place_order(
-                    symbol=ticker,
-                    side='Sell',
-                    qty=np.ceil(model.account.positions[ticker]['size']),
-                    order_type='Market',
-                    stop_loss=None,
-                    take_profit=None,
-                    reduce_only=True)
+                        symbol=ticker,
+                        side='Sell',
+                        qty=np.ceil(model.account.positions[ticker]['size']),
+                        order_type='Market',
+                        stop_loss=None,
+                        take_profit=None,
+                        reduce_only=True)
+
+        # update last received candle to current candle
+        model.model_storage['entry_bar_time'] = model.market_data.history[
+            topic].iloc[-1].name
 
         # exit function since position is still open
         return None
@@ -473,15 +479,19 @@ def checklist_model(model: TradingModel):
     # exit strategy for the short side
     if (model.account.positions[ticker]['size'] >
             0.0) and model.account.positions[ticker]['side'] == 'Sell':
- 
-        new_stop_loss_short = np.round(min(model.model_storage['entry_close_1_short'],
-                                model.model_storage['entry_open_1_short']) + 0.5 * model.model_storage['entry_open_close_1_short'], tick_size)
-        
-        new_stop_loss_short_2 = np.round(min(model.model_storage['entry_close_1_short'],
-                    model.model_storage['entry_open_1_short']) + 0.25 * model.model_storage['entry_open_close_1_short'], tick_size)
 
-        # if there are three highs in a row or the last price is above the sma_8, close position
-        if (entry_bar['close'] > sma_8[-1]):
+        new_stop_loss_short = np.round(
+            min(model.model_storage['entry_close_1_short'],
+                model.model_storage['entry_open_1_short']) +
+            0.5 * model.model_storage['entry_open_close_1_short'], tick_size)
+
+        # check if last candle is in the profit zone, otherwise increase exit candle counter
+        if last_exit_candle['close'] > last_trade['price']:
+            model.model_storage['exit_candles'] += 1
+
+        # if there are three highs in a row or the last price is above the sma_8 + some tolerance, close position
+        if (last_exit_candle['close'] >
+            (sma_8[-1] + sma_8_exit_tolerance * last_exit_candle['close'])):
             model.account.place_order(
                 symbol=ticker,
                 side='Buy',
@@ -490,301 +500,335 @@ def checklist_model(model: TradingModel):
                 stop_loss=None,
                 take_profit=None,
                 reduce_only=True)
-        
-        # if the last closing price is below the trade price - the trading fee, adjust the stop loss to the trade price - the trading fee
-        elif (last_short_term_candle['close'] < np.round(last_trade['price'] - 0.1, tick_size)) and (
-                                            np.round(last_trade['price'] - 0.1, tick_size) < model.account.positions[ticker]['stop_loss']):
+
+        # if after 3 candles the trade is still not in the profit zone and last candle is blue, exit the trade
+        elif (model.model_storage['exit_candles'] >=
+              3) and (last_exit_candle['close'] > last_exit_candle['open']):
+            model.account.place_order(
+                symbol=ticker,
+                side='Buy',
+                qty=np.ceil(model.account.positions[ticker]['size']),
+                order_type='Market',
+                stop_loss=None,
+                take_profit=None,
+                reduce_only=True)
+
+        # if the last closing price is below the trade price - 0.25 * body of entry bar
+        # or below the trade price - 5 points, adjust the stop loss to the trade price - the trading fee
+        elif (
+            ((last_exit_candle['close'] < np.round(
+                last_trade['price'] - 0.1 *
+                model.model_storage['entry_open_close_1_short'], tick_size)) or
+             (last_exit_candle['close'] < np.round(
+                 last_trade['price'] -
+                 last_exit_candle['close'] * take_profit_stoploss, tick_size)))
+                and (np.round(last_trade['price'] - 0.1, tick_size) <
+                     model.account.positions[ticker]['stop_loss'])):
+
             model.account.set_stop_loss(symbol=ticker,
                                         side='Sell',
-                                        stop_loss=
-                                            np.round(last_trade['price'] - 0.1, tick_size))
-            
-            model.model_storage['exit_short_lower_highs'].append(last_short_term_candle['open'])
-            
-        # otherwise if the stop loss is above the traded price, but below 0.75 times entry bar, 
-        # increase stop loss to the traded price plus 0.25 times the entry body
-        elif model.account.positions[ticker]['stop_loss'] > last_trade[
-                'price'] and (new_stop_loss_short_2 > last_short_term_candle['close']) and (new_stop_loss_short_2 < model.account.positions[ticker]['stop_loss']):
+                                        stop_loss=np.round(
+                                            last_trade['price'] - 0.1,
+                                            tick_size))
+
+            # check if open and close of candle was below trade price and candle was red, then add it as first lower high
+            if ((max(last_exit_candle['open'], last_exit_candle['close']) <=
+                 last_trade['price']) and
+                (last_exit_candle['open'] > last_exit_candle['close'])):
+
+                if len(model.model_storage['exit_short_lower_highs']) == 0:
+                    model.model_storage['exit_short_lower_highs'].append(
+                        max(last_exit_candle['open'],
+                            last_exit_candle['close']))
+                elif max(
+                        last_exit_candle['open'], last_exit_candle['close']
+                ) > model.model_storage['exit_short_lower_highs'][-1] and (
+                        last_exit_candle['open'] > last_exit_candle['close']):
+                    model.model_storage['exit_short_lower_highs'].append(
+                        max(last_exit_candle['open'],
+                            last_exit_candle['close']))
+
+        # otherwise, decrease stop loss to the traded price plus 0.5 times the entry body
+        elif ((new_stop_loss_short > last_exit_candle['close']) and
+              (new_stop_loss_short <
+               model.account.positions[ticker]['stop_loss'])):
 
             model.account.set_stop_loss(symbol=ticker,
-                                            side='Sell',
-                                            stop_loss=new_stop_loss_short_2)
+                                        side='Sell',
+                                        stop_loss=new_stop_loss_short)
 
-        # otherwise if the stop loss is above the traded price + 0.25 times entry bar, but below + 0.5 times entry bar,
-        # increase stop loss to the traded price plus 0.5 times the entry body
-        elif model.account.positions[ticker]['stop_loss'] > last_trade[
-                'price'] and (new_stop_loss_short > last_short_term_candle['close']) and (new_stop_loss_short_2 <= last_short_term_candle['close']) and (new_stop_loss_short < model.account.positions[ticker]['stop_loss']):
-
-            model.account.set_stop_loss(symbol=ticker,
-                                            side='Sell',
-                                            stop_loss=new_stop_loss_short)
-        
         # if stop loss is already in the profit zone:
-        # track higher lows and exit as soon as 2 lows are broken
+        # track lower highs and exit as soon as 2 highs are broken
         # only count candles that have "sizable" body
-        elif len(model.model_storage['exit_short_lower_highs'])>0 and (abs(last_short_term_candle['open']-last_short_term_candle['close'])>0.02*model.model_storage['entry_open_close_1_short']):
-            
-            # if new candle is higher low, add to higher lows list
-            if (last_short_term_candle['open']<model.model_storage['exit_short_lower_highs'][-1]) and (last_short_term_candle['close']<model.model_storage['exit_short_lower_highs'][-1]):
-            
-                model.model_storage['exit_short_lower_highs'].append(max(last_short_term_candle['open'],last_short_term_candle['close']))
+        elif (
+            (last_trade['price'] > model.account.positions[ticker]['stop_loss'])
+                and (abs(last_exit_candle['open'] - last_exit_candle['close']) >
+                     min(sizable_body_exit_rel * high_low_candle_window,
+                         sizable_body_exit_abs * last_exit_candle['close']))):
+
+            # set reference for lower high
+            if len(model.model_storage['exit_short_lower_highs']) > 0:
+                lower_high = model.model_storage['exit_short_lower_highs'][-1]
+            else:
+                lower_high = np.inf
+
+            # if new candle is lower high and candle is red, add to lower highs list
+            if ((last_exit_candle['open'] < lower_high) and
+                (last_exit_candle['close'] < lower_high) and
+                (last_exit_candle['open'] > last_exit_candle['close'])):
+
+                model.model_storage['exit_short_lower_highs'].append(
+                    max(last_exit_candle['open'], last_exit_candle['close']))
 
                 # if higher lows list exceeds 2, pop first low as only last two are relevant
-                if len(model.model_storage['exit_short_lower_highs'])>2:
-                    
+                # and decrease stop loss to first lower high
+                if len(model.model_storage['exit_short_lower_highs']) > 2:
+
                     model.model_storage['exit_short_lower_highs'].pop(0)
-            
+
+                    # model.account.set_stop_loss(symbol=ticker,
+                    #                         side='Sell',
+                    #                         stop_loss=np.round(model.model_storage['exit_short_lower_highs'][0] - 0.1, tick_size))
+
             # if new candle is not a higher low and breaks the second highest low, exit the trade
-            elif len(model.model_storage['exit_short_lower_highs'])>1:
-                if max(last_short_term_candle['open'],last_short_term_candle['close']) > model.model_storage['exit_short_lower_highs'][-2]:
+            elif len(model.model_storage['exit_short_lower_highs']) > 1:
+                if max(last_exit_candle['open'], last_exit_candle['close']
+                      ) > model.model_storage['exit_short_lower_highs'][-2]:
                     model.account.place_order(
-                    symbol=ticker,
-                    side='Buy',
-                    qty=np.ceil(model.account.positions[ticker]['size']),
-                    order_type='Market',
-                    stop_loss=None,
-                    take_profit=None,
-                    reduce_only=True)
+                        symbol=ticker,
+                        side='Buy',
+                        qty=np.ceil(model.account.positions[ticker]['size']),
+                        order_type='Market',
+                        stop_loss=None,
+                        take_profit=None,
+                        reduce_only=True)
+
+        # update last received candle to current candle
+        model.model_storage['entry_bar_time'] = model.market_data.history[
+            topic].iloc[-1].name
 
         # exit function since position is still open
         return None
 
     ######################################## END EXIT STRATEGY ########################################
-    
+
+    # only trade during trading hours (8:30 - 16:00)
+    if (entry_bar.name.hour * 60 + entry_bar.name.minute <=
+            510) or (entry_bar.name.hour * 60 + entry_bar.name.minute >= 960):
+        return None
+
     # only trade if new data from topic is received
     # and topic, long term topic and trend topic data have arrived if all are expected
-    if (entry_bar.name > model.model_storage['entry_bar_time']) and topic_trend_topic_delta<pd.Timedelta(minutes=15) and topic_long_term_topic_delta<pd.Timedelta(minutes=5):
-        
+    if (entry_bar.name > model.model_storage['entry_bar_time']
+       ) and topic_trend_topic_15_delta < pd.Timedelta(
+           minutes=15) and topic_long_term_topic_delta < pd.Timedelta(
+               minutes=5) and topic_trend_topic_5_delta < pd.Timedelta(
+                   minutes=5):
+
         ################################ REMOVE IN PRODUCTION ####################################################################
-        
-        # calculate timestamp to correctly index additional information to display in the analysis excel file 
+
+        # calculate timestamp to correctly index additional information to display in the analysis excel file
         ts = str(entry_bar.name)
 
-        # get next available timestamp
-        # short_term_history_index = model.account.simulation_data.loc[model.account.simulation_data.index.get_level_values(1)=='candle.1.{}'.format(ticker)].index
-        # exec_time_index = short_term_history_index[short_term_history_index.get_level_values(0)>entry_bar.name][0]
-        
-        # ts = model.account.simulation_data.loc[exec_time_index]['start']
-
         #######################################################################################################################
-        
+
         # update last received candle to current candle
         model.model_storage['entry_bar_time'] = model.market_data.history[
             topic].iloc[-1].name
-        
+
         ######################################## CHECKLIST LONG ########################################
 
         #################### 1 TREND ####################
 
-        # 1.1 Higher lows: last low must be higher than previous low
+        # 1.1.1 Higher lows on 15 min chart: last low must be higher than previous low
         # check if there are at least one high and two lows for stability of calculations
         # rules+=1
-        if len(lows_trend) > 1 and not highs_trend.empty:
+        if len(lows_trend_15) > 1 and not highs_trend_15.empty:
 
             # higher lows
-            if lows_trend.iloc[-1] > lows_trend.iloc[-2]:
+            if lows_trend_15.iloc[-1] > lows_trend_15.iloc[-2]:
                 # long_checklist+=1
 
-                if '1.1' not in model.model_stats.keys():
-                    model.model_stats['1.1']={}
+                add_model_stats(model=model, long=True, ts=ts, key='1.1.1')
 
-                model.model_stats['1.1'][ts] = {}
-                model.model_stats['1.1'][ts]['long'] = 1
-        
-        # 1.2 Higher lows with retracement: last low must be higher than previous low + retracement_factor * difference between last high and second last low
+        # 1.1.1.1 Higher lows on 5 min chart or 15 min chart: last low must be higher than previous low on one of the two time frames
         # check if there are at least one high and two lows for stability of calculations
         # rules+=1
-        if len(lows_trend) > 1 and not highs_trend.empty:
+        if (len(lows_trend_5) > 1 and
+                not highs_trend_5.empty) and (len(lows_trend_15) > 1 and
+                                              not highs_trend_15.empty):
 
-            # higher lows, but retracement of last low of maximum retracement_factor x difference between last high and second last low
-            if lows_trend.iloc[-1] > lows_trend.iloc[-2] + abs(highs_trend.iloc[-1]-lows_trend.iloc[-2])*(1-retracement_factor):
+            # higher lows
+            if (lows_trend_5.iloc[-1] > lows_trend_5.iloc[-2]) or (
+                    lows_trend_15.iloc[-1] > lows_trend_15.iloc[-2]):
                 # long_checklist+=1
 
-                if '1.2' not in model.model_stats.keys():
-                    model.model_stats['1.2']={}
+                add_model_stats(model=model, long=True, ts=ts, key='1.1.1.1')
 
-                model.model_stats['1.2'][ts] = {}
-                model.model_stats['1.2'][ts]['long'] = 1
-
-        # 1.3 Purple strong, smooth, flat or increasing:linear regression of trend line since second last low has positive slope
-        # rules+=1
-        # if slope_sma_long>0:
-        #     long_checklist += 1
-        
-        # # 1.5 Blue strong, smooth, flat or increasing (Non-negotiable)
-        # core_rules += 1
-        # if sma_8.iloc[-1]-sma_8.iloc[-trend_candles]>=0:
-        #     core_long_checklist+=1
-
-        # 1.3 Breaking of a significant high
+        # 1.3.1 Breaking of a significant high on 15 min chart
         # check if there is at least one for stability of calculations
         # rules += 1
-        if not highs_trend.empty:
+        if not highs_trend_15.empty:
 
             # entry bar has to be above the preceding high
-            if highs_trend.iloc[-1] < entry_bar['close']:
+            if highs_trend_15.iloc[-1] < entry_bar['close']:
                 # long_checklist += 1
 
-                if '1.3' not in model.model_stats.keys():
-                    model.model_stats['1.3']={}
+                add_model_stats(model=model, long=True, ts=ts, key='1.3.1')
 
-                model.model_stats['1.3'][ts] = {}
-                model.model_stats['1.3'][ts]['long'] = 1
-        
-        # 1.4 Breaking of a significant high (50% of entry bar): 50% of the entry bar must be above last high
+        # 1.1.2 Higher lows on 5 min chart: last low must be higher than previous low
+        # check if there are at least one high and two lows for stability of calculations
+        # rules+=1
+        if len(lows_trend_5) > 1 and not highs_trend_5.empty:
+
+            # higher lows
+            if lows_trend_5.iloc[-1] > lows_trend_5.iloc[-2]:
+                # long_checklist+=1
+                
+                add_model_stats(model=model, long=True, ts=ts, key='1.1.2')
+
+        # 1.3.2 Breaking of a significant high on 5 min chart
+        # check if there is at least one for stability of calculations
+        rules += 1
+        if not highs_trend_5.empty:
+
+            # entry bar has to be above the preceding high
+            if highs_trend_5.iloc[-1] < entry_bar['close']:
+                long_checklist += 1
+
+                add_model_stats(model=model, long=True, ts=ts, key='1.3.2')
+
+        # 1.4.2 Breaking of a significant high (50% of entry bar) on 5 min chart: 50% of the entry bar must be above last high
         # check if there are is at least one high for stability of calculations
         # rules += 1
-        if not highs_trend.empty:
+        if not highs_trend_5.empty:
 
             # at least the "high_factor" fraction of the body of the entry bar has to be above the preceding high
-            if highs_trend.iloc[-1] + high_factor * open_close_1 < entry_bar['close']:
+            if highs_trend_5.iloc[-1] + high_factor * open_close_1 < entry_bar[
+                    'close']:
                 # long_checklist += 1
 
-                if '1.4' not in model.model_stats.keys():
-                    model.model_stats['1.4']={}
+                add_model_stats(model=model, long=True, ts=ts, key='1.4.2', value=(entry_bar['close'] - highs_trend_5.iloc[-1]) / open_close_1)
 
-                model.model_stats['1.4'][ts] = {}
-                model.model_stats['1.4'][ts]['long'] = 1
-        
-        # 1.5 breaking of a resistance line: 
-        # check if resistance exists for stability of calculation
-        # rules += 1
-        if resistance:
-            if entry_bar['close']>resistance:
-                # long_checklist += 1
-
-                if '1.5' not in model.model_stats.keys():
-                    model.model_stats['1.5']={}
-
-                model.model_stats['1.5'][ts] = {}
-                model.model_stats['1.5'][ts]['long'] = 1
-        
-        # 1.6 Higher high: last high must exceed second last high
-        # check if there are at least two highs for stability of calculations
-        # rules += 1
-        if len(highs_trend)>1:
-            if highs_trend.iloc[-1] > highs_trend.iloc[-2]:
-                # long_checklist += 1
-
-                if '1.6' not in model.model_stats.keys():
-                    model.model_stats['1.6']={}
-
-                model.model_stats['1.6'][ts] = {}
-                model.model_stats['1.6'][ts]['long'] = 1
-        
-        # 1.7 Time phase after Price phase: Only enter after a time phase, predecessed by a price phase
-        # check if there are at least two slopes for stability of calculations
-        # rules += 1
-        if len(high_low_slopes_trend)>1:
-            if high_low_slopes_trend[-1]<0 and high_low_slopes_trend[-2]>0:
-                # long_checklist += 1
-
-                if '1.7' not in model.model_stats.keys():
-                    model.model_stats['1.7']={}
-
-                model.model_stats['1.7'][ts] = {}
-                model.model_stats['1.7'][ts]['long'] = 1
-        
-        # 1.8 Price phase stronger than time phase: slope of price phase must be larger than slope of time phase
-        # check if there are at least two slopes for stability of calculations
-        # rules += 1
-        if len(high_low_slopes_trend)>1:
-            if abs(high_low_slopes_trend[-1]) < abs(high_low_slopes_trend[-2]):
-                # checklist += 1
-
-                if '1.8' not in model.model_stats.keys():
-                    model.model_stats['1.8']={}
-
-                model.model_stats['1.8'][ts] = {}
-                model.model_stats['1.8'][ts]['long'] = 1
-                model.model_stats['1.8'][ts]['short'] = 1
-        
         # 1.9 Above purple: close of entry bar must be above 24 sma (Non-negotiable)
-        core_rules += 1
+        rules += 1
         if sma_24[-1] < entry_bar['close']:
-            core_long_checklist += 1
+            long_checklist += 1
 
-            if '1.9' not in model.model_stats.keys():
-                model.model_stats['1.9']={}
+            add_model_stats(model=model, long=True, ts=ts, key='1.9')
 
-            model.model_stats['1.9'][ts] = {}
-            model.model_stats['1.9'][ts]['long'] = 1
-        
         # 1.10.1 Curvature purple: slope of regression flat or in direction of trade
+        rules += 1
+        if purple_flat or purple_strong_up:
+            long_checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='1.10.1')
+
+        # 1.10.3 Purple not slowing
+        # check if curvature of last 5 points is not negative
         # rules += 1
-        if slope_purple > -slope_purple_param:
+        if not decreasing_purple:
             # long_checklist += 1
 
-            if '1.10.1' not in model.model_stats.keys():
-                model.model_stats['1.10.1']={}
+            add_model_stats(model=model, long=True, ts=ts, key='1.10.3')
 
-            model.model_stats['1.10.1'][ts] = {}
-            model.model_stats['1.10.1'][ts]['long'] = 1
-        
-        # 1.10.2 Curvature purple: slope of regression flat or in direction of trade
+        # 1.12.2 Curvature of blue:
+        # smooth
         # rules += 1
-        if slope_sideways_long:
+        if (not volatile):
+            # checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='1.12.2')
+            add_model_stats(model=model, long=False, ts=ts, key='1.12.2')
+
+        # 1.12.5 slope of blue:
+        # slope_blue
+        # rules += 1
+        if (slope_blue /
+                high_low_candle_window) * candle_window < max_slope_blue:
             # long_checklist += 1
 
-            if '1.10.2' not in model.model_stats.keys():
-                model.model_stats['1.10.2']={}
+            add_model_stats(model=model, long=True, ts=ts, key='1.12.5', value=(slope_blue / high_low_candle_window) * candle_window)
 
-            model.model_stats['1.10.2'][ts] = {}
-            model.model_stats['1.10.2'][ts]['long'] = 1
-
-        # 1.11 Above blue: close of entry bar must be above sma8
+        # 1.12.6 volatility of blue:
+        # amplitude of blue within sideways relative to entry bar
         # rules += 1
-        if sma_8[-1] < entry_bar['close']:
+        if (sma_8.iloc[-sideways_count:].max() - sma_8.iloc[-sideways_count:].
+                min()) / open_close_1 <= blue_amplitude_2:
+            # checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='1.12.6', value=(sma_8.iloc[-sideways_count:].max() - sma_8.iloc[-sideways_count:].min()) / open_close_1)
+            add_model_stats(model=model, long=False, ts=ts, key='1.12.6', value=(sma_8.iloc[-sideways_count:].max() - sma_8.iloc[-sideways_count:].min()) / open_close_1)
+
+        # 1.12.8 blue not slowing
+        # check if curvature of last 5 points is not negative
+        # rules += 1
+        if not decreasing_blue:
             # long_checklist += 1
 
-            if '1.11' not in model.model_stats.keys():
-                model.model_stats['1.11']={}
+            add_model_stats(model=model, long=True, ts=ts, key='1.12.8')
 
-            model.model_stats['1.11'][ts] = {}
-            model.model_stats['1.11'][ts]['long'] = 1
-        
-        # 1.12 Curvature of blue:
-        # strong and smooth or
-        # smooth and increasing or
-        # flat and increasing
+        # 1.12.9 blue not abrupt
+        # check if sma8 of last 5 candles does not have a direction change of the slope with a high curvature (abs)
         # rules += 1
-        if (strong_long and smooth) or (smooth and increasing) or (flat and increasing):
-            # long_checklist += 1
+        if not abrupt_blue:
+            # checklist += 1
 
-            if '1.12' not in model.model_stats.keys():
-                model.model_stats['1.12']={}
+            add_model_stats(model=model, long=True, ts=ts, key='1.12.9', value=large_curvature)
+            add_model_stats(model=model, long=False, ts=ts, key='1.12.9', value=large_curvature)
 
-            model.model_stats['1.12'][ts] = {}
-            model.model_stats['1.12'][ts]['long'] = 1
+        ###################### END 1 TREND ####################
 
-        # #################### END 1 TREND ####################
-
-        # #################### 2 TIME ####################
-
-        # all on 1min candles
+        ###################### 2 TIME ####################
 
         # 2.1 Significant sideways (1-2 times of entry bar): sideways must be at most small_bars_50 times entry bar (Non-negotiable times 1 of entry bar)
         # 2.2 Small bars in sideways: All sideway candles must be smaller equal 50% of entry bar (Non-negotiable)
-        core_rules += 1
-        if (body_sideway_count_1 >= small_bars_50 * high_low_1).sum() == 0:
-            core_checklist += 1
+        rules += 1
+        if (body_sideway_count_core_1 >= small_bars_50 * high_low_1).sum() == 0:
+            checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='2.2', value=body_sideway_count_core_1.max())
+            add_model_stats(model=model, long=False, ts=ts, key='2.2', value=body_sideway_count_core_1.max())
 
         # 2.3 Small bars in sideways: The two candles before the entry bar must be smaller equal 25% of the entry bar (Non-negotiable)
-        core_rules += 1
+        rules += 1
         if (body_3_1 >= small_bars_25 * high_low_1).sum() == 0:
-            core_checklist += 1
+            checklist += 1
 
-        # 2.5 No drift: little to no drift prior to entry bar
+            add_model_stats(model=model, long=True, ts=ts, key='2.3', value=body_3_1.max())
+            add_model_stats(model=model, long=False, ts=ts, key='2.3', value=body_3_1.max())
+
+        # 2.3.2 Small bars in sideways: The ATR of the two candles before the entry bar must be smaller a total value ATR_small_bars_25
         # rules += 1
-        # if model.market_data.history[topic].iloc[-2][
-        #         'close'] - model.market_data.history[topic].iloc[
-        #             -drift_length - 1]['open'] <= drift_height * open_close_1:
-        #     long_checklist += 1            
+        if (atr_3_1 >= ATR_small_bars_25 * entry_bar['close']).sum() == 0:
+            # checklist += 1
 
-        # 2.6 Minimum number of sideways candles are required (this ensures that the entry bar is large enough)
-        # core_rules += 1
-        # if sideways_count >= minimum_sideways:
-        #     core_checklist += 1
+            add_model_stats(model=model, long=True, ts=ts, key='2.3.2', value=atr_3_1.max())
+            add_model_stats(model=model, long=False, ts=ts, key='2.3.2', value=atr_3_1.max())
+
+        # 2.7 Amplitude of sideways must be smaller than body of entry bar
+        rules += 1
+        if sideways_spread <= surprise_factor * open_close_1:
+            checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='2.7', value=(sideways_spread) / open_close_1)
+            add_model_stats(model=model, long=False, ts=ts, key='2.7', value=(sideways_spread) / open_close_1)
+
+        # 2.8.1 no trend in sideways: calculated via linear regression over sideways
+        rules += 1
+        if (abs(slope_sideways_lr) /
+                high_low_candle_window) * candle_window < max_slope_sideways:
+            checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='2.8.1', value=(slope_sideways_lr / high_low_candle_window) * candle_window)
+            add_model_stats(model=model, long=False, ts=ts, key='2.8.1', value=(slope_sideways_lr / high_low_candle_window) * candle_window)
+
+        # 2.9.5 No drift: little to no drift prior to entry bar
+        rules += 1
+        if (entry_bar['open'] - last_min) <= open_close_1 * drift_factor:
+            long_checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='2.9.5', value=(entry_bar['open'] - last_min) / open_close_1)
 
         # #################### END 2 TIME ####################
 
@@ -793,26 +837,29 @@ def checklist_model(model: TradingModel):
         # all on 1min candles
 
         # 3.1 Entry bar in opposite 1/5ths: the wigs of the entry bar must be smaller equal 20% of the candle (High to low) (Non-negotiable)
-        core_rules += 1
+        rules += 1
         if (opposite_fifths * high_low_1 >=
                 low_open_1) and (opposite_fifths * high_low_1 >= high_close_1):
-            core_long_checklist += 1
+            long_checklist += 1
 
-        # 3.3 Is entry bar a surprise? (Picture) (Non-negotiable):
-        # 3.3.1 Amplitude of sideways must be smaller than body of entry bar
-        # core_rules += 1
-        # if sideways_count_max - sideways_count_min <= surprise_factor * open_close_1:
-        #     core_checklist += 1
-        
-        # 3.3.2 body of entry bar must be a significant part of the trading screen
-        # core_rules += 1
-        # if open_close_1 >= surprise_factor_2 * high_low_candle_window:
-        #     core_checklist += 1
-        
+            add_model_stats(model=model, long=True, ts=ts, key='3.1')
+            add_model_stats(model=model, long=False, ts=ts, key='3.1')
+
+        # 3.2 Entry bar shows a significant price move
+        rules += 1
+        if open_close_1 >= minimum_movement * entry_bar['open']:
+            checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='3.2', value=open_close_1)
+            add_model_stats(model=model, long=False, ts=ts, key='3.2', value=open_close_1)
+
         # 3.4 Blue entry bar: close of entry bar must be greater than open of entry bar (Non-negotiable)
-        # core_rules += 1
-        # if entry_bar['close'] > entry_bar['open']:
-        #     core_long_checklist += 1
+        rules += 1
+        if entry_bar['close'] > entry_bar['open']:
+            long_checklist += 1
+
+            add_model_stats(model=model, long=True, ts=ts, key='3.4')
+            add_model_stats(model=model, long=False, ts=ts, key='3.4')
 
         #################### END BAR ####################
 
@@ -822,194 +869,121 @@ def checklist_model(model: TradingModel):
 
         #################### 1 TREND ####################
 
-        # 1.1 Lower highs: last high must be lower than previous high
+        # 1.1.1 Lower highs on 15 min chart: last high must be lower than previous high
         # check if there are at least two highs and one low for stability of calculations
-        if len(highs_trend) > 1 and not lows_trend.empty:
+        if len(highs_trend_15) > 1 and not lows_trend_15.empty:
 
-            # lower highs_trend, but retracement of last high of maximum retracement_factor x difference between last low and second last high
-            if highs_trend.iloc[-1] < highs_trend.iloc[-2]:
+            # lower highs_trend_15, but retracement of last high of maximum retracement_factor x difference between last low and second last high
+            if highs_trend_15.iloc[-1] < highs_trend_15.iloc[-2]:
                 # short_checklist+=1
 
-                if '1.1' not in model.model_stats.keys():
-                    model.model_stats['1.1']={}
+                add_model_stats(model=model, long=False, ts=ts, key='1.1.1')
 
-                if ts not in model.model_stats['1.1'].keys():
-                    model.model_stats['1.1'][ts] = {}
+        # 1.1.1.1 Lower highs on 5 min chart or 15 min chart: last low must be higher than previous low on one of the two time frames
+        # check if there are at least two highs and onw low for stability of calculations
+        if (len(highs_trend_5) > 1 and
+                not lows_trend_5.empty) and (len(highs_trend_15) > 1 and
+                                             not lows_trend_15.empty):
 
-                model.model_stats['1.1'][ts]['short'] = 1
-        
-        # 1.2 Lower highs with retracement: last high must be lower than previous high - retracement_factor * difference between las low and second last high
-        # check if there are at least two highs and one low for stability of calculations
-        if len(highs_trend) > 1 and not lows_trend.empty:
-
-            # lower highs_trend, but retracement of last high of maximum retracement_factor x difference between last low and second last high
-            if highs_trend.iloc[-1] < highs_trend.iloc[-2] - abs(lows_trend.iloc[-1]-highs_trend.iloc[-2])*(1-retracement_factor):
+            # lower highs
+            if (highs_trend_5.iloc[-1] < highs_trend_5.iloc[-2]) or (
+                    highs_trend_15.iloc[-1] < highs_trend_15.iloc[-2]):
                 # short_checklist+=1
 
-                if '1.2' not in model.model_stats.keys():
-                    model.model_stats['1.2']={}
+                add_model_stats(model=model, long=False, ts=ts, key='1.1.1.1')
 
-                if ts not in model.model_stats['1.2'].keys():
-                    model.model_stats['1.2'][ts] = {}
-
-                model.model_stats['1.2'][ts]['short'] = 1
-
-        # 1.3 Purple strong, smooth, flat or decreasig : linear regression of trend line since second last high has negative slope
-        # if slope_sma_short<0:
-        #     short_checklist += 1
-        
-        # 1.5 Blue strong, smooth, flat or increasing
-        # if sma_8.iloc[-1]-sma_8.iloc[-trend_candles]<=0:
-        #     core_short_checklist+=1
-
-        # 1.3 Breaking of a significant low
+        # 1.3.1 Breaking of a significant low on 15 min chart
         # check if there is at least one low for stability of calculations
-        if not lows_trend.empty:
+        if not lows_trend_15.empty:
 
             # the body of the entry bar has to be below the preceding low
-            if lows_trend.iloc[-1] > entry_bar['close']:
+            if lows_trend_15.iloc[-1] > entry_bar['close']:
                 # short_checklist += 1
 
-                if '1.3' not in model.model_stats.keys():
-                    model.model_stats['1.3']={}
+                add_model_stats(model=model, long=False, ts=ts, key='1.3.1')
 
-                if ts not in model.model_stats['1.3'].keys():
-                    model.model_stats['1.3'][ts] = {}
+        # 1.1.2 Lower highs on 5 min chart: last high must be lower than previous high
+        # check if there are at least two highs and one low for stability of calculations
+        if len(highs_trend_5) > 1 and not lows_trend_5.empty:
 
-                model.model_stats['1.3'][ts]['short'] = 1
-        
-        # 1.4 Breaking of a significant low (50% of entry bar): 50% of the entry bar must be below last low
+            # lower highs_trend_15, but retracement of last high of maximum retracement_factor x difference between last low and second last high
+            if highs_trend_5.iloc[-1] < highs_trend_5.iloc[-2]:
+                # short_checklist+=1
+
+                add_model_stats(model=model, long=False, ts=ts, key='1.1.2')
+
+        # 1.3.2 Breaking of a significant low on 5 min chart
         # check if there is at least one low for stability of calculations
-        if not lows_trend.empty:
+        if not lows_trend_5.empty:
+
+            # the body of the entry bar has to be below the preceding low
+            if lows_trend_5.iloc[-1] > entry_bar['close']:
+                short_checklist += 1
+
+                add_model_stats(model=model, long=False, ts=ts, key='1.3.2')
+
+        # 1.4.2 Breaking of a significant low (50% of entry bar) on 5 min chart: 50% of the entry bar must be below last low
+        # check if there is at least one low for stability of calculations
+        if not lows_trend_5.empty:
 
             # at least the "high_factor" fraction of the body of the entry bar has to be below the preceding low
-            if lows_trend.iloc[-1] - high_factor * open_close_1 > entry_bar['close']:
+            if lows_trend_5.iloc[-1] - high_factor * open_close_1 > entry_bar[
+                    'close']:
                 # short_checklist += 1
 
-                if '1.4' not in model.model_stats.keys():
-                    model.model_stats['1.4']={}
+                add_model_stats(model=model, long=False, ts=ts, key='1.4.2', value=(lows_trend_5.iloc[-1] - entry_bar['close']) / open_close_1)
 
-                if ts not in model.model_stats['1.4'].keys():
-                    model.model_stats['1.4'][ts] = {}
-
-                model.model_stats['1.4'][ts]['short'] = 1
-        
-        # 1.5 breaking of a support line: 
-        # check if support exists for stability of calculation
-        if support:
-            if entry_bar['close']<support:
-                # short_checklist += 1
-
-                if '1.5' not in model.model_stats.keys():
-                    model.model_stats['1.5']={}
-
-                if ts not in model.model_stats['1.5'].keys():
-                    model.model_stats['1.5'][ts] = {}
-
-                model.model_stats['1.5'][ts]['short'] = 1
-        
-        # 1.6 lower low: last low must be lower thab second last low
-        # check if there are at least two lows for stability of calculations
-        if len(lows_trend)>1:
-            if lows_trend.iloc[-1] < lows_trend.iloc[-2]:
-                # short_checklist += 1
-
-                if '1.6' not in model.model_stats.keys():
-                    model.model_stats['1.6']={}
-
-                if ts not in model.model_stats['1.6'].keys():
-                    model.model_stats['1.6'][ts] = {}
-
-                model.model_stats['1.6'][ts]['short'] = 1
-        
-        # 1.7 Time phase after Price phase: Only enter after a time phase, predecessed by a price phase
-        # check if there are at least two slopes for stability of calculations
-        if len(high_low_slopes_trend)>1:
-            if high_low_slopes_trend[-1]>0 and high_low_slopes_trend[-2]<0:
-                # short_checklist += 1
-
-                if '1.7' not in model.model_stats.keys():
-                    model.model_stats['1.7']={}
-
-                if ts not in model.model_stats['1.7'].keys():
-                    model.model_stats['1.7'][ts] = {}
-
-                model.model_stats['1.7'][ts]['short'] = 1
-        
-        # 1.9 Above purple: close of entry bar must be above 24 sma
+        # 1.9 Below purple: close of entry bar must be below 24 sma
         if sma_24[-1] > entry_bar['close']:
-            core_short_checklist += 1
+            short_checklist += 1
 
-            if '1.9' not in model.model_stats.keys():
-                    model.model_stats['1.9']={}
+            add_model_stats(model=model, long=False, ts=ts, key='1.9')
 
-            if ts not in model.model_stats['1.9'].keys():
-                model.model_stats['1.9'][ts] = {}
-
-            model.model_stats['1.9'][ts]['short'] = 1
-        
         # 1.10.1 Curvature purple: slope of regression flat or in direction of trade
+        if purple_flat or purple_strong_down:
+            
+            short_checklist += 1
+
+            add_model_stats(model=model, long=False, ts=ts, key='1.10.1')
+
+        # 1.10.1.2 Curvature purple: slope of regression flat or in direction of trade in absolute values
+        # rules += 1
         if slope_purple < slope_purple_param:
             # short_checklist += 1
 
-            if '1.10.1' not in model.model_stats.keys():
-                model.model_stats['1.10.1']={}
+            add_model_stats(model=model, long=False, ts=ts, key='1.10.1.2', value=slope_purple)
 
-            if ts not in model.model_stats['1.10.1'].keys():
-                model.model_stats['1.10.1'][ts] = {}
-
-            model.model_stats['1.10.1'][ts]['short'] = 1
-
-        # 1.10.2 Curvature purple: slope of regression flat or in direction of trade
-        if slope_sideways_short:
+        # 1.10.3 Purple not accelerating
+        # check if curvature at last 5 points is not positive
+        if not increasing_purple:
             # short_checklist += 1
 
-            if '1.10.2' not in model.model_stats.keys():
-                model.model_stats['1.10.2']={}
+            add_model_stats(model=model, long=False, ts=ts, key='1.10.3')
 
-            if ts not in model.model_stats['1.10.2'].keys():
-                model.model_stats['1.10.2'][ts] = {}
-
-            model.model_stats['1.10.2'][ts]['short'] = 1
-        
-        # 1.11 Above blue: close of entry bar must be below sma8
-        if sma_8[-1] > entry_bar['close']:
+        # 1.12.5 slope of blue:
+        # slope_blue
+        if (slope_blue /
+                high_low_candle_window) * candle_window > -max_slope_blue:
             # short_checklist += 1
 
-            if '1.11' not in model.model_stats.keys():
-                model.model_stats['1.11']={}
+            add_model_stats(model=model, long=False, ts=ts, key='1.12.5', value=(slope_blue / high_low_candle_window) * candle_window)
 
-            if ts not in model.model_stats['1.11'].keys():
-                model.model_stats['1.11'][ts] = {}
-
-            model.model_stats['1.11'][ts]['short'] = 1
-        
-        # 1.12 Curvature of blue:
-        # strong and smooth or
-        # smooth and decreasing or
-        # flat and decreasing
-        if (strong_short and smooth) or (smooth and decreasing) or (flat and decreasing):
+        # 1.12.8 blue not slowing
+        # check if curvature of last 5 points is not negative
+        if not increasing_blue:
             # short_checklist += 1
 
-            if '1.12' not in model.model_stats.keys():
-                model.model_stats['1.12']={}
-
-            if ts not in model.model_stats['1.12'].keys():
-                model.model_stats['1.12'][ts] = {}
-
-            model.model_stats['1.12'][ts]['short'] = 1
+            add_model_stats(model=model, long=False, ts=ts, key='1.12.8')
 
         # #################### END 1 TREND ####################
 
         # #################### 2 TIME ####################
 
-        # all on 1min candles
+        # 2.9.5 No drift: little to no drift prior to entry bar
+        if (last_max - entry_bar['open']) <= open_close_1 * drift_factor:
+            short_checklist += 1
 
-        # 2.5 No drift: little to no drift prior to entry bar        
-        # if model.market_data.history[topic].iloc[
-        #         -drift_length - 1]['open'] - model.market_data.history[
-        #             topic].iloc[-2]['close'] <= drift_height * open_close_1:
-        #    short_checklist += 1
+            add_model_stats(model=model, long=False, ts=ts, key='2.9.5', value=(last_max - entry_bar['open']) / open_close_1)
 
         # #################### END 2 TIME ####################
 
@@ -1020,11 +994,15 @@ def checklist_model(model: TradingModel):
         # 3.1 Entry bar in opposite 1/5ths: the wigs of the entry bar must be smaller equal 20% of the candle (High to low) (Non-negotiable)
         if (opposite_fifths * high_low_1 >=
                 high_open_1) and (opposite_fifths * high_low_1 >= low_close_1):
-            core_short_checklist += 1
+            short_checklist += 1
+
+            add_model_stats(model=model, long=False, ts=ts, key='3.1')
 
         # 3.4 Red entry bar: close of entry bar must be smaller than open of entry bar
-        # if entry_bar['close'] < entry_bar['open']:
-        #     core_short_checklist += 1
+        if entry_bar['close'] < entry_bar['open']:
+            short_checklist += 1
+
+            add_model_stats(model=model, long=False, ts=ts, key='3.4')
 
         #################### END BAR ####################
 
@@ -1032,34 +1010,34 @@ def checklist_model(model: TradingModel):
 
         # calculate score across all rules
 
-
-
         #################### REMOVE IF NON CORE-RULES ARE APPLIED ###########################################
-        rules = 1
+        # rules = 1
         #####################################################################################################
 
+        confidence_score_long = (long_checklist + checklist) / rules
+        confidence_score_short = (short_checklist + checklist) / rules
 
-
-        confidence_score_long = (long_checklist + checklist + 1) / rules
-        confidence_score_short = (short_checklist + checklist + 1) / rules
-
-        confidence_score_core_long = (core_long_checklist + core_checklist) / core_rules
-        confidence_score_core_short = (core_short_checklist + core_checklist) / core_rules
+        confidence_score_core_long = (long_checklist + checklist) / rules
+        confidence_score_core_short = (short_checklist + checklist) / rules
 
         # determine trading quantity
         # buy_qty = 100 / entry_bar['close']
         # buy_qty = np.round(buy_qty, tick_size)
 
         # buy with all available balance
-        buy_qty = 0.95*model.account.wallet[ticker[-len(BASE_CUR):]]['available_balance']/ entry_bar['close']
+        buy_qty = 0.95 * model.account.wallet[
+            ticker[-len(BASE_CUR):]]['available_balance'] / entry_bar['close']
+
+        ##################################################################################################################
 
         # if all rules apply for the long strategy and there is no current open position, place buy order
         if (confidence_score_core_long
-                == 1.0) and (confidence_score_long >= 1) and (model.account.positions[ticker]['size'] == 0.0):
+                == 1.0) and (confidence_score_long >= 1) and (
+                    model.account.positions[ticker]['size'] == 0.0):
 
             # set leverage to 20 or lower so that if stop loss is hit, it occurs a maximum loss of 40%
-            leverage_ratio = 1-(stop_loss_long/entry_bar['close'])
-            leverage = int(np.min([20, np.ceil(0.4/leverage_ratio)]))
+            leverage_ratio = 1 - (stop_loss_long / entry_bar['close'])
+            leverage = int(np.min([20, np.ceil(0.4 / leverage_ratio)]))
 
             # leverage=1
             # for real trading, set leverage of position to leverage, for backtesting just scale position size
@@ -1069,31 +1047,35 @@ def checklist_model(model: TradingModel):
 
             try:
                 model.account.session.set_leverage(symbol=ticker,
-                                        buy_leverage=str(leverage),
-                                        sell_leverage = str(leverage))
+                                                   buy_leverage=str(leverage),
+                                                   sell_leverage=str(leverage))
             except:
                 pass
             
+            # print('Trade!')
+
             model.account.place_order(symbol=ticker,
                                       side='Buy',
                                       qty=buy_qty,
                                       order_type='Market',
                                       stop_loss=stop_loss_long,
                                       take_profit=take_profit_long)
-            
+
             model.model_storage['entry_open_close_1_long'] = open_close_1
             model.model_storage['entry_close_1_long'] = entry_bar['close']
             model.model_storage['entry_open_1_long'] = entry_bar['open']
             model.model_storage['exit_long_higher_lows'] = []
+            model.model_storage['exit_candles'] = 0
 
         # if all rules apply for the short strategy and there is no current open position, place sell order
         if (confidence_score_core_short
-                == 1.0) and (confidence_score_short >= 1) and (model.account.positions[ticker]['size'] == 0.0):
-            
+                == 1.0) and (confidence_score_short >= 1) and (
+                    model.account.positions[ticker]['size'] == 0.0):
+
             # set leverage to 20 or lower so that if stop loss is hit, it occurs a maximum loss of 40%
-            leverage_ratio = (stop_loss_short/entry_bar['close'])-1
-            leverage = int(np.min([20, np.ceil(0.4/leverage_ratio)]))
-            
+            leverage_ratio = (stop_loss_short / entry_bar['close']) - 1
+            leverage = int(np.min([20, np.ceil(0.4 / leverage_ratio)]))
+
             # leverage = 1
             # for real trading, set leverage of position to leverage, for backtesting just scale position size
             # buy_qty=leverage*buy_qty
@@ -1102,10 +1084,12 @@ def checklist_model(model: TradingModel):
 
             try:
                 model.account.session.set_leverage(symbol=ticker,
-                                        buy_leverage = str(leverage),
-                                        sell_leverage=str(leverage))
+                                                   buy_leverage=str(leverage),
+                                                   sell_leverage=str(leverage))
             except:
                 pass
+            
+            # print('Trade!')
 
             model.account.place_order(symbol=ticker,
                                       side='Sell',
@@ -1116,4 +1100,5 @@ def checklist_model(model: TradingModel):
             model.model_storage['entry_open_close_1_short'] = open_close_1
             model.model_storage['entry_close_1_short'] = entry_bar['close']
             model.model_storage['entry_open_1_short'] = entry_bar['open']
-            model.model_storage['exit_short_lower_highs']=[]
+            model.model_storage['exit_short_lower_highs'] = []
+            model.model_storage['exit_candles'] = 0

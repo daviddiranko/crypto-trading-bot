@@ -111,16 +111,16 @@ def get_highs(candles: pd.Series, min_int: int) -> pd.Series:
     candles = candles.reset_index(drop=False)
 
     # calculate highs
-    highs = candles.loc[candles[values_name] == candles[values_name].rolling(window=2 * min_int + 1,
-                                                   center=True).max()]
-    
+    highs = candles.loc[candles[values_name] == candles[values_name].rolling(
+        window=2 * min_int + 1, center=True).max()]
+
     # calculate index comparison list, by offsetting the index by one element
     compare_index = list(highs.index)
     compare_index.pop()
-    compare_index.insert(0,0)
-    
+    compare_index.insert(0, 0)
+
     # if multiple values are equal to the minimum within the window, only take the first one
-    highs = highs.loc[highs.index-min_int>compare_index]
+    highs = highs.loc[highs.index - min_int > compare_index]
     highs = highs.set_index(index_name)
 
     # recent_high = candles.iloc[-(min_int - 1):-1].max()
@@ -131,6 +131,7 @@ def get_highs(candles: pd.Series, min_int: int) -> pd.Series:
     #     if recent_high > highs.iloc[-1]:
     #         highs.loc[recent_high_idx] = recent_high
     return highs[values_name]
+
 
 def get_highs_diff(candles: pd.Series, min_int: int) -> pd.Series:
     '''
@@ -153,19 +154,19 @@ def get_highs_diff(candles: pd.Series, min_int: int) -> pd.Series:
 
     # identify prices that are succeeded by min_int rising prices, i.e. positive differential
     # offset the series by 1 to exclude the price of the relative timestamp
-    succeeding_falls = candles.diff().sort_index(ascending=False).rolling(min_int).max().sort_index().shift(-1)<0
+    succeeding_falls = candles.diff().sort_index(
+        ascending=False).rolling(min_int).max().sort_index().shift(-1) < 0
 
     # identify prices that are preceeded by min_int falling prices, i.e. negative differential
-    preceeding_rises = candles.diff().rolling(min_int).min()>0
+    preceeding_rises = candles.diff().rolling(min_int).min() > 0
 
     # calculate highs as points which are preceeded by falling prices and succeeded by rising prices
     highs = candles.loc[succeeding_falls * preceeding_rises.values]
-    
+
     return highs
 
-def get_alternate_highs_lows(candles: pd.Series,
-                             min_int: int,
-                             sma_diff: int,
+
+def get_alternate_highs_lows(candles: pd.Series, min_int: int, sma_diff: int,
                              min_int_diff: int) -> Tuple[pd.Series, pd.Series]:
     '''
     Get alternating highs and lows.
@@ -205,18 +206,26 @@ def get_alternate_highs_lows(candles: pd.Series,
 
     # calculate relevant sma for price derivatives
     sma_difference = sma(data=candles, window=sma_diff)
-    
+
     # calculate additional highs and lows based on the change of the sign of the derivative in the sma
     highs_diff = get_highs_diff(sma_difference, min_int=min_int_diff)
     lows_diff = -get_highs_diff(-sma_difference, min_int=min_int_diff)
 
     # get actual high in price data as maximum within sma_diff preceding prices
-    highs_diff_indices = [candles.loc[:pd.Timestamp(idx)].tail(sma_diff).idxmax() for idx in highs_diff.index]
-    lows_diff_indices = [candles.loc[:pd.Timestamp(idx)].tail(sma_diff).idxmin() for idx in lows_diff.index]
-    
+    highs_diff_indices = [
+        candles.loc[:pd.Timestamp(idx)].tail(sma_diff).idxmax()
+        for idx in highs_diff.index
+    ]
+    lows_diff_indices = [
+        candles.loc[:pd.Timestamp(idx)].tail(sma_diff).idxmin()
+        for idx in lows_diff.index
+    ]
+
     # concatenate both highs and lows
-    highs_index = highs.index.append(pd.Index(highs_diff_indices)).drop_duplicates().sort_values()
-    lows_index = lows.index.append(pd.Index(lows_diff_indices)).drop_duplicates().sort_values()
+    highs_index = highs.index.append(
+        pd.Index(highs_diff_indices)).drop_duplicates().sort_values()
+    lows_index = lows.index.append(
+        pd.Index(lows_diff_indices)).drop_duplicates().sort_values()
 
     highs = candles.loc[highs_index]
     lows = candles.loc[lows_index]
@@ -287,7 +296,9 @@ def get_alternate_highs_lows(candles: pd.Series,
 
     return highs, lows
 
-def get_slopes_highs_lows(lows: pd.Series, highs: pd.Series, freq: pd.Timedelta) -> pd.Series:
+
+def get_slopes_highs_lows(lows: pd.Series, highs: pd.Series,
+                          freq: pd.Timedelta) -> pd.Series:
     '''
     Get the slopes of the lines connecting alternating highs and lows.
 
@@ -313,14 +324,17 @@ def get_slopes_highs_lows(lows: pd.Series, highs: pd.Series, freq: pd.Timedelta)
     highs_lows = highs.append(lows).sort_index()
 
     # create time series of 15 min candles with empty values
-    dates = pd.date_range(start=highs_lows.index[0], end=highs_lows.index[-1], freq=freq)
+    dates = pd.date_range(start=highs_lows.index[0],
+                          end=highs_lows.index[-1],
+                          freq=freq)
     highs_lows_series = pd.Series(index=dates)
 
     # fill values of highs and lows
-    highs_lows_series.loc[highs_lows.index]=highs_lows
+    highs_lows_series.loc[highs_lows.index] = highs_lows
 
     # linearly interpolate the rest of the values
     highs_lows_interpolate = highs_lows_series.interpolate()
-    highs_lows_slope = highs_lows_interpolate.diff().loc[highs_lows.index].dropna()
+    highs_lows_slope = highs_lows_interpolate.diff().loc[
+        highs_lows.index].dropna()
 
     return highs_lows_slope

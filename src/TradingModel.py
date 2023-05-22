@@ -3,6 +3,8 @@
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
+
 import pandas as pd
 import json
 from dotenv import load_dotenv
@@ -12,6 +14,7 @@ from .MarketData import MarketData
 from .AccountData import AccountData
 from pybit import usdt_perpetual
 from binance.client import Client
+from trading_ig import IGService
 
 load_dotenv()
 
@@ -73,6 +76,7 @@ class TradingModel:
         '''
         # extract message
         msg = json.loads(message)
+        # print(msg)
 
         if 'topic' in msg.keys():
             # extract topic
@@ -81,7 +85,9 @@ class TradingModel:
             # if public topic, forward to market_data and trigger model
             if topic in self.topics:
                 response = self.market_data.on_message(message)
-                self.model(model=self)
+                _, _, ticker = topic.split('.')
+                for trading_freq in self.model_args['trading_freqs']:
+                    self.model(model=self, trading_freq=int(trading_freq), ticker=ticker)
                 return response
 
             # if private topic, forward to account

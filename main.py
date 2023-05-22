@@ -2,147 +2,122 @@ import sys
 
 sys.path.append('../')
 
-import hmac
-import json
-import time
-import websockets
-from pybit import usdt_perpetual
+
 import pandas as pd
-from typing import List
-from binance.client import Client
-from src.endpoints.binance_functions import format_historical_klines
+from src.endpoints.igm_functions import format_message
 from datetime import datetime
-import threading
-import asyncio
 from dotenv import load_dotenv
 import os
-from src.MarketData import MarketData
-from src.AccountData import AccountData
 from src.TradingModel import TradingModel
-from src.models.mock_model import mock_model
 from src.models.checklist_model import checklist_model
-from src.endpoints.bybit_functions import format_klines, place_order, place_conditional_order
 import argparse
+from trading_ig import IGService, IGStreamService
+from trading_ig.lightstreamer import Subscription
 
 # load environment variables
 load_dotenv()
 
-BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
-BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
-
-BINANCE_KEY = os.getenv('BINANCE_KEY')
-BINANCE_SECRET = os.getenv('BINANCE_SECRET')
-
-BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
-
-WS_PUBLIC_TEST_URL = os.getenv('WS_PUBLIC_TEST_URL')
-WS_PRIVATE_TEST_URL = os.getenv('WS_PRIVATE_TEST_URL')
-
 PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
-async def main():
+IGM_USER = os.getenv('IGM_USER')
+IGM_KEY = os.getenv('IGM_KEY')
+IGM_PW = os.getenv('IGM_PW')
+IGM_ACC_TYPE = os.getenv('IGM_ACC_TYPE')
+IGM_ACC = os.getenv('IGM_ACC')
+IGM_RES_MAPPING = eval(os.getenv('IGM_RES_MAPPING'))
+BASE_CUR = os.getenv('BASE_CUR')
+CONTRACT_CUR = os.getenv('CONTRACT_CUR')
+IGM_CHART_FIELDS = eval(os.getenv('IGM_CHART_FIELDS'))
+
+def main():
 
     # parse arguments
     parser = argparse.ArgumentParser(
         description="Run Live Trading Model for bybit trading.")
 
-    parser.add_argument('--ticker', type=str, default="BTCUSDT")
+    parser.add_argument('--tickers', type=str, default="[BTCUSDT]")
     parser.add_argument(
         '--freqs',
         type=str,
         default="1 5 15",
         help="List of candle frequencies in minutes required by the model")
+    
+    parser.add_argument('--trading_freqs',
+                        type=str,
+                        default="5",
+                        help="List of candle frequencies in minutes required by the model")
+    
     parser.add_argument('--model_args',
                         type=str,
-                        default=str({
-                            'param':1
-                        }),
+                        default=str({'param': 1}),
                         help="optional arguments for trading model")
+    
+    
     args = parser.parse_args()
     args = vars(args)
 
     freqs = args['freqs'].split()
-    model_args = eval(args['model_args'])
-    model_args['ticker'] = args['ticker']
+    trading_freqs = args['trading_freqs'].split()
+    tickers = args['tickers'].split()
 
-    ticker = args['ticker']
+    model_args = eval(args['model_args'])
+
+    model_args['tickers'] = tickers
+    model_args['trading_freqs'] = trading_freqs
 
     BACKTEST_SYMBOLS = {
         '{}.{}m'.format(ticker, freq): 'candle.{}.{}'.format(freq, ticker)
-        for freq in freqs
-    }
+        for freq in freqs for ticker in tickers}
 
-    HIST_TICKERS = [ticker]
-    PUBLIC_TOPICS = ["candle.{}.{}".format(freq, ticker) for freq in freqs]
-    # Generate expires.
-    expires = int((time.time() + 7200) * 1000)
+    HIST_TICKERS = tickers
+    PUBLIC_TOPICS = ["candle.{}.{}".format(freq, ticker) for freq in freqs for ticker in tickers]
+    
+    BACKTEST_SYMBOLS = {
+    '{}:{}MINUTE'.format(ticker, freq): 'candle.{}.{}'.format(freq, ticker)
+    for freq in freqs for ticker in tickers}
 
-    # Generate signature.
-    signature = str(
-        hmac.new(bytes(BYBIT_TEST_SECRET, "utf-8"),
-                 bytes(f"GET/realtime{expires}", "utf-8"),
-                 digestmod="sha256").hexdigest())
-
-    param = "api_key={api_key}&expires={expires}&signature={signature}".format(
-        api_key=BYBIT_TEST_KEY, expires=expires, signature=signature)
-
-    # generate websocket urls
-    public_url = WS_PUBLIC_TEST_URL + "?" + param
-    private_url = WS_PRIVATE_TEST_URL + "?" + param
+    HIST_TICKERS = tickers
+    # PUBLIC_TOPICS = ["candle:{}:{}".format(freq, ticker) for freq in freqs]
+    PUBLIC_TOPICS = list(BACKTEST_SYMBOLS.values())
 
     # generate parameters for historical data
-    start = 2
-    start_unit = 'd'
+    start = 10
+    start_unit = 'h'
 
-    symbol_list = [symbol[:-4] for symbol in HIST_TICKERS]
-    symbol_list.extend([symbol[-4:] for symbol in HIST_TICKERS])
+    # symbol_list = [symbol[:-4] for symbol in HIST_TICKERS]
+    # symbol_list.extend([symbol[-4:] for symbol in HIST_TICKERS])
 
-    print('Establish Bybit HTTP session...')
-    # initialize http connection for trading
-    session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                                  api_key=BYBIT_TEST_KEY,
-                                  api_secret=BYBIT_TEST_SECRET)
+    symbol_list = HIST_TICKERS
 
-    print('Done!')
 
-    print('Establish Binance HTTP session...')
-    # initialize binance client to pull historical data and add to market data history
-    binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
+    print('Establish IGM HTTP session...')
+
+    # instantiate igm session object
+    session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
+    session.create_session()
 
     print('Done!')
 
     # initialize TradingModel object
-    model = TradingModel(client=binance_client,
-                         http_session=session,
-                         symbols=symbol_list,
-                         topics=PUBLIC_TOPICS,
-                         model=checklist_model,
-                         model_args=model_args,
-                         model_storage={
-                             'entry_body_1_long': None,
-                            'entry_close_1_long': None,
-                            'entry_open_1_long': None,
-                            'entry_body_1_short': None,
-                            'entry_close_1_short': None,
-                            'entry_open_1_short': None,
-                            'exit_long_higher_lows': [],
-                            'exit_short_lower_highs':[],
-                            'entry_bar_time': pd.Timestamp.now()
-                         })
+    model = TradingModel(client=None,
+                            http_session=session,
+                            symbols=symbol_list,
+                            topics=PUBLIC_TOPICS,
+                            model=checklist_model,
+                            model_args=model_args,
+                            model_storage={
+                                'entry_body_1_long': None,
+                                'entry_close_1_long': None,
+                                'entry_open_1_long': None,
+                                'entry_body_1_short': None,
+                                'entry_close_1_short': None,
+                                'entry_open_1_short': None,
+                                'exit_long_higher_lows': [],
+                                'exit_short_lower_highs': [],
+                                'entry_bar_time': pd.Timestamp.now(),
+                                'action_bar_time': pd.Timestamp.now()
+                            })
 
-    # close potential open positions upfront
-    for pos in model.account.positions.values():
-        if (pos['size'] > 0) and (pos['symbol']==ticker):
-            if pos['side'] == 'Buy':
-                side = 'Sell'
-            else:
-                side = 'Buy'
-            model.account.place_order(symbol=pos['symbol'],
-                                        side=side,
-                                        order_type='Market',
-                                        qty=pos['size'],
-                                        reduce_only=True)
-                
     # construct start string
     start_str = str(pd.Timestamp.now() - pd.Timedelta(start, start_unit))
     end_str = str(pd.Timestamp.now())
@@ -154,65 +129,58 @@ async def main():
 
     print('Done!')
 
-    # if connection is lost, immediately set up new connection
-    while True:
-        print('Connect to Bybit websockets...')
+    print('Connect to IGM Lightstreamer...')
 
-        try:
-            # start listening to the public and private websockets "in parallel"
-            async with websockets.connect(private_url) as ws_private, \
-                        websockets.connect(public_url) as ws_public:
+    ig_stream_service = IGStreamService(session)
+    ig_stream_service.create_session()
 
-                # subscribe to public and private top‚ics
-                await ws_public.send(
-                    json.dumps({
-                        "op": "subscribe",
-                        "args": PUBLIC_TOPICS
-                    }))
-                await ws_private.send(
-                    json.dumps({
-                        "op": "auth",
-                        "args": [BYBIT_TEST_KEY, expires, signature]
-                    }))
-                await ws_private.send(
-                    json.dumps({
-                        "op": "subscribe",
-                        "args": PRIVATE_TOPICS
-                    }))
+    # Making Subscriptions
+    subscription_prices = Subscription(
+        mode="MERGE",
+        items=['CHART:'+key for key in BACKTEST_SYMBOLS.keys()],
+        fields=IGM_CHART_FIELDS,
+    )
 
-                print('Done!')
+    subscription_account = Subscription(
+        mode="MERGE", items=["ACCOUNT:" + IGM_ACC], fields=["AVAILABLE_CASH", "PNL_LR", "PNL_NLR", "FUNDS", "MARGIN", "MARGIN_LR", "MARGIN_NLR", "AVAILABLE_TO_DEAL", "EQUITY", "EQUITY_USED"],
+    )       
 
-                print('Starting trading...')
+    subscription_trades = Subscription(
+        mode="DISTINCT", items=["TRADE:" + IGM_ACC], fields=["CONFIRMS", "OPU", "WOU"]
+    )
 
-                # create a task queue of websocket messages
-                channel = asyncio.Queue()
+    def pass_msg(msg: dict):
+        '''
+        Pass a Lightstreamer message to the trading model.
+        '''
+        msg = format_message(msg)
+        if msg:
+            model.on_message(msg)
 
-                async def transmit(w, source):
-                    while True:
-                        msg = await w.recv()
-                        message = json.loads(msg)
+    # Adding lsiteners
+    subscription_prices.addlistener(pass_msg)
+    subscription_account.addlistener(pass_msg)
+    subscription_trades.addlistener(pass_msg)
 
-                        # only include full candlesticks to avoid spamming
-                        if 'data' in message.keys():
-                            if 'confirm' in message['data'][0].keys():
-                                if message['data'][0]['confirm'] == True:
-                                    await channel.put((source, msg))
-                            else:
-                                # print(message)
-                                await channel.put((source, msg))
-                        else:
-                            await channel.put((source, msg))
+    # Registering the Subscriptions
+    sub_key_prices = ig_stream_service.ls_client.subscribe(subscription_prices)
+    sub_key_account = ig_stream_service.ls_client.subscribe(subscription_account)
+    sub_key_trades = ig_stream_service.ls_client.subscribe(subscription_trades)
 
-                # create tasks for reception of public and private messages
-                asyncio.create_task(transmit(ws_public, 'public_source'))
-                asyncio.create_task(transmit(ws_private, 'private_source'))
-
-                while True:
-                    source, msg = await channel.get()
-                    model.on_message(msg)
-        except:
-            print('Connection to Bybit websocket lost.')
+    # close potential open positions upfront
+    for pos in model.account.positions.values():
+        for ticker in tickers:
+            if (pos['size'] > 0) and (pos['symbol'] == ticker):
+                if pos['side'] == 'Buy':
+                    side = 'Sell'
+                else:
+                    side = 'Buy'
+                model.account.place_order(symbol=pos['symbol'],
+                                            side=side,
+                                            order_type='Market',
+                                            qty=pos['size'],
+                                            reduce_only=True)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

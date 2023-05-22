@@ -137,3 +137,6 @@ evaluations
 
 # ignore backtest data
 src/backtest/data
+
+# no excel files
+*.xlsx

@@ -4,15 +4,19 @@
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 import pandas as pd
 import json
 from dotenv import load_dotenv
 import os
 from typing import List, Dict, Any
-from src.endpoints.bybit_functions import format_klines
+from src.endpoints.igm_functions import format_klines
 from binance.client import Client
 from src.endpoints.binance_functions import format_historical_klines
+# from src.endpoints.bybit_functions import get_historical_klines
+from src.endpoints.igm_functions import get_historical_klines
+from trading_ig import IGService
 
 load_dotenv()
 
@@ -25,6 +29,15 @@ HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
 
 BINANCE_KEY = os.getenv('BINANCE_KEY')
 BINANCE_SECRET = os.getenv('BINANCE_SECRET')
+
+IGM_USER = os.getenv('IGM_USER')
+IGM_KEY = os.getenv('IGM_KEY')
+IGM_PW = os.getenv('IGM_PW')
+IGM_ACC_TYPE = os.getenv('IGM_ACC_TYPE')
+IGM_ACC = os.getenv('IGM_ACC')
+IGM_RES_MAPPING = eval(os.getenv('IGM_RES_MAPPING'))
+BASE_CUR = os.getenv('BASE_CUR')
+CONTRACT_CUR = os.getenv('CONTRACT_CUR')
 
 
 class MarketData:
@@ -151,21 +164,27 @@ class MarketData:
         '''
         for symbol in symbols.keys():
             # load history as list of lists from binance
-            ticker, interval = symbol.split('.')
+            # ticker, interval = symbol.split('.')
+            ticker, interval = symbol.split(':')
 
-            msg = None
-            while msg == None:
-                try:
-                    msg = self.client.get_historical_klines(symbol=ticker,
-                                                            start_str=start_str,
-                                                            end_str=end_str,
-                                                            interval=interval)
-                except:
-                    self.client = Client(api_key=BINANCE_KEY,
-                                         api_secret=BINANCE_SECRET)
+            # msg = None
+            # while msg == None:
+            #     try:
+            #         msg = self.client.get_historical_klines(symbol=ticker,
+            #                                                 start_str=start_str,
+            #                                                 end_str=end_str,
+            #                                                 interval=interval)
+            #     except:
+            #         self.client = Client(api_key=BINANCE_KEY,
+            #                              api_secret=BINANCE_SECRET)
+
+            msg = get_historical_klines(symbol=ticker,
+                                        start_str=start_str,
+                                        end_str=end_str,
+                                        interval=interval)
 
             # format payload to dataframe
-            klines = format_historical_klines(msg)
+            klines = format_historical_klines(msg).drop_duplicates()
 
             self.add_history(topic=symbols[symbol], data=klines)
         return self.history

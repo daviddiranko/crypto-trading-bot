@@ -4,6 +4,7 @@
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
 import pandas as pd
 from typing import Any, Dict, List
 from src.AccountData import AccountData
@@ -15,6 +16,7 @@ import os
 load_dotenv()
 
 BASE_CUR = os.getenv('BASE_CUR')
+
 
 class BacktestAccountData(AccountData):
     '''
@@ -98,7 +100,9 @@ class BacktestAccountData(AccountData):
                     order_type: str = 'Market',
                     price: float = None,
                     stop_loss: float = None,
+                    stop_distance: float = None,
                     take_profit: float = None,
+                    limit_distance: float = None,
                     reduce_only: bool = False) -> Dict[str, Any]:
         '''
         Place a mock order for backtesting.
@@ -136,9 +140,12 @@ class BacktestAccountData(AccountData):
         # order_time_1 = pd.Timestamp(self.timestamp.value + 60000000000)
 
         # get next available timestamp
-        short_term_history_index = self.simulation_data.loc[self.simulation_data.index.get_level_values(1)=='candle.1.{}'.format(symbol)].index
-        exec_time_index = short_term_history_index[short_term_history_index.get_level_values(0)>self.timestamp][0]
-        
+        short_term_history_index = self.simulation_data.loc[
+            self.simulation_data.index.get_level_values(
+                1) == 'candle.1.{}'.format(symbol)].index
+        exec_time_index = short_term_history_index[
+            short_term_history_index.get_level_values(0) > self.timestamp][0]
+
         # get quotes from simulation data
         # quotes = self.simulation_data.loc[(order_time_1,
         #                                    'candle.1.{}'.format(symbol))]
@@ -148,12 +155,23 @@ class BacktestAccountData(AccountData):
         price_sell = quotes['open']
         price_buy = quotes['open']
 
-        if order_type == 'Market':
+        if order_type.lower() == 'market':
 
             # determine execution price according to direction of the trade
             trade_price = (side == 'Buy') * price_buy + (side
                                                          == 'Sell') * price_sell
+            
+            # determine trade direction, buy=1, sell =-1
+            trade_dir = ((side=='Buy')-0.5)*2
 
+            # if stop distance is provided, adjust stop loss
+            if stop_distance:
+                stop_loss = trade_price-trade_dir*stop_distance
+
+            # if limit distance is provided adjust take profit
+            if limit_distance:
+                take_profit = trade_price+trade_dir*limit_distance
+            
             # execute trade
             execution = self.execute(symbol=symbol,
                                      side=side,
@@ -259,25 +277,28 @@ class BacktestAccountData(AccountData):
         wallet_2 = self.wallet[symbol[-len(BASE_CUR):]]
 
         # update wallets
-        self.update_wallet([{
-            "coin":
-                symbol[:-len(BASE_CUR)],
-            "available_balance":
-                wallet_1["available_balance"] + sign * true_qty,
-            "wallet_balance":
-                wallet_1["available_balance"] + sign * true_qty
-        }, {
-            "coin":
-                symbol[-len(BASE_CUR):],
-            "available_balance":
-                wallet_2["available_balance"] - sign * true_qty * trade_price -
-                1.37,
-            #     0.0006 * true_qty * trade_price,
-            "wallet_balance":
-                wallet_2["available_balance"] - sign * true_qty * trade_price -
-                1.37, 
-            #    0.0006 * true_qty * trade_price
-        }])
+        self.update_wallet([
+            {
+                "coin":
+                    symbol[:-len(BASE_CUR)],
+                "available_balance":
+                    wallet_1["available_balance"] + sign * true_qty,
+                "wallet_balance":
+                    wallet_1["available_balance"] + sign * true_qty
+            },
+            {
+                "coin":
+                    symbol[-len(BASE_CUR):],
+                "available_balance":
+                    wallet_2["available_balance"] -
+                    sign * true_qty * trade_price - 1.37,
+                #     0.0006 * true_qty * trade_price,
+                "wallet_balance":
+                    wallet_2["available_balance"] -
+                    sign * true_qty * trade_price - 1.37,
+                #    0.0006 * true_qty * trade_price
+            }
+        ])
 
         # update executions
         execution = {

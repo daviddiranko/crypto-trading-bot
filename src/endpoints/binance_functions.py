@@ -88,10 +88,11 @@ def binance_to_bybit(klines: List[List[Any]],
         ['end', 'topic'], drop=False)
 
     # sort klines by index
-    formatted_klines = formatted_klines.sort_index()
+    formatted_klines = formatted_klines.sort_index().drop_duplicates()
 
     # iterate through all lines and format candles
     for idx in formatted_klines.index:
+
         kline = formatted_klines.loc[idx]
 
         # format candle to dict

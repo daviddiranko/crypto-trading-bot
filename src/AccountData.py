@@ -3,14 +3,18 @@
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
+
 import pandas as pd
 import json
 from typing import Any, Dict, List
 from dotenv import load_dotenv
 import os
 from pybit import usdt_perpetual
-from .endpoints.bybit_functions import *
+from .endpoints.bybit_functions import place_conditional_order
+from .endpoints.igm_functions import *
 import time
+from trading_ig import IGService
 
 load_dotenv()
 
@@ -20,6 +24,16 @@ PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
 BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
 BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
+
+IGM_USER = os.getenv('IGM_USER')
+IGM_KEY = os.getenv('IGM_KEY')
+IGM_PW = os.getenv('IGM_PW')
+IGM_ACC_TYPE = os.getenv('IGM_ACC_TYPE')
+IGM_ACC = os.getenv('IGM_ACC')
+IGM_RES_MAPPING = eval(os.getenv('IGM_RES_MAPPING'))
+
+BASE_CUR = os.getenv('BASE_CUR')
+CONTRACT_CUR = os.getenv('CONTRACT_CUR')
 
 
 class AccountData:
@@ -73,10 +87,13 @@ class AccountData:
                 account_data = initialize_account_data(session=self.session,
                                                        symbols=symbols)
             except:
-                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                                                   api_key=BYBIT_TEST_KEY,
-                                                   api_secret=BYBIT_TEST_SECRET)
+                # self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                #                                    api_key=BYBIT_TEST_KEY,
+                #                                    api_secret=BYBIT_TEST_SECRET)
                 
+                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
+                self.session.create_session()
+
         self.positions = account_data['position']
         self.executions = account_data['execution']
         self.orders = account_data['order']
@@ -248,7 +265,7 @@ class AccountData:
             if 'coin' in wallet.keys():
                 self.wallet[wallet['coin']] = wallet
             else:
-                self.wallet['USDT'] = wallet
+                self.wallet[BASE_CUR] = wallet
 
         return self.wallet
 
@@ -259,11 +276,15 @@ class AccountData:
                     qty: int,
                     price: float = None,
                     stop_loss: float = None,
+                    stop_distance: float = None,
                     take_profit: float = None,
+                    limit_distance: float = None,
+                    currency_code: str = CONTRACT_CUR,
                     time_in_force: str = "FillOrKill",
                     sl_trigger_by: str = "LastPrice",
                     tp_trigger_by: str = "LastPrice",
                     order_link_id: str = None,
+                    guaranteed_stop: bool = False,
                     reduce_only: bool = False,
                     close_on_trigger: bool = False,
                     position_idx: int = 0) -> Dict[str, Any]:
@@ -334,26 +355,30 @@ class AccountData:
         # while response == None and counter < 2:
         #     try:
         response = place_order(session=self.session,
-                                symbol=symbol,
-                                order_type=order_type,
-                                side=side,
-                                qty=qty,
-                                price=price,
-                                stop_loss=stop_loss,
-                                take_profit=take_profit,
-                                time_in_force=time_in_force,
-                                sl_trigger_by=sl_trigger_by,
-                                tp_trigger_by=tp_trigger_by,
-                                order_link_id=order_link_id,
-                                reduce_only=reduce_only,
-                                close_on_trigger=close_on_trigger,
-                                position_idx=position_idx)
-            # except:
-            #     time.sleep(1)
-            #     self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-            #                                        api_key=BYBIT_TEST_KEY,
-            #                                        api_secret=BYBIT_TEST_SECRET)
-            #     counter += 1
+                               symbol=symbol,
+                               order_type=order_type,
+                               side=side,
+                               qty=qty,
+                               price=price,
+                               currency_code=currency_code,
+                               stop_loss=stop_loss,
+                               stop_distance=stop_distance,
+                               take_profit=take_profit,
+                               limit_distance=limit_distance,
+                               guaranteed_stop=guaranteed_stop,
+                               time_in_force=time_in_force,
+                               sl_trigger_by=sl_trigger_by,
+                               tp_trigger_by=tp_trigger_by,
+                               order_link_id=order_link_id,
+                               reduce_only=reduce_only,
+                               close_on_trigger=close_on_trigger,
+                               position_idx=position_idx)
+        # except:
+        #     time.sleep(1)
+        #     self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+        #                                        api_key=BYBIT_TEST_KEY,
+        #                                        api_secret=BYBIT_TEST_SECRET)
+        #     counter += 1
         return response
 
     def place_conditional_order(
@@ -448,7 +473,7 @@ class AccountData:
                 counter += 1
         return response
 
-    def set_stop_loss(self, symbol: str, side: str, stop_loss: float):
+    def set_stop_loss(self, symbol: str, position_id: str, side: str, stop_loss: float):
         '''
         Set stop loss of open position.
 
@@ -466,18 +491,23 @@ class AccountData:
         while response == None and counter < 2:
             try:
                 response = set_stop_loss(session=self.session,
+                                         position_id=position_id,
                                          symbol=symbol,
                                          side=side,
                                          stop_loss=stop_loss)
             except:
-                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                                                   api_key=BYBIT_TEST_KEY,
-                                                   api_secret=BYBIT_TEST_SECRET)
+                # self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                #                                    api_key=BYBIT_TEST_KEY,
+                #                                    api_secret=BYBIT_TEST_SECRET)
+
+                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
+                self.session.create_session()
+
                 time.sleep(5)
                 counter += 1
         return response
 
-    def set_take_profit(self, symbol: str, side: str, take_profit: float):
+    def set_take_profit(self, symbol: str, position_id: str, side: str, take_profit: float):
         '''
         Set stop loss of open position.
 
@@ -495,13 +525,18 @@ class AccountData:
         while response == None and counter < 2:
             try:
                 response = set_take_profit(session=self.session,
+                                           position_id=position_id,
                                            symbol=symbol,
                                            side=side,
                                            take_profit=take_profit)
             except:
-                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                                                   api_key=BYBIT_TEST_KEY,
-                                                   api_secret=BYBIT_TEST_SECRET)
+                # self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                #                                    api_key=BYBIT_TEST_KEY,
+                #                                    api_secret=BYBIT_TEST_SECRET)
+
+                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
+                self.session.create_session()
+
                 time.sleep(5)
                 counter += 1
         return response

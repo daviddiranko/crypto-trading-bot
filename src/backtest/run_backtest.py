@@ -26,20 +26,24 @@ binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
 def main():
 
     # parse arguments
-    parser = argparse.ArgumentParser(
-        description="Run backtest for trading.")
+    parser = argparse.ArgumentParser(description="Run backtest for trading.")
 
-    parser.add_argument('--ticker', type=str, default="RTYUSD")
+    parser.add_argument('--tickers', type=str, default="RTYUSD")
     parser.add_argument(
         '--freqs',
         type=str,
         default="1 5 15",
         help="List of candle frequencies in minutes required by the model")
+    
+    parser.add_argument(
+        '--trading_freqs',
+        type=str,
+        default="5",
+        help="List of candle frequencies in minutes required by the model")
+    
     parser.add_argument('--model_args',
                         type=str,
-                        default=str({
-                            'param':1
-                        }),
+                        default=str({'param': 1}),
                         help="optional arguments for trading model")
     parser.add_argument(
         '--start_history',
@@ -56,44 +60,57 @@ def main():
     args = vars(args)
 
     freqs = args['freqs'].split()
-    model_args = eval(args['model_args'])
-    model_args['ticker'] = args['ticker']
+    trading_freqs = args['trading_freqs'].split()
+    tickers = args['tickers'].split()
 
-    ticker = args['ticker']
+    model_args = eval(args['model_args'])
+
+    model_args['tickers'] = tickers
+    model_args['trading_freqs'] = trading_freqs
+
+
+
     BACKTEST_SYMBOLS = {
         '{}.{}m'.format(ticker, freq): 'candle.{}.{}'.format(freq, ticker)
-        for freq in freqs
+        for freq in freqs for ticker in tickers
     }
     BINANCE_BYBIT_MAPPING = {
         'candle.{}.{}'.format(freq, ticker): '{}'.format(ticker)
-        for freq in freqs
+        for freq in freqs for ticker in tickers
     }
 
-    PUBLIC_TOPICS = ["candle.{}.{}".format(freq, ticker) for freq in freqs]
+    PUBLIC_TOPICS = ["candle.{}.{}".format(freq, ticker) for freq in freqs for ticker in tickers]
+
+    symbols = [ticker[:-len(BASE_CUR)] for ticker in tickers]
+    symbols.extend([ticker[-len(BASE_CUR):] for ticker in tickers])
+
+    budget = {}
+    for ticker in tickers:
+        budget[ticker[-len(BASE_CUR):]] = 1000
+        budget[ticker[:-len(BASE_CUR)]] = 0
 
     # instantiate model
-    model = BacktestTradingModel(model=checklist_model,
-                                 http_session=binance_client,
-                                 symbols=[ticker[:-len(BASE_CUR)], ticker[-len(BASE_CUR):]],
-                                 budget={
-                                     ticker[-len(BASE_CUR):]: 1000,
-                                     ticker[:-len(BASE_CUR)]: 0
-                                 },
-                                 topics=PUBLIC_TOPICS,
-                                 topic_mapping=BINANCE_BYBIT_MAPPING,
-                                 backtest_symbols=BACKTEST_SYMBOLS,
-                                 model_args=model_args,
-                                 model_storage={
-                                     'entry_body_1_long': None,
-                                     'entry_close_1_long': None,
-                                     'entry_open_1_long': None,
-                                     'entry_body_1_short': None,
-                                     'entry_close_1_short': None,
-                                     'entry_open_1_short': None,
-                                     'exit_long_higher_lows': [],
-                                    'exit_short_lower_highs':[],
-                                     'entry_bar_time': pd.Timestamp(0)
-                                 })
+    model = BacktestTradingModel(
+        model=checklist_model,
+        http_session=binance_client,
+        symbols=symbols,
+        budget=budget,
+        topics=PUBLIC_TOPICS,
+        topic_mapping=BINANCE_BYBIT_MAPPING,
+        backtest_symbols=BACKTEST_SYMBOLS,
+        model_args=model_args,
+        model_storage={
+            'entry_body_1_long': None,
+            'entry_close_1_long': None,
+            'entry_open_1_long': None,
+            'entry_body_1_short': None,
+            'entry_close_1_short': None,
+            'entry_open_1_short': None,
+            'exit_long_higher_lows': [],
+            'exit_short_lower_highs': [],
+            'entry_bar_time': pd.Timestamp(0),
+            'action_bar_time': pd.Timestamp(0)
+        })
 
     # create performance report
     model.run_backtest(symbols=BACKTEST_SYMBOLS,
