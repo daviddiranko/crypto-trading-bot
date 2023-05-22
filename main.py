@@ -122,10 +122,10 @@ def main():
     start_str = str(pd.Timestamp.now() - pd.Timedelta(start, start_unit))
     end_str = str(pd.Timestamp.now())
 
-    print('Load trading history for trading model...')
-    model.market_data.build_history(symbols=BACKTEST_SYMBOLS,
-                                    start_str=start_str,
-                                    end_str=end_str)
+    # print('Load trading history for trading model...')
+    # model.market_data.build_history(symbols=BACKTEST_SYMBOLS,
+    #                                 start_str=start_str,
+    #                                 end_str=end_str)
 
     print('Done!')
 
