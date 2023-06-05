@@ -85,7 +85,8 @@ class TradingModel:
             # if public topic, forward to market_data and trigger model
             if topic in self.topics:
                 response = self.market_data.on_message(message)
-                _, _, ticker = topic.split('.')
+                ticker = ".".join(topic.split(".")[2:])
+            
                 for trading_freq in self.model_args['trading_freqs']:
                     self.model(model=self, trading_freq=int(trading_freq), ticker=ticker)
                 return response

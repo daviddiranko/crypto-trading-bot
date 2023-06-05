@@ -19,8 +19,10 @@ AWS_CURRENT_ECS_TASKS_ETH=$(shell aws ecs list-tasks --cluster crypto-trading-cl
 # AWS_ECR:=crypto_trading_ecr_eth
 # TICKERS:=ETHUSDT
 
-TICKERS:=RTYUSD
-TRADING_FREQS:=1 5
+TICKERS:=409053
+# TICKERS:=RTYUSD
+TRADING_FREQS:=5
+
 check:
 	poetry check
 
@@ -109,32 +111,32 @@ stop_tasks:
 deploy: publish stop_tasks
 	aws ecs update-service --cluster $(AWS_ECS_CLUSTER) --service $(AWS_FARGATE) --force-new-deployment > /dev/null || true
 
-make parallel_backtests:
+parallel_backtests:
 	for param in $(params) ; do \
     	make backtest args='{"param":'$$param'}'; \
 	done
 
-make parallel_evaluate_backtests_2018:
+parallel_evaluate_backtests_2018:
 	for param in $(params) ; do \
     	make evaluate_backtest_2018 args='{"param":'$$param'}'; \
 	done
 
-make parallel_evaluate_backtests_2019:
+parallel_evaluate_backtests_2019:
 	for param in $(params) ; do \
     	make evaluate_backtest_2019 args='{"param":'$$param'}'; \
 	done
 
-make parallel_evaluate_backtests_2020:
+parallel_evaluate_backtests_2020:
 	for param in $(params) ; do \
     	make evaluate_backtest_2020 args='{"param":'$$param'}'; \
 	done
 
-make parallel_evaluate_backtests_2021:
+parallel_evaluate_backtests_2021:
 	for param in $(params) ; do \
     	make evaluate_backtest_2021 args='{"param":'$$param'}'; \
 	done
 
-make parallel_evaluate_backtests_2022:
+parallel_evaluate_backtests_2022:
 	for param in $(params) ; do \
     	make evaluate_backtest_2022 args='{"param":'$$param'}'; \
 	done

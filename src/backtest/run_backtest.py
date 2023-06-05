@@ -66,6 +66,7 @@ def main():
     model_args = eval(args['model_args'])
 
     model_args['tickers'] = tickers
+    model_args['expiries'] = {ticker: 'None' for ticker in tickers}
     model_args['trading_freqs'] = trading_freqs
 
 

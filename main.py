@@ -56,15 +56,35 @@ def main():
     args = parser.parse_args()
     args = vars(args)
 
+    print('Establish IGM HTTP session...')
+
+    # instantiate igm session object
+    session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
+    session.create_session()
+
+    print('Done!')
+
+    print('Extract hyperparameters and tickers...')
+
     freqs = args['freqs'].split()
     trading_freqs = args['trading_freqs'].split()
-    tickers = args['tickers'].split()
+
+    tickers_raw = args['tickers'].split()
+    markets = [session.fetch_sub_nodes_by_node(ticker)['markets'] for ticker in tickers_raw]
+    futures_market_indices = [market['expiry']!='-' for market in markets]
+    tickers = [market['epic'].loc[id].iloc[0] for market, id in zip(markets,futures_market_indices)]
+    expiries = {market['epic'].loc[id].iloc[0]: market['expiry'].loc[id].iloc[0] for market, id in zip(markets,futures_market_indices)}
 
     model_args = eval(args['model_args'])
 
     model_args['tickers'] = tickers
     model_args['trading_freqs'] = trading_freqs
+    model_args['expiries'] = expiries
 
+    print(model_args['tickers'])
+    print(model_args['trading_freqs'])
+    print(model_args['expiries'])
+    
     BACKTEST_SYMBOLS = {
         '{}.{}m'.format(ticker, freq): 'candle.{}.{}'.format(freq, ticker)
         for freq in freqs for ticker in tickers}
@@ -88,13 +108,6 @@ def main():
     # symbol_list.extend([symbol[-4:] for symbol in HIST_TICKERS])
 
     symbol_list = HIST_TICKERS
-
-
-    print('Establish IGM HTTP session...')
-
-    # instantiate igm session object
-    session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
-    session.create_session()
 
     print('Done!')
 
@@ -153,7 +166,9 @@ def main():
         '''
         Pass a Lightstreamer message to the trading model.
         '''
+
         msg = format_message(msg)
+        print(msg)
         if msg:
             model.on_message(msg)
 
@@ -166,6 +181,13 @@ def main():
     sub_key_prices = ig_stream_service.ls_client.subscribe(subscription_prices)
     sub_key_account = ig_stream_service.ls_client.subscribe(subscription_account)
     sub_key_trades = ig_stream_service.ls_client.subscribe(subscription_trades)
+
+    input(
+        "{0:-^80}\n".format(
+            "HIT CR TO UNSUBSCRIBE AND DISCONNECT FROM \
+    LIGHTSTREAMER"
+        )
+    )
 
     # close potential open positions upfront
     for pos in model.account.positions.values():
@@ -180,6 +202,9 @@ def main():
                                             order_type='Market',
                                             qty=pos['size'],
                                             reduce_only=True)
+    
+    # Disconnecting
+    ig_stream_service.disconnect()
 
 
 if __name__ == "__main__":

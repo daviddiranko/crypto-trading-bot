@@ -326,7 +326,6 @@ def format_klines(msg: Dict[str, Any]) -> Dict[str, Any]:
 
     # extract candlestick data
     data = msg['data'][0]
-    print(data)
     data['start'] = pd.to_datetime(data['start'], unit='ms')
     data['end'] = pd.to_datetime(data['end'], unit='ms')
     data['open'] = float(data['open'])

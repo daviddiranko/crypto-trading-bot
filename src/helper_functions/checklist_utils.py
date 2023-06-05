@@ -6,9 +6,10 @@ import numpy as np
 from typing import Tuple, List, Any
 from sklearn.linear_model import LinearRegression
 from src.TradingModel import TradingModel
+from src.helper_functions.statistics import get_alternate_highs_lows
 
 
-def get_trading_window(data: pd.DataFrame, window_size: int = 100) -> float:
+def get_trading_window(data: pd.DataFrame, window_size: int = 100, include_entry=True) -> float:
     '''
     Get vertical size of trading screen in points.
     
@@ -18,6 +19,8 @@ def get_trading_window(data: pd.DataFrame, window_size: int = 100) -> float:
         historical candlestick data
     window_size: int
         number of candles that are present in the screen
+    include_entry: bool
+        whether to include the last sample within data (i.e. the entry bar)
     
     Returns
     -------
@@ -29,10 +32,17 @@ def get_trading_window(data: pd.DataFrame, window_size: int = 100) -> float:
     assert 'low' in data.columns
 
     # calculate high and low of last "candle_window" candles as a reference point on how to scale visual inspections according to charts
-    high_trading_window = data.iloc[-window_size:][
-        'high'].max()
-    low_trading_window = data.iloc[-window_size:][
-        'low'].min()
+    if include_entry:
+        high_trading_window = data.iloc[-window_size:][
+            'high'].max()
+        low_trading_window = data.iloc[-window_size:][
+            'low'].min()
+    else:
+        high_trading_window = data.iloc[-window_size:-1][
+            'high'].max()
+        low_trading_window = data.iloc[-window_size:-1][
+            'low'].min()
+        
     trading_window = abs(high_trading_window - low_trading_window)
 
     return trading_window
@@ -197,9 +207,8 @@ def get_linear_regression(data: pd.Series, start: int, end: int=0) -> LinearRegr
     --------
     lr_results: LinearRegression
         sklearn linear regression object that is fit to the data
-
-
     '''
+
     # linear regression of sma_24 since reference index
     # scale x-axis between 0 and number of candles
     if end>0:
@@ -473,7 +482,6 @@ def get_flat(data: pd.Series, num_samples: int, threshold: float, start: int, en
     Determine if a time series is "flat".
     The time series is "flat" if it is neither "strong down" nor "strong up" 
 
-
     Parameters
     ----------
     data: pd.Series
@@ -487,7 +495,6 @@ def get_flat(data: pd.Series, num_samples: int, threshold: float, start: int, en
         first element of data to incorporate, counted backwards from end
     end: int
         last element of data to incorporate, counted backwards from end
-
 
     Returns
     ----------
@@ -504,12 +511,13 @@ def get_flat(data: pd.Series, num_samples: int, threshold: float, start: int, en
 
     return flat
 
-def get_increasing(data: pd.Series, num_samples: int, start: int, end: int =0, increasing=True) -> bool:
+def get_increasing(data: pd.Series, num_samples: int, num_strong_samples: int, slope_threshold: float, start: int, end: int =0, accelerating=True, long=True) -> bool:
     '''
     Determine if a time series is "increasing".
-    The time series is increasing if the slope of at least "num_samples" in the series are increasing.
+    The time series is increasing if 
+    1. the slope of at least "num_samples" in the series are increasing AND
+    2. within the "num_samples" at least "num_strong_samples" must exceed "slope_threshold"
     The samples must not be consecutive.
-
 
     Parameters
     ----------
@@ -517,12 +525,19 @@ def get_increasing(data: pd.Series, num_samples: int, start: int, end: int =0, i
         time series to observe
     num_samples: int
         number of slopes that must be increasing
+    num_strong_samples: int
+        number of samples within num_samples that must have a slope larger than "slope_threshold"
+    slope_threshold: float
+        threshold for slope
     start: int
         first element of data to incorporate, counted backwards from end
     end: int
         last element of data to incorporate, counted backwards from end
-    increasing: bool
+    accelerating: bool
+        if True consider accelerating time series, otherwise consider slowing time series
+    long: bool
         if True consider increasing time series, if False consider decreasing time series
+    
 
 
     Returns
@@ -531,27 +546,141 @@ def get_increasing(data: pd.Series, num_samples: int, start: int, end: int =0, i
         True if data is increasing, False otherwise
     '''
 
-    # determine direction
-    dir = 1 if increasing else -1
+    # determine directions
+    dir = 1 if long else -1
+    dir_slope = 1 if accelerating else -1
 
+    slope = dir_slope*abs(slope_threshold)
+
+    # instantiate values with direction
     if end>0:
         values = (dir*data).diff().iloc[-start:-end]
     else:
         values = (dir*data).diff().iloc[-start:]
 
     count_values = 1
+
+    # instantiate strong slopes
+    if values.iloc[0]>dir_slope*slope:
+        count_slopes = 1
+    else:
+        count_slopes = 0
+
+    # iterate through all values to choose as starting point
     for idx, value in values.iteritems():
         count_values2 = 1
+
+        # iterate through all valuest to count all "chains" of increasing slopes
         for _, value2 in values[idx:].iteritems():
+
+            # if next value is larger than previous value, increase counter and set new value
             if value2 > value:
                 value = value2
                 count_values2 += 1
+
+                # if the value exceeds the threshold, increase the counter
+                if value2>dir_slope*slope:
+                    count_slopes += 1
+
+        # identify longest chain of increasing slopes
         count_values = max(count_values, count_values2)
     
-    increasing = count_values>=num_samples
+    # increasing is true if longest chain exceeds threshold and strong slopes exceeds threshold
+    increasing = (count_values>=num_samples) and (count_slopes>num_strong_samples)
 
     return increasing
 
+def get_sideways_yellow_squares(data: pd.DataFrame, start: int, end: int = 0, column_1: str = 'open', column_2: str = 'close', long = True) -> bool:
+    '''
+    Determine if a time series shows "sideways".
+    i.e. if at least one candle in the history has an open or close price that is above (for long) or below (for short) the open of  the entry bar.
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+        data where target series is in
+    start: int
+        start of the timeframe
+    end: int
+        end of the timeframe, i.e. entry bar
+    column_1: str
+        name of column where to take the open value from
+    column_2: str
+        name of column where to take the close value from
+    long: bool
+        whether sideways for long or short is required
+
+
+    Returns
+    ----------
+    sideways: bool
+        True if data shows sideways, False otherwise
+    '''
+
+    assert column_1 in data.columns
+    assert column_2 in data.columns
+
+    # determine direction of sideways
+    dir = 1 if long else -1
+
+    # calculate sideways data
+    data_sideways = dir*data[[column_1,column_2]].iloc[-start:-(end+1)]
+    
+    # extract open of entry bar
+    open_entry_bar = dir*data[column_1].iloc[-end]
+
+    # calculate maximum of open and close
+    max_sideways = data_sideways.max().max()
+
+    # determine sideways
+    sideways = max_sideways>open_entry_bar
+
+    return sideways
+
+def get_price_phase(data: pd.Series, min_int_highs_lows: int, sma_diff_highs_lows: int, min_int_diff_highs_lows: int, threshold: float, start: int, end: int =0) -> bool:
+    '''
+    Determine if a time series shows a "price phase".
+    The time series shows a price phase if there is at least one section between consecutive highs and lows 
+    within the series that show an absolute move of more than threshold.
+
+    Parameters
+    ----------
+    data: pd.Series
+        time series to observe
+    min_int_highs_lows: int
+        number of samples to consider for highs and lows
+    sma_diff_highs_lows: int
+        number of samples to consider for calculating sma in highs and lows
+    min_int_diff_highs_lows: int
+        number of samples to consider for comparing the sma for highs and lows
+    threshold: float
+        threshold for point change between highs and lows
+    start: int
+        first element of data to incorporate, counted backwards from end
+    end: int
+        last element of data to incorporate, counted backwards from end
+
+    Returns
+    ----------
+    price_phase: bool
+        True if data shows a price phase, False otherwise
+    '''
+    
+    highs, lows = get_alternate_highs_lows(candles=data,
+                                        min_int=min_int_highs_lows,
+                                        sma_diff=sma_diff_highs_lows,
+                                        min_int_diff=min_int_diff_highs_lows)
+    if end>0:
+        index_start = data.index[-start]
+        index_end = data.index[-end]
+        sorted_highs_lows = pd.concat([highs,lows]).sort_index(ascending=True).loc[index_start:index_end]
+    else:
+        index_start = data.iloc[-start].index
+        sorted_highs_lows = pd.concat([highs,lows]).sort_index(ascending=True).loc[index_start:]
+
+    price_phase = sorted_highs_lows.diff().abs().max()>threshold
+
+    return price_phase
 
 def add_model_stats(model: TradingModel, long: bool, ts: str, key: str, value: Any = 1) -> TradingModel:
     '''
