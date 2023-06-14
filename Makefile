@@ -12,7 +12,7 @@ AWS_CURRENT_ECS_TASKS_ETH=$(shell aws ecs list-tasks --cluster crypto-trading-cl
 # AWS_ECS_CLUSTER:=crypto-trading-cluster
 
 # AWS_FARGATE:=crypto-trading-service-btc
-# AWS_ECR:=crypto_trading_ecr_btc
+AWS_ECR:=crypto_trading_ecr_btc
 # TICKERS:=BTCUSDT
 
 # AWS_FARGATE:=crypto-trading-service-eth
@@ -21,7 +21,7 @@ AWS_CURRENT_ECS_TASKS_ETH=$(shell aws ecs list-tasks --cluster crypto-trading-cl
 
 TICKERS:=409053
 # TICKERS:=RTYUSD
-TRADING_FREQS:=5
+TRADING_FREQS:=1
 
 check:
 	poetry check
@@ -72,7 +72,7 @@ evaluate_backtest_2018:
 	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2018-01-02' --start_str '2018-01-03' --end_str '2019-01-01'
 
 main:
-	make install no_dev=--no-dev
+	make install no_dev='--only main'
 	poetry run python -m main --tickers '$(TICKERS)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)'
 	
 # add arguments via --build-arg VARIABLE=value

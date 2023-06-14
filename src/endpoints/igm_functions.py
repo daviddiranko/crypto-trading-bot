@@ -108,7 +108,6 @@ def format_message(message: json) -> json:
             return new_msg
 
 
-
 def format_kline_message(msg: Dict[str, Any]) -> json:
     '''
     Format candlestick message from IG Markets Websocket Stream to fit the trading api.
@@ -116,7 +115,8 @@ def format_kline_message(msg: Dict[str, Any]) -> json:
 
     increment = msg['name'].split(':')[-1]
     epic = msg['name'].split(':')[1]
-    time_increment = ''.join(list(map(lambda x: x if x.isnumeric() else '', increment)))
+    time_increment = ''.join(
+        list(map(lambda x: x if x.isnumeric() else '', increment)))
     topic = f'candle.{time_increment}.{epic}'
     new_msg = {
         'topic':
@@ -125,8 +125,9 @@ def format_kline_message(msg: Dict[str, Any]) -> json:
             'start':
                 int(msg['values']['UTM']),
             'end':
-                int(int(msg['values']['UTM']) +
-                pd.Timedelta(increment).total_seconds()),
+                int(
+                    int(msg['values']['UTM']) +
+                    pd.Timedelta(increment).total_seconds()),
             'interval':
                 ''.join(
                     list(map((lambda x: x if x.isdigit() else ''), increment))),
@@ -255,6 +256,7 @@ def format_trade_message(msg: Dict[str, Any]) -> json:
             return json.dumps(order)
 
     return None
+
 
 def get_historical_klines_pd(symbol: str,
                              interval: str,
@@ -473,6 +475,14 @@ def initialize_account_data(
     account_data['order'] = orders
     account_data['stop_order'] = stop_orders
 
+    for symbol in symbols:
+        if symbol not in account_data['position'].keys():
+            account_data['position'][symbol] = {}
+            account_data['position'][symbol]['size'] = 0.0
+            account_data['position'][symbol]['side'] = 'None'
+        if symbol not in account_data['execution'].keys():
+            account_data['execution'][symbol] = {}
+
     return account_data
 
 
@@ -481,6 +491,7 @@ def place_order(session: IGService,
                 order_type: str,
                 side: str,
                 qty: int,
+                expiry: str,
                 price: float = None,
                 stop_loss: float = None,
                 stop_distance: float = None,
@@ -516,6 +527,8 @@ def place_order(session: IGService,
             "Sell"
     qty: int
         number of contracts to trade
+    expiry: str
+        expiration date as string
     price: float
         if order_type="Limit": limit price for the order
     stop_loss: float
@@ -565,11 +578,11 @@ def place_order(session: IGService,
     '''
 
     if not reduce_only:
-        response = session.create_open_position(currency_code=currency_code,
-                                                direction=side,
-                                                order_type=order_type,
+        response = session.create_open_position(currency_code=currency_code.upper(),
+                                                direction=side.upper(),
+                                                order_type=order_type.upper(),
                                                 epic=symbol,
-                                                expiry='JUN-23',
+                                                expiry=expiry,
                                                 force_open=True,
                                                 size=qty,
                                                 stop_distance=stop_distance,
@@ -582,10 +595,10 @@ def place_order(session: IGService,
                                                 trailing_stop=None,
                                                 trailing_stop_increment=None)
     else:
-        response = session.close_open_position(direction=side,
+        response = session.close_open_position(direction=side.upper(),
                                                epic=symbol,
-                                               expiry='JUN-23',
-                                               order_type=order_type,
+                                               expiry=expiry,
+                                               order_type=order_type.upper(),
                                                size=qty,
                                                deal_id=order_link_id,
                                                level=price,
@@ -653,3 +666,68 @@ def set_take_profit(session: IGService,
                                             deal_id=position_id)
 
     return response
+
+
+class MessageAggregator:
+    '''
+    Class that aggregates candles for time intervals that are not available
+    '''
+
+    # create new object
+    def __init__(self, msg_topic: str, aggregated_topic: str, msg_interval: int,
+                 aggregated_interval: str):
+        '''
+        Parameters
+        ----------
+        msg_topic: str
+            name of the topic of messages that should be aggregated 
+        aggregated_topic: str
+            name of the topic after aggregation
+        msg_interval: int
+            interval of msg_topic
+        aggregated_interval: int
+            interval of new aggregated_topic
+        '''
+
+        # initialize attributes and instantiate market and account data objects
+        self.msg_topic = msg_topic
+        self.aggregated_topic = aggregated_topic
+        self.msg_interval = msg_interval
+        self.aggregated_interval = aggregated_interval
+        self.msg = None
+
+    def update(self, msg: json):
+        '''
+        Update aggregated message.
+        If aggregation is complete, return aggregated message, otherwise return None
+        '''
+        msg = json.loads(msg)
+        # artificially create aggregated candle
+        if pd.Timestamp(
+                msg['data'][0]['end'] * 1000000
+        ).minute % self.msg_interval == 0 and msg['topic'] == self.msg_topic:
+
+            if not self.msg:
+                self.msg = msg
+                self.msg['topic'] = self.aggregated_topic
+                self.msg['data'][0]['interval'] = str(self.aggregated_interval)
+            else:
+                self.msg['data'][0]['end'] = msg['data'][0]['end']
+                self.msg['data'][0]['close'] = msg['data'][0]['close']
+                self.msg['data'][0]['high'] = max(msg['data'][0]['high'],
+                                                  self.msg['data'][0]['high'])
+                self.msg['data'][0]['low'] = min(msg['data'][0]['low'],
+                                                 self.msg['data'][0]['low'])
+                self.msg['data'][0]['volume'] = msg['data'][0][
+                    'volume'] + self.msg['data'][0]['volume']
+                self.msg['data'][0]['turnover'] = msg['data'][0][
+                    'turnover'] + self.msg['data'][0]['turnover']
+
+        if pd.Timestamp(msg['data'][0]['end'] *
+                        1000000).minute % self.aggregated_interval == 0 and msg[
+                            'topic'] == self.msg_topic:
+            msg = json.dumps(self.msg)
+            self.msg = None
+            return msg
+        else:
+            return None

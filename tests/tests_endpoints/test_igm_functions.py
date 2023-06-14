@@ -50,6 +50,7 @@ class TestIGMFunctions(unittest.TestCase):
             place_order(session=self.session,
                         symbol='IX.D.SPTRD.FWM1.IP',
                         order_type='MARKET',
+                        expiry='JUN-23',
                         side='SELL',
                         qty=1,
                         reduce_only=True)
@@ -74,14 +75,13 @@ class TestIGMFunctions(unittest.TestCase):
         response_buy = place_order(session=self.session,
                                    symbol='IX.D.SPTRD.FWM1.IP',
                                    order_type='MARKET',
+                                   expiry='JUN-23',
                                    side='BUY',
                                    qty=1)
 
         balance_1 = initialize_account_data(session=self.session,
                                             symbols=['IX.D.SPTRD.FWM1.IP'],
                                             account_id=IGM_ACC).copy()
-
-        print(balance_1)
 
         wallet_diff_usd = balance_1['wallet']['USD'][
             'wallet_balance'] - balance_1['wallet']['USD']['available_balance']
@@ -97,11 +97,12 @@ class TestIGMFunctions(unittest.TestCase):
             balance_1['position']['IX.D.SPTRD.FWM1.IP']['position_value'], 0)
         response_sell = place_order(session=self.session,
                                     symbol='IX.D.SPTRD.FWM1.IP',
+                                    expiry='JUN-23',
                                     order_type='MARKET',
                                     side='SELL',
                                     qty=1,
                                     reduce_only=True)
-        
+
         self.assertEqual(response_sell['dealStatus'], 'ACCEPTED')
         self.assertEqual(response_sell['reason'], 'SUCCESS')
         self.assertEqual(response_sell['status'], 'CLOSED')
@@ -110,6 +111,7 @@ class TestIGMFunctions(unittest.TestCase):
 
         response_buy = place_order(session=self.session,
                                    symbol='IX.D.SPTRD.FWM1.IP',
+                                   expiry='JUN-23',
                                    order_type='MARKET',
                                    side='BUY',
                                    qty=1)
@@ -118,7 +120,7 @@ class TestIGMFunctions(unittest.TestCase):
         open_pos = open_positions.loc[open_positions['epic'] ==
                                       'IX.D.SPTRD.FWM1.IP']
 
-        stop_loss = np.floor(open_pos['level'][0] * 0.5)
+        stop_loss = np.floor(open_pos['level'][0] * 0.9)
 
         response = set_stop_loss(session=self.session,
                                  position_id=open_pos['dealId'][0],
@@ -140,6 +142,7 @@ class TestIGMFunctions(unittest.TestCase):
 
         response_buy = place_order(session=self.session,
                                    symbol='IX.D.SPTRD.FWM1.IP',
+                                   expiry='JUN-23',
                                    order_type='MARKET',
                                    side='BUY',
                                    qty=1)
@@ -148,7 +151,7 @@ class TestIGMFunctions(unittest.TestCase):
         open_pos = open_positions.loc[open_positions['epic'] ==
                                       'IX.D.SPTRD.FWM1.IP']
 
-        take_profit = np.floor(open_pos['level'][0] * 1.5)
+        take_profit = np.ceil(open_pos['level'][0] * 1.01)
 
         response = set_take_profit(session=self.session,
                                    position_id=open_pos['dealId'][0],

@@ -17,6 +17,7 @@ python-binance = "==1.0.16"
 python-dotenv = "==0.20.0"
 scikit-learn = "==1.2.0"
 trading-ig = "==0.0.20"
+aiohttp = "==3.7.4.post0"
 
 [tool.poetry.dev-dependencies]
 isort = "==5.10.1"

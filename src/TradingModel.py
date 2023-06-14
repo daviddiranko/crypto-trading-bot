@@ -86,9 +86,11 @@ class TradingModel:
             if topic in self.topics:
                 response = self.market_data.on_message(message)
                 ticker = ".".join(topic.split(".")[2:])
-            
+
                 for trading_freq in self.model_args['trading_freqs']:
-                    self.model(model=self, trading_freq=int(trading_freq), ticker=ticker)
+                    self.model(model=self,
+                               trading_freq=int(trading_freq),
+                               ticker=ticker)
                 return response
 
             # if private topic, forward to account

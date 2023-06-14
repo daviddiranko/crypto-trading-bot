@@ -34,13 +34,13 @@ def main():
         type=str,
         default="1 5 15",
         help="List of candle frequencies in minutes required by the model")
-    
+
     parser.add_argument(
         '--trading_freqs',
         type=str,
         default="5",
         help="List of candle frequencies in minutes required by the model")
-    
+
     parser.add_argument('--model_args',
                         type=str,
                         default=str({'param': 1}),
@@ -69,8 +69,6 @@ def main():
     model_args['expiries'] = {ticker: 'None' for ticker in tickers}
     model_args['trading_freqs'] = trading_freqs
 
-
-
     BACKTEST_SYMBOLS = {
         '{}.{}m'.format(ticker, freq): 'candle.{}.{}'.format(freq, ticker)
         for freq in freqs for ticker in tickers
@@ -80,7 +78,11 @@ def main():
         for freq in freqs for ticker in tickers
     }
 
-    PUBLIC_TOPICS = ["candle.{}.{}".format(freq, ticker) for freq in freqs for ticker in tickers]
+    PUBLIC_TOPICS = [
+        "candle.{}.{}".format(freq, ticker)
+        for freq in freqs
+        for ticker in tickers
+    ]
 
     symbols = [ticker[:-len(BASE_CUR)] for ticker in tickers]
     symbols.extend([ticker[-len(BASE_CUR):] for ticker in tickers])
@@ -91,27 +93,26 @@ def main():
         budget[ticker[:-len(BASE_CUR)]] = 0
 
     # instantiate model
-    model = BacktestTradingModel(
-        model=checklist_model,
-        http_session=binance_client,
-        symbols=symbols,
-        budget=budget,
-        topics=PUBLIC_TOPICS,
-        topic_mapping=BINANCE_BYBIT_MAPPING,
-        backtest_symbols=BACKTEST_SYMBOLS,
-        model_args=model_args,
-        model_storage={
-            'entry_body_1_long': None,
-            'entry_close_1_long': None,
-            'entry_open_1_long': None,
-            'entry_body_1_short': None,
-            'entry_close_1_short': None,
-            'entry_open_1_short': None,
-            'exit_long_higher_lows': [],
-            'exit_short_lower_highs': [],
-            'entry_bar_time': pd.Timestamp(0),
-            'action_bar_time': pd.Timestamp(0)
-        })
+    model = BacktestTradingModel(model=checklist_model,
+                                 http_session=binance_client,
+                                 symbols=symbols,
+                                 budget=budget,
+                                 topics=PUBLIC_TOPICS,
+                                 topic_mapping=BINANCE_BYBIT_MAPPING,
+                                 backtest_symbols=BACKTEST_SYMBOLS,
+                                 model_args=model_args,
+                                 model_storage={
+                                     'entry_body_1_long': None,
+                                     'entry_close_1_long': None,
+                                     'entry_open_1_long': None,
+                                     'entry_body_1_short': None,
+                                     'entry_close_1_short': None,
+                                     'entry_open_1_short': None,
+                                     'exit_long_higher_lows': [],
+                                     'exit_short_lower_highs': [],
+                                     'entry_bar_time': pd.Timestamp(0),
+                                     'action_bar_time': pd.Timestamp(0)
+                                 })
 
     # create performance report
     model.run_backtest(symbols=BACKTEST_SYMBOLS,

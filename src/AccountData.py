@@ -83,16 +83,17 @@ class AccountData:
         # pull current account data
         account_data = None
         while account_data == None:
-            try:
-                account_data = initialize_account_data(session=self.session,
-                                                       symbols=symbols)
-            except:
-                # self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                #                                    api_key=BYBIT_TEST_KEY,
-                #                                    api_secret=BYBIT_TEST_SECRET)
-                
-                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
-                self.session.create_session()
+            # try:
+            account_data = initialize_account_data(session=self.session,
+                                                   symbols=symbols)
+            # except:
+            #     # self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+            #     #                                    api_key=BYBIT_TEST_KEY,
+            #     #                                    api_secret=BYBIT_TEST_SECRET)
+
+            #     self.session = IGService(IGM_USER, IGM_PW, IGM_KEY,
+            #                              IGM_ACC_TYPE)
+            #     self.session.create_session()
 
         self.positions = account_data['position']
         self.executions = account_data['execution']
@@ -271,6 +272,7 @@ class AccountData:
 
     def place_order(self,
                     symbol: str,
+                    expiry: str,
                     order_type: str,
                     side: str,
                     qty: int,
@@ -295,6 +297,8 @@ class AccountData:
         ----------
         symbol: str
             trading pair
+        expiry: str
+            expiration date of the symbol
         order_type: str
             Type of order.
             Options:
@@ -356,6 +360,7 @@ class AccountData:
         #     try:
         response = place_order(session=self.session,
                                symbol=symbol,
+                               expiry=expiry,
                                order_type=order_type,
                                side=side,
                                qty=qty,
@@ -473,7 +478,8 @@ class AccountData:
                 counter += 1
         return response
 
-    def set_stop_loss(self, symbol: str, position_id: str, side: str, stop_loss: float):
+    def set_stop_loss(self, symbol: str, position_id: str, side: str,
+                      stop_loss: float):
         '''
         Set stop loss of open position.
 
@@ -500,14 +506,16 @@ class AccountData:
                 #                                    api_key=BYBIT_TEST_KEY,
                 #                                    api_secret=BYBIT_TEST_SECRET)
 
-                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
+                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY,
+                                         IGM_ACC_TYPE)
                 self.session.create_session()
 
                 time.sleep(5)
                 counter += 1
         return response
 
-    def set_take_profit(self, symbol: str, position_id: str, side: str, take_profit: float):
+    def set_take_profit(self, symbol: str, position_id: str, side: str,
+                        take_profit: float):
         '''
         Set stop loss of open position.
 
@@ -534,7 +542,8 @@ class AccountData:
                 #                                    api_key=BYBIT_TEST_KEY,
                 #                                    api_secret=BYBIT_TEST_SECRET)
 
-                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY, IGM_ACC_TYPE)
+                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY,
+                                         IGM_ACC_TYPE)
                 self.session.create_session()
 
                 time.sleep(5)

@@ -160,18 +160,18 @@ class BacktestAccountData(AccountData):
             # determine execution price according to direction of the trade
             trade_price = (side == 'Buy') * price_buy + (side
                                                          == 'Sell') * price_sell
-            
+
             # determine trade direction, buy=1, sell =-1
-            trade_dir = ((side=='Buy')-0.5)*2
+            trade_dir = ((side == 'Buy') - 0.5) * 2
 
             # if stop distance is provided, adjust stop loss
             if stop_distance:
-                stop_loss = trade_price-trade_dir*stop_distance
+                stop_loss = trade_price - trade_dir * stop_distance
 
             # if limit distance is provided adjust take profit
             if limit_distance:
-                take_profit = trade_price+trade_dir*limit_distance
-            
+                take_profit = trade_price + trade_dir * limit_distance
+
             # execute trade
             execution = self.execute(symbol=symbol,
                                      side=side,
