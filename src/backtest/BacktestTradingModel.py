@@ -268,13 +268,15 @@ class BacktestTradingModel(TradingModel):
         # close remaining open positions
         for pos in self.account.positions.values():
             if pos['size'] > 0:
-                if pos['side'] == 'Buy':
-                    side = 'Sell'
+                if pos['side'].upper() == 'BUY':
+                    side = 'SELL'
                 else:
-                    side = 'Buy'
+                    side = 'BUY'
                 self.account.place_order(symbol=pos['symbol'],
                                          side=side,
                                          qty=pos['size'],
+                                         expiry=None,
+                                         order_type='Market',
                                          reduce_only=True)
         report = self.create_performance_report(initial_budget=initial_budget,
                                                 start_str=start_str,
@@ -335,14 +337,14 @@ class BacktestTradingModel(TradingModel):
 
                 # if trade opened a new position calculate new position value and continue
                 if pos_qty == 0:
-                    sign_pos = 2 * ((exe['side'] == 'Buy') - 0.5)
+                    sign_pos = 2 * ((exe['side'].upper() == 'BUY') - 0.5)
                     pos_price = exe['price']
                     pos_qty = exe['exec_qty']
                     pos_value = pos_price * pos_qty
                     continue
 
                 # calculate sign of new trade
-                sign_new = 2 * ((exe['side'] == 'Buy') - 0.5)
+                sign_new = 2 * ((exe['side'].upper() == 'BUY') - 0.5)
 
                 # if trade was in same direction as position, calculate new position values and continue
                 if sign_new == sign_pos:
@@ -424,7 +426,7 @@ class BacktestTradingModel(TradingModel):
                 trades = pd.DataFrame(
                     self.account.executions[symbol]).transpose()
                 trades['trading_value'] = -2 * (
-                    (trades['side'] == 'Buy') - 0.5
+                    (trades['side'].apply(lambda x: x.upper()) == 'BUY') - 0.5
                 ) * trades['exec_qty'] * trades['price'] - trades['exec_fee']
 
                 # add potential trade statistics as additional columns
@@ -458,7 +460,7 @@ class BacktestTradingModel(TradingModel):
                                     trades.loc[id]['trade_time'])]['short'] = ""
 
                             # check if trade was long
-                            if trades.loc[id]['side'] == 'Buy':
+                            if trades.loc[id]['side'].upper() == 'BUY':
                                 try:
                                     trades.loc[id,
                                                stat] = self.model_stats[stat][
@@ -498,7 +500,7 @@ class BacktestTradingModel(TradingModel):
                                     ['trade_time'])]['short'] = ""
 
                             # check if open trade was long
-                            if trades.loc[previous_id]['side'] == 'Buy':
+                            if trades.loc[previous_id]['side'].upper() == 'BUY':
                                 try:
                                     trades.loc[id,
                                                stat] = self.model_stats[stat][

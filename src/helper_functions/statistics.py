@@ -24,7 +24,9 @@ def sma(data: pd.Series, window: int, new_col: str = 'sma') -> pd.Series:
     sma: pd.Series
         sma of data with rolling window 
     '''
-    sma = data.rolling(window).mean()
+    data_sma = data.dropna()
+    sma = data_sma.rolling(window).mean()
+    sma = sma.dropna()
     sma.name = '{}_{}'.format(new_col, window)
     return sma
 
@@ -210,7 +212,6 @@ def get_alternate_highs_lows(candles: pd.Series, min_int: int, sma_diff: int,
     # calculate additional highs and lows based on the change of the sign of the derivative in the sma
     highs_diff = get_highs_diff(sma_difference, min_int=min_int_diff)
     lows_diff = -get_highs_diff(-sma_difference, min_int=min_int_diff)
-
     # get actual high in price data as maximum within sma_diff preceding prices
     highs_diff_indices = [
         candles.loc[:pd.Timestamp(idx)].tail(sma_diff).idxmax()
@@ -257,10 +258,10 @@ def get_alternate_highs_lows(candles: pd.Series, min_int: int, sma_diff: int,
         # price range between consecutive highs or lows
         high_low_range = candles.loc[highs_lows.loc[row - 1]['ts']:highs_lows.
                                      loc[row]['ts']]
-
+        
         # if it is a low (i.e. two lows in a row) -> add high in between
         if consecutives.loc[row]['high_low'] == 'low':
-
+            
             # high is largest price between consecutive lows
             new_high = high_low_range.max()
             new_high_idx = high_low_range.idxmax()

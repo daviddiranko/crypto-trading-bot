@@ -37,7 +37,8 @@ class TradingModel:
                  symbols: List[str] = None,
                  topics: List[str] = PUBLIC_TOPICS,
                  model_storage: Dict[str, Any] = {},
-                 model_args: Dict[str, Any] = {}):
+                 model_args: Dict[str, Any] = {}, 
+                 model_stats: Dict[str, Any] = {}):
         '''
         Parameters
         ----------
@@ -55,6 +56,9 @@ class TradingModel:
             additional storage so that the trading model can store results
         model_args: Dict[str, Any]
             optional additional parameters for the trading model
+         model_stats: Dict[str, Any]
+            optional additional statistics that can be stored during the backtest to be included into the trade report.
+            each trade in each statistic must be indexed by the execution timestamp
         '''
 
         # initialize attributes and instantiate market and account data objects
@@ -64,6 +68,7 @@ class TradingModel:
         self.model_storage = model_storage
         self.model_args = model_args
         self.topics = topics
+        self.model_stats = model_stats
 
     def on_message(self, message: json) -> bool:
         '''

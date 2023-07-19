@@ -107,7 +107,7 @@ class MarketData:
                 self.history[topic].loc[data['end']] = data
 
                 # restrict history to last 1000 datapoints
-                self.history[topic] = self.history[topic].iloc[-1000:]
+                self.history[topic] = self.history[topic].iloc[-2000:]
                 return data
             else:
                 # print('MarketData.on_message: topic: {} is not known\n{}'.format(topic,message))

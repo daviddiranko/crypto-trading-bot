@@ -80,7 +80,7 @@ def get_historical_klines(symbol: str,
 
     output_data = list(
         map(lambda x: {key: x[keys.index(key)] for key in keys},
-            get_historical_klines.values))
+            klines.values))
 
     return output_data
 
@@ -143,9 +143,9 @@ def format_kline_message(msg: Dict[str, Any]) -> json:
     }
 
     for price in ['open', 'close', 'high', 'low']:
-        new_msg['data'][0][price] = (
-            float(msg['values']['BID_' + price.upper()]) +
-            float(msg['values']['OFR_' + price.upper()])) / 2
+        bid = 0 if msg['values']['BID_' + price.upper()]=='' else float(msg['values']['BID_' + price.upper()])
+        ask = 0 if msg['values']['OFR_' + price.upper()]=='' else float(msg['values']['OFR_' + price.upper()])
+        new_msg['data'][0][price] = bid + ask / 2
 
     return json.dumps(new_msg)
 

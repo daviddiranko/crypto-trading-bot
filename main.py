@@ -48,6 +48,12 @@ def main():
         type=str,
         default="5",
         help="List of candle frequencies in minutes required by the model")
+    
+    parser.add_argument(
+        '--tick_sizes',
+        type=str,
+        default="0.1",
+        help="Tick size for each ticker")
 
     parser.add_argument('--model_args',
                         type=str,
@@ -69,8 +75,9 @@ def main():
 
     freqs = args['freqs'].split()
     trading_freqs = args['trading_freqs'].split()
-
+    tick_sizes_raw = args['tick_sizes'].split()
     tickers_raw = args['tickers'].split()
+
     markets = [
         session.fetch_sub_nodes_by_node(ticker)['markets']
         for ticker in tickers_raw
@@ -85,9 +92,15 @@ def main():
         for market, id in zip(markets, futures_market_indices)
     }
 
+    tick_sizes = {
+        ticker: float(tick_size)
+        for ticker, tick_size in zip(tickers, tick_sizes_raw)
+    }
+
     model_args = eval(args['model_args'])
 
     model_args['tickers'] = tickers
+    model_args['tick_sizes'] = tick_sizes
     model_args['trading_freqs'] = trading_freqs
     model_args['expiries'] = expiries
 
@@ -123,6 +136,7 @@ def main():
 
     print('Done!')
 
+    print('Initialize Trading Model...')
     # initialize message aggregation
     aggregated_messages = {}
     for ticker in tickers:
@@ -163,10 +177,25 @@ def main():
             'action_bar_time':
                 pd.Timestamp(pd.Timestamp.now(tz='UTC').to_datetime64())
         })
+    
+    print('Done!')
 
-    print(model.account.executions)
-    print(model.account.positions)
-    print(model.account.wallet)
+    print('Closing potentially open trades...')
+    
+    # close potential open positions upfront
+    for pos in model.account.positions.values():
+        for ticker in tickers:
+            if (pos['size'] > 0) and (pos['symbol'] == ticker):
+                if pos['side'].upper() == 'BUY':
+                    side = 'SELL'
+                else:
+                    side = 'BUY'
+                model.account.place_order(symbol=pos['symbol'],
+                                          expiry=model.model_args['expiries'][pos['symbol']],
+                                          side=side,
+                                          order_type='MARKET',
+                                          qty=pos['size'],
+                                          reduce_only=True)
 
     # construct start string
     start_str = str(
@@ -181,12 +210,30 @@ def main():
 
     print('Done!')
 
+    def pass_msg(msg: dict):
+                '''
+                Pass a Lightstreamer message to the trading model.
+                '''
+                msg = format_message(msg)
+                if msg:
+                    print(msg)
+                    model.on_message(msg)
+
+                    if json.loads(msg)['topic'].startswith('candle'):
+                        for aggregated_msg in aggregated_messages.keys():
+                            new_msg = aggregated_messages[aggregated_msg].update(
+                                msg=msg)
+                            if new_msg:
+                                print(msg)
+                                model.on_message(new_msg)
+    
     print('Connect to IGM Lightstreamer...')
 
+    # initialize streaming service
     ig_stream_service = IGStreamService(session)
     ig_stream_service.create_session()
 
-    # Making Subscriptions
+    # Create Subscriptions
     subscription_prices = Subscription(
         mode="MERGE",
         items=['CHART:' + key for key in BACKTEST_SYMBOLS.keys()],
@@ -204,25 +251,8 @@ def main():
     )
 
     subscription_trades = Subscription(mode="DISTINCT",
-                                       items=["TRADE:" + IGM_ACC],
-                                       fields=["CONFIRMS", "OPU", "WOU"])
-
-    def pass_msg(msg: dict):
-        '''
-        Pass a Lightstreamer message to the trading model.
-        '''
-        msg = format_message(msg)
-        if msg:
-            print(msg)
-            model.on_message(msg)
-
-            if json.loads(msg)['topic'].startswith('candle'):
-                for aggregated_msg in aggregated_messages.keys():
-                    new_msg = aggregated_messages[aggregated_msg].update(
-                        msg=msg)
-                    if new_msg:
-                        print(new_msg)
-                        model.on_message(new_msg)
+                                    items=["TRADE:" + IGM_ACC],
+                                    fields=["CONFIRMS", "OPU", "WOU"])
 
     # Adding listeners
     subscription_prices.addlistener(pass_msg)
@@ -238,25 +268,40 @@ def main():
     print('Done!')
 
     print('Start trading...')
-    while ig_stream_service.ls_client._stream_connection_thread.active_connection:
-        continue
 
-    # close potential open positions upfront
-    for pos in model.account.positions.values():
-        for ticker in tickers:
-            if (pos['size'] > 0) and (pos['symbol'] == ticker):
-                if pos['side'] == 'Buy':
-                    side = 'Sell'
-                else:
-                    side = 'Buy'
-                model.account.place_order(symbol=pos['symbol'],
-                                          side=side,
-                                          order_type='Market',
-                                          qty=pos['size'],
-                                          reduce_only=True)
+    while True:
+        if not ig_stream_service.ls_client._stream_connection_thread.active_connection:
+            print('Connection lost!')
+            print('Connect to IGM Lightstreamer...')
+            ig_stream_service.create_session()
 
-    # Disconnecting
-    ig_stream_service.disconnect()
+            # Registering the Subscriptions
+            sub_key_prices = ig_stream_service.ls_client.subscribe(subscription_prices)
+            sub_key_account = ig_stream_service.ls_client.subscribe(
+                subscription_account)
+            sub_key_trades = ig_stream_service.ls_client.subscribe(subscription_trades)
+
+            print('Done!')
+
+            print('Start trading...')
+
+            # # close potential open positions
+            # for pos in model.account.positions.values():
+            #     for ticker in tickers:
+            #         if (pos['size'] > 0) and (pos['symbol'] == ticker):
+            #             if pos['side'].upper() == 'BUY':
+            #                 side = 'SELL'
+            #             else:
+            #                 side = 'BUY'
+            #             model.account.place_order(symbol=pos['symbol'],
+            #                                     expiry=model.model_args['expiries'][pos['symbol']],
+            #                                     side=side,
+            #                                     order_type='MARKET',
+            #                                     qty=pos['size'],
+            #                                     reduce_only=True)
+
+            # # Disconnecting
+            # ig_stream_service.disconnect()
 
 
 if __name__ == "__main__":

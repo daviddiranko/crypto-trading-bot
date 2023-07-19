@@ -30,6 +30,11 @@ def main():
 
     parser.add_argument('--tickers', type=str, default="RTYUSD")
     parser.add_argument(
+        '--tick_sizes',
+        type=str,
+        default="0.1",
+        help="Tick size for each ticker")
+    parser.add_argument(
         '--freqs',
         type=str,
         default="1 5 15",
@@ -60,12 +65,19 @@ def main():
     args = vars(args)
 
     freqs = args['freqs'].split()
+    tick_sizes_raw = args['tick_sizes'].split()
     trading_freqs = args['trading_freqs'].split()
     tickers = args['tickers'].split()
 
     model_args = eval(args['model_args'])
 
+    tick_sizes = {
+        ticker: float(tick_size)
+        for ticker, tick_size in zip(tickers, tick_sizes_raw)
+    }
+
     model_args['tickers'] = tickers
+    model_args['tick_sizes'] = tick_sizes
     model_args['expiries'] = {ticker: 'None' for ticker in tickers}
     model_args['trading_freqs'] = trading_freqs
 

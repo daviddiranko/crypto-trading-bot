@@ -36,3 +36,19 @@ def slice_timestamps(
     timestamps = [(ts[0], ts[-1]) for ts in partial_series]
 
     return timestamps
+
+def custom_round(x: float, increment: float):
+    '''
+    Round a given x to the next number for a given increment.
+    '''
+
+    # scale x up by the inverse of increment
+    scaled_x = x/increment
+
+    # round scaled x to next integer
+    rounded_scaled_x = int(scaled_x)
+    
+    # rescale x by increment
+    rounded_x = rounded_scaled_x*increment
+
+    return rounded_x

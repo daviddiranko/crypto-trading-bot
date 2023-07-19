@@ -16,7 +16,7 @@ import os
 load_dotenv()
 
 BASE_CUR = os.getenv('BASE_CUR')
-
+CONTRACT_CUR = os.getenv('CONTRACT_CUR')
 
 class BacktestAccountData(AccountData):
     '''
@@ -71,7 +71,7 @@ class BacktestAccountData(AccountData):
             symbol: {
                 "symbol": symbol,
                 "size": 0.0,
-                "side": "Buy",
+                "side": "BUY",
                 "position_value": 0.0,
                 "take_profit": 0.0,
                 "stop_loss": 0.0
@@ -95,15 +95,24 @@ class BacktestAccountData(AccountData):
 
     def place_order(self,
                     symbol: str,
+                    expiry: str,
+                    order_type: str,
                     side: str,
                     qty: int,
-                    order_type: str = 'Market',
                     price: float = None,
                     stop_loss: float = None,
                     stop_distance: float = None,
                     take_profit: float = None,
                     limit_distance: float = None,
-                    reduce_only: bool = False) -> Dict[str, Any]:
+                    currency_code: str = CONTRACT_CUR,
+                    time_in_force: str = "FillOrKill",
+                    sl_trigger_by: str = "LastPrice",
+                    tp_trigger_by: str = "LastPrice",
+                    order_link_id: str = None,
+                    guaranteed_stop: bool = False,
+                    reduce_only: bool = False,
+                    close_on_trigger: bool = False,
+                    position_idx: int = 0) -> Dict[str, Any]:
         '''
         Place a mock order for backtesting.
         by updating account data acco.
@@ -115,8 +124,8 @@ class BacktestAccountData(AccountData):
         side: str
             which side to trade
             Options:
-                "Buy"
-                "Sell"
+                "BUY"
+                "SELL"
         qty: int
             number of contracts to trade
         order_type: str
@@ -158,11 +167,11 @@ class BacktestAccountData(AccountData):
         if order_type.lower() == 'market':
 
             # determine execution price according to direction of the trade
-            trade_price = (side == 'Buy') * price_buy + (side
-                                                         == 'Sell') * price_sell
+            trade_price = (side.upper() == 'BUY') * price_buy + (side.upper()
+                                                         == 'SELL') * price_sell
 
             # determine trade direction, buy=1, sell =-1
-            trade_dir = ((side == 'Buy') - 0.5) * 2
+            trade_dir = ((side.upper() == 'BUY') - 0.5) * 2
 
             # if stop distance is provided, adjust stop loss
             if stop_distance:
@@ -204,8 +213,8 @@ class BacktestAccountData(AccountData):
         side: str
             which side to trade
             Options:
-                "Buy"
-                "Sell"
+                "BUY"
+                "SELL"
         qty: int
             number of contracts to trade
         execution_time: pandas.Timestamp
@@ -227,21 +236,21 @@ class BacktestAccountData(AccountData):
         '''
 
         # determine sign of trade, buy=1, sell=-1
-        sign = ((side == 'Buy') - 0.5) * 2
+        sign = ((side.upper() == 'BUY') - 0.5) * 2
 
         # determine direction of old position
         pos = self.positions[symbol]
 
-        sign_pos = ((pos['side'] == 'Buy') - 0.5) * 2
+        sign_pos = ((pos['side'] == 'BUY') - 0.5) * 2
 
         # determine actually traded qty, since the reduce_only flag only reduces the trade
         true_qty = (1 - reduce_only) * qty + reduce_only * min(qty, pos['size'])
 
         # determine sides of new positions
         if sign_pos * pos['size'] + sign * true_qty > 0:
-            side_pos = "Buy"
+            side_pos = "BUY"
         else:
-            side_pos = "Sell"
+            side_pos = "SELL"
 
         # determine average position prize and determine if trade is openede or closed
         if pos['size'] != 0:
@@ -303,7 +312,7 @@ class BacktestAccountData(AccountData):
         # update executions
         execution = {
             "symbol": symbol,
-            "side": side,
+            "side": side.upper(),
             "open": open,
             "order_id": len(self.executions[symbol].keys()) + 1,
             "exec_id": len(self.executions[symbol].keys()) + 1,
@@ -344,25 +353,25 @@ class BacktestAccountData(AccountData):
 
         # check if stop loss is triggered
         if pos['stop_loss']:
-            stop_loss = (side == 'Buy') * pos['stop_loss'] > data['low'] or pos[
-                'stop_loss'] < (side == 'Sell') * data['high']
+            stop_loss = (side.upper() == 'BUY') * pos['stop_loss'] > data['low'] or pos[
+                'stop_loss'] < (side.upper() == 'SELL') * data['high']
         else:
             stop_loss = False
 
         # check if take profit is triggered
         if pos['take_profit']:
-            take_profit = pos['take_profit'] < (side == 'Buy') * data[
-                'high'] or (side == 'Sell') * pos['take_profit'] > data['low']
+            take_profit = pos['take_profit'] < (side.upper() == 'BUY') * data[
+                'high'] or (side.upper() == 'SELL') * pos['take_profit'] > data['low']
         else:
             take_profit = False
 
         if stop_loss or take_profit:
 
             # trade takes other side than pos
-            if side == "Sell":
-                side_new = "Buy"
+            if side.upper() == "SELL":
+                side_new = "BUY"
             else:
-                side_new = "Sell"
+                side_new = "SELL"
 
             # trade price is either stop loss or take profit, depending on which was triggered
             # or-clause is added for stability if stop loss or take profit is None

@@ -107,7 +107,7 @@ class BacktestMarketData(MarketData):
                 self.account.timestamp = self.history[self.topics[0]].index[-1]
 
                 # restrict history to last 1000 datapoints
-                self.history[topic] = self.history[topic].iloc[-1000:]
+                self.history[topic] = self.history[topic].iloc[-2000:]
 
                 # if new market data is received (i.e. one minute candle), trigger account data update
                 if topic == self.topics[0]:

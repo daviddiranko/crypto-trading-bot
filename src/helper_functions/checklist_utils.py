@@ -51,7 +51,8 @@ def get_sideways(entry_body: float,
                  sideways_factor: float = 2.0,
                  window_size: int = 100,
                  chart_height: float = 3.2,
-                 chart_width: float = 4.2) -> int:
+                 chart_width: float = 4.2,
+                 limit: int = 1500) -> int:
     '''
     Calculate number of sideways candles.
     Dependant on the size of the trading screen, size of the entry bar and a hyperparameter.
@@ -71,6 +72,8 @@ def get_sideways(entry_body: float,
         verical size of trading screen
     chart_width: float
         horizontal size of trading screen
+    limit: int
+        absolute maximum of sideways to consider
 
     Returns
     -----------
@@ -79,10 +82,12 @@ def get_sideways(entry_body: float,
         number of candles that are in the sideways
     '''
 
-    sideways_count = max(
-        int(
+    sideways_count = int(
             np.floor((entry_body / (trading_window + 0.00001)) * chart_height *
-                     sideways_factor * (window_size / chart_width))), 2)
+                     sideways_factor * (window_size / chart_width)))
+
+    sideways_count = max(sideways_count,2)
+    sideways_count = min(sideways_count, limit)
 
     return sideways_count
 
@@ -664,7 +669,7 @@ def get_sideways_yellow_squares(data: pd.DataFrame,
                                 long=True) -> bool:
     '''
     Determine if a time series shows "sideways".
-    i.e. if at least one candle in the history has an open or close price that is above (for long) or below (for short) the open of  the entry bar.
+    i.e. if at least one candle in the history has an open or close price that is above (for long) or below (for short) the open of the entry bar.
 
     Parameters
     ----------
@@ -698,7 +703,10 @@ def get_sideways_yellow_squares(data: pd.DataFrame,
     data_sideways = dir * data[[column_1, column_2]].iloc[-start:-(end + 1)]
 
     # extract open of entry bar
-    open_entry_bar = dir * data[column_1].iloc[-end]
+    if end > 0:
+        open_entry_bar = dir * data[column_1].iloc[-end]
+    else:
+        open_entry_bar = dir * data[column_1].iloc[-1]
 
     # calculate maximum of open and close
     max_sideways = data_sideways.max().max()
