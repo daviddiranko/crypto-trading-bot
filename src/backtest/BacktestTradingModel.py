@@ -311,6 +311,11 @@ class BacktestTradingModel(TradingModel):
         report: Dict[str, Dict[str,float]]
             performance report
         '''
+        # save model stats as json and excel
+        with open("evaluations/model_stats_{}_{}.json".format(start_str, end_str), "w") as outfile:
+            json.dump(self.model_stats, outfile)
+        pd.DataFrame(self.model_stats).to_excel("evaluations/model_stats_{}_{}.xlsx".format(start_str, end_str))
+
         report = {}
         # iterate through all symbols with executed trades
         for symbol in [
@@ -323,7 +328,6 @@ class BacktestTradingModel(TradingModel):
             # sign, price, size and value of current position
             sign_pos = None
             pos_price = None
-            open = False
             pos_qty = 0
             pos_value = 0
 

@@ -203,7 +203,7 @@ def main():
         pd.Timedelta(start, start_unit))
     end_str = str(pd.Timestamp(pd.Timestamp.now(tz='UTC').to_datetime64()))
 
-    # print('Load trading history for trading model...')
+    print('Load trading history for trading model...')
     # model.market_data.build_history(symbols=BACKTEST_SYMBOLS,
     #                                 start_str=start_str,
     #                                 end_str=end_str)
@@ -270,7 +270,42 @@ def main():
     print('Start trading...')
 
     while True:
-        if not ig_stream_service.ls_client._stream_connection_thread.active_connection:
+        try:
+            if ig_stream_service.ls_client._stream_connection_thread.is_alive():
+                continue
+            else:
+                print('Connection lost!')
+                print('Connect to IGM Lightstreamer...')
+                ig_stream_service.create_session()
+
+                # Registering the Subscriptions
+                sub_key_prices = ig_stream_service.ls_client.subscribe(subscription_prices)
+                sub_key_account = ig_stream_service.ls_client.subscribe(
+                    subscription_account)
+                sub_key_trades = ig_stream_service.ls_client.subscribe(subscription_trades)
+
+                print('Done!')
+
+                print('Start trading...')
+
+                # # close potential open positions
+                # for pos in model.account.positions.values():
+                #     for ticker in tickers:
+                #         if (pos['size'] > 0) and (pos['symbol'] == ticker):
+                #             if pos['side'].upper() == 'BUY':
+                #                 side = 'SELL'
+                #             else:
+                #                 side = 'BUY'
+                #             model.account.place_order(symbol=pos['symbol'],
+                #                                     expiry=model.model_args['expiries'][pos['symbol']],
+                #                                     side=side,
+                #                                     order_type='MARKET',
+                #                                     qty=pos['size'],
+                #                                     reduce_only=True)
+
+                # # Disconnecting
+                # ig_stream_service.disconnect()
+        except:
             print('Connection lost!')
             print('Connect to IGM Lightstreamer...')
             ig_stream_service.create_session()
@@ -284,24 +319,6 @@ def main():
             print('Done!')
 
             print('Start trading...')
-
-            # # close potential open positions
-            # for pos in model.account.positions.values():
-            #     for ticker in tickers:
-            #         if (pos['size'] > 0) and (pos['symbol'] == ticker):
-            #             if pos['side'].upper() == 'BUY':
-            #                 side = 'SELL'
-            #             else:
-            #                 side = 'BUY'
-            #             model.account.place_order(symbol=pos['symbol'],
-            #                                     expiry=model.model_args['expiries'][pos['symbol']],
-            #                                     side=side,
-            #                                     order_type='MARKET',
-            #                                     qty=pos['size'],
-            #                                     reduce_only=True)
-
-            # # Disconnecting
-            # ig_stream_service.disconnect()
 
 
 if __name__ == "__main__":

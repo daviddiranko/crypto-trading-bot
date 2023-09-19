@@ -935,9 +935,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             value=body_3_1.max())
 
         # 2.3.2 Small bars in sideways: The ATR of the two candles before the entry bar must be smaller a total value ATR_small_bars_25
-        # rules += 1
+        rules += 1
         if (atr_3_1 >= ATR_small_bars_25 * entry_bar['close']).sum() == 0:
-            # checklist += 1
+            checklist += 1
 
             add_model_stats(model=model,
                             long=True,
@@ -959,10 +959,10 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
         #     add_model_stats(model=model, long=False, ts=ts, key='2.7', value=(sideways_spread) / open_close_1)
 
         # 2.8.1 no trend in sideways: calculated via linear regression over sideways
-        # rules += 1
+        rules += 1
         if (abs(slope_sideways_lr) / high_low_candle_window_ex_entry
            ) * candle_window < max_slope_sideways:
-            # checklist += 1
+            checklist += 1
 
             add_model_stats(
                 model=model,
@@ -980,9 +980,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                 candle_window)
 
         # 2.9.5 No drift: little to no drift prior to entry bar
-        # rules += 1
+        rules += 1
         if (entry_bar['open'] - last_min) <= open_close_1 * drift_factor:
-            # long_checklist += 1
+            long_checklist += 1
 
             add_model_stats(model=model,
                             long=True,
@@ -998,9 +998,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
         #     add_model_stats(model=model, long=True, ts=ts, key='2.10')
 
         # 2.11 no price phase in sideways
-        # rules += 1
+        rules += 1
         if not price_phase:
-            # checklist += 1
+            checklist += 1
 
             add_model_stats(model=model, long=True, ts=ts, key='2.11')
             add_model_stats(model=model, long=False, ts=ts, key='2.11')
@@ -1175,7 +1175,7 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
 
         # 2.9.5 No drift: little to no drift prior to entry bar
         if (last_max - entry_bar['open']) <= open_close_1 * drift_factor:
-            # short_checklist += 1
+            short_checklist += 1
 
             add_model_stats(model=model,
                             long=False,
@@ -1240,7 +1240,7 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                     key='3.5.2',
                     value=(lows_trend_5.iloc[-1] - entry_bar['close']) /
                     open_close_1)
-                
+
         #################### END BAR ####################
 
         ######################################## END CHECKLIST SHORT ########################################

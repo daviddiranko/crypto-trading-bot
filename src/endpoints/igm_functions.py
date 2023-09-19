@@ -75,12 +75,18 @@ def get_historical_klines(symbol: str,
         'bid', 'ask'
     ]].transpose().groupby(level=1).mean().transpose()
 
-    # format dataframe to list of dict
-    keys = list(klines.columns)
+    klines['start']=klines.index
+    klines['end'] = klines['start'].shift(-1)
 
-    output_data = list(
-        map(lambda x: {key: x[keys.index(key)] for key in keys},
-            klines.values))
+    klines.columns = [col.lower() for col in klines.columns]
+
+    # format dataframe to list of dict
+    output_data = klines.to_dict()
+    # keys = list(klines.columns)
+
+    # output_data = list(
+    #     map(lambda x: {key: x[keys.index(key)] for key in keys},
+    #         klines.values))
 
     return output_data
 

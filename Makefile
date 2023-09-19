@@ -22,13 +22,13 @@ AWS_ECS_CLUSTER:=crypto-trading-cluster
 
 AWS_FARGATE:=futures-trading-service
 AWS_ECR:=futures_trading_ecr
-TICKERS:=409053 409042 106232 153347 153350
-TRADING_FREQS:= 1 2 5
-TICK_SIZES:= 0.1 0.25 0.1 0.1 0.1
-
-# TICKERS:=RTYUSD
+# TICKERS:=409053 409042 408792 409030 264244 455776
 # TRADING_FREQS:= 1 2 5
-# TICK_SIZES:= 0.1
+# TICK_SIZES:= 0.1 0.25 0.1 0.1 0.1 0.5
+
+TICKERS:=RTYUSD
+TRADING_FREQS:= 5
+TICK_SIZES:= 0.1
 
 check:
 	poetry check
@@ -64,7 +64,7 @@ backtest:
 	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --tick_sizes '$(TICK_SIZES)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2022-09-29' --start_str '2022-10-01' --end_str '2023-01-01'
 
 backtest_actual:
-	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --tick_sizes '$(TICK_SIZES)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2023-06-10' --start_str '2023-06-13' --end_str '2023-06-27'
+	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --tick_sizes '$(TICK_SIZES)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2023-06-11' --start_str '2023-06-13' --end_str '2023-06-27'
 
 evaluate_backtest_2022:
 	poetry run python -m src.backtest.run_backtest --tickers '$(TICKERS)' --tick_sizes '$(TICK_SIZES)' --freqs '1 5 15' --trading_freqs '$(TRADING_FREQS)' --model_args '$(args)' --start_history '2021-12-29' --start_str '2022-01-01' --end_str '2023-01-01'
