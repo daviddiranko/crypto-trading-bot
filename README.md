@@ -98,6 +98,3 @@ Before using these commands, ensure that AWS credentials are configured locally.
    ```
 
 Ensure that Docker, Poetry, and the AWS CLI are properly installed and configured for certain commands to work as expected. Customize the configuration file and adjust command parameters according to your trading preferences.
-```
-
-Feel free to copy the entire content above and use it as your README.md file.
