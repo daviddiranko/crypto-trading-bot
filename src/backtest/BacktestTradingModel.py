@@ -196,14 +196,14 @@ class BacktestTradingModel(TradingModel):
             #     end_str=str(timestamps[1]))
 
             # write simulation data to json files
-            with open(
-                    'src/backtest/data/klines_{}_{}.json'.format(
-                        timestamps[0], timestamps[1]), 'w') as f:
-                json.dump(klines, f)
-            with open(
-                    'src/backtest/data/topics_{}_{}.json'.format(
-                        timestamps[0], timestamps[1]), 'w') as f:
-                json.dump(topics, f)
+            # with open(
+            #         'src/backtest/data/klines_{}_{}.json'.format(
+            #             timestamps[0], timestamps[1]), 'w') as f:
+            #     json.dump(klines, f)
+            # with open(
+            #         'src/backtest/data/topics_{}_{}.json'.format(
+            #             timestamps[0], timestamps[1]), 'w') as f:
+            #     json.dump(topics, f)
 
             # format data to bybit websocket messages
             self.bybit_messages, self.account.simulation_data = binance_to_bybit(
