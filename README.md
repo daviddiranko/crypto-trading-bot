@@ -20,6 +20,7 @@ Additionally, the project utilizes [Make](https://www.gnu.org/software/make/) as
 
 ## Setup
 You need a babyit account with api endpoints to use the bot. You can set up the account with endpoints for free on bybit.com. Then add your credentials in the template `example.env` and rename it to `.env`.
+
 SHARE YOUR CREDENTIALS WITH NOBODY.
 
 ## Main Functionalities
