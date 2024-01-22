@@ -5,26 +5,32 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
-import pandas as pd
 import json
-from dotenv import load_dotenv
-import os
 from typing import List, Dict, Any
 from src.endpoints.bybit_functions import format_klines
 from src.MarketData import MarketData
 from src.backtest.BacktestAccountData import BacktestAccountData
 from binance.client import Client
 
+import yaml
+from dotenv import load_dotenv
+import os
+
 load_dotenv()
 
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
+CONFIG_DIR = os.getenv('CONFIG_DIR')
 
-PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
-BACKTEST_SYMBOLS = eval(os.getenv('BACKTEST_SYMBOLS'))
-BINANCE_BYBIT_MAPPING = eval(os.getenv('BINANCE_BYBIT_MAPPING'))
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
 
-HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
+# Access variables from the loaded data
+PUBLIC_TOPICS = config.get('public_topics')
+PRIVATE_TOPICS = config.get('private_topics')
+PUBLIC_TOPICS_COLUMNS = config.get('public_topics_columns')
+BACKTEST_SYMBOLS = config.get('backtest_symbols')
+BINANCE_BYBIT_MAPPING = config.get('binance_bybit_mapping')
+HIST_TICKERS = config.get('hist_tickers')
 
 
 class BacktestMarketData(MarketData):

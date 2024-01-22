@@ -83,10 +83,10 @@ def get_sideways(entry_body: float,
     '''
 
     sideways_count = int(
-            np.floor((entry_body / (trading_window + 0.00001)) * chart_height *
-                     sideways_factor * (window_size / chart_width)))
+        np.floor((entry_body / (trading_window + 0.00001)) * chart_height *
+                 sideways_factor * (window_size / chart_width)))
 
-    sideways_count = max(sideways_count,2)
+    sideways_count = max(sideways_count, 2)
     sideways_count = min(sideways_count, limit)
 
     return sideways_count

@@ -7,13 +7,20 @@ from dotenv import load_dotenv
 import os
 import json
 from binance.client import Client
+import yaml
 
 load_dotenv()
 
-HIST_COLUMNS = eval(os.getenv('HIST_COLUMNS'))
-
 BINANCE_KEY = os.getenv('BINANCE_KEY')
 BINANCE_SECRET = os.getenv('BINANCE_SECRET')
+CONFIG_DIR = os.getenv('CONFIG_DIR')
+
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
+
+# Access variables from the loaded data
+HIST_COLUMNS = config.get('hist_columns')
 
 
 def format_historical_klines(msg: List[List[Any]]) -> pd.DataFrame:

@@ -132,11 +132,11 @@ dmypy.json
 # ignore notebooks
 notebooks
 
-# ignore evaluations
-evaluations
-
 # ignore backtest data
 src/backtest/data
 
 # no excel files
 *.xlsx
+
+# no env
+.env

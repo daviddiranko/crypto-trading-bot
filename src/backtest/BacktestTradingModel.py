@@ -7,34 +7,37 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 import pandas as pd
 import json
-from dotenv import load_dotenv
-import os
 from typing import Any, Dict, List
 from src.TradingModel import TradingModel
 from src.backtest.BacktestAccountData import BacktestAccountData
 from src.backtest.BacktestMarketData import BacktestMarketData
 from binance.client import Client
-from src.endpoints import binance_functions, ibkr_functions
 from src.endpoints.binance_functions import binance_to_bybit
 # from src.endpoints.binance_functions import create_simulation_data
 from src.endpoints.bybit_functions import create_simulation_data
-# from src.endpoints.ibkr_functions import klines_to_bybit, create_simulation_data
 
 from tqdm import tqdm
-from src.helper_functions import helper_functions
 import json
+import yaml
+from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
+CONFIG_DIR = os.getenv('CONFIG_DIR')
 
-HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
 
-BINANCE_BYBIT_MAPPING = eval(os.getenv('BINANCE_BYBIT_MAPPING'))
-BACKTEST_SYMBOLS = eval(os.getenv('BACKTEST_SYMBOLS'))
-
-BASE_CUR = os.getenv('BASE_CUR')
+# Access variables from the loaded data
+BASE_CUR = config.get('base_cur', 'USDT')
+PUBLIC_TOPICS = config.get('public_topics')
+PRIVATE_TOPICS = config.get('private_topics')
+PUBLIC_TOPICS_COLUMNS = config.get('public_topics_columns')
+BACKTEST_SYMBOLS = config.get('backtest_symbols')
+BINANCE_BYBIT_MAPPING = config.get('binance_bybit_mapping')
+HIST_TICKERS = config.get('hist_tickers')
 
 
 class BacktestTradingModel(TradingModel):
@@ -157,38 +160,16 @@ class BacktestTradingModel(TradingModel):
 
         ######################################################################################################
 
-        ###################### For Futures Markets with data from files ######################################
-
-        # add history for all relevant candles
-        for symbol in symbols.keys():
-            # identify ticker and interval (in minutes)
-            ticker, interval = symbol.split('.')
-            interval_length = int(interval[:-1])
-            interval_unit = interval[-1]
-
-            # import data and format it according to requirements of market data object
-            history = pd.read_csv(
-                'src/backtest/data/{}_{}.txt'.format(ticker, interval),
-                names=['start', 'open', 'high', 'low', 'close', 'volume'],
-                parse_dates=[0])
-            history['end'] = history['start'] + pd.Timedelta(interval_length,
-                                                             unit=interval_unit)
-            history = history.set_index('end', drop=False)
-            history = history.loc[history.index >= pd.Timestamp(start_history)]
-            history = history.loc[history.index <= pd.Timestamp(start_str)]
-
-            self.market_data.add_history(topic=symbols[symbol], data=history)
-
-        ######################################################################################################
-
         print('Done!')
 
-        # slice long time series into shorter time series for faster computation
-        partial_series = helper_functions.slice_timestamps(
-            start_str=start_str,
-            end_str=end_str,
-            freq='1min',
-            slice_length=slice_length)
+        # slice long time series into shorter time series for faster computation (OPTIONAL)
+        # partial_series = helper_functions.slice_timestamps(
+        #     start_str=start_str,
+        #     end_str=end_str,
+        #     freq='1min',
+        #     slice_length=slice_length)
+
+        partial_series = [[start_str, end_str]]
 
         for timestamps in partial_series:
 
@@ -203,10 +184,9 @@ class BacktestTradingModel(TradingModel):
             #       topics = json.load(f)
 
             # create simulation data via bybit
-            # klines, topics = create_simulation_data(
-            #     symbols=symbols,
-            #     start_str=str(timestamps[0]),
-            #     end_str=str(timestamps[1]))
+            klines, topics = create_simulation_data(symbols=symbols,
+                                                    start_str=timestamps[0],
+                                                    end_str=timestamps[1])
 
             # create simulation data via binance
             # klines, topics = binance_functions.create_simulation_data(
@@ -216,26 +196,17 @@ class BacktestTradingModel(TradingModel):
             #     end_str=str(timestamps[1]))
 
             # write simulation data to json files
-            # with open('src/backtest/data/klines_{}_{}.json'.format(timestamps[0],timestamps[1]), 'w') as f:
-            #     json.dump(klines, f)
-            # with open('src/backtest/data/topics_{}_{}.json'.format(timestamps[0],timestamps[1]), 'w') as f:
-            #     json.dump(topics, f)
+            with open(
+                    'src/backtest/data/klines_{}_{}.json'.format(
+                        timestamps[0], timestamps[1]), 'w') as f:
+                json.dump(klines, f)
+            with open(
+                    'src/backtest/data/topics_{}_{}.json'.format(
+                        timestamps[0], timestamps[1]), 'w') as f:
+                json.dump(topics, f)
 
             # format data to bybit websocket messages
-            # self.bybit_messages, self.account.simulation_data = binance_to_bybit(
-            #     klines, topics=topics)
-
-            ######################################################################################################
-
-            ###################### For Futures Markets with data from files ######################################
-
-            # create simulation data
-            klines, topics = ibkr_functions.create_simulation_data(
-                symbols=symbols,
-                start_str=str(timestamps[0]),
-                end_str=str(timestamps[1]))
-
-            self.bybit_messages, self.account.simulation_data = ibkr_functions.klines_to_bybit(
+            self.bybit_messages, self.account.simulation_data = binance_to_bybit(
                 klines, topics=topics)
 
             ######################################################################################################
@@ -244,7 +215,7 @@ class BacktestTradingModel(TradingModel):
             # this is due to the design of create_simulation_data to pull one extra candle per topic
             for symbol in symbols:
                 self.bybit_messages.pop()
-                # self.bybit_messages.pop()
+                self.bybit_messages.pop()
 
             print('Done!')
 
@@ -275,7 +246,6 @@ class BacktestTradingModel(TradingModel):
                 self.account.place_order(symbol=pos['symbol'],
                                          side=side,
                                          qty=pos['size'],
-                                         expiry=None,
                                          order_type='Market',
                                          reduce_only=True)
         report = self.create_performance_report(initial_budget=initial_budget,
@@ -312,9 +282,12 @@ class BacktestTradingModel(TradingModel):
             performance report
         '''
         # save model stats as json and excel
-        with open("evaluations/model_stats_{}_{}.json".format(start_str, end_str), "w") as outfile:
+        with open(
+                "evaluations/model_stats_{}_{}.json".format(start_str, end_str),
+                "w") as outfile:
             json.dump(self.model_stats, outfile)
-        pd.DataFrame(self.model_stats).to_excel("evaluations/model_stats_{}_{}.xlsx".format(start_str, end_str))
+        pd.DataFrame(self.model_stats).to_excel(
+            "evaluations/model_stats_{}_{}.xlsx".format(start_str, end_str))
 
         report = {}
         # iterate through all symbols with executed trades

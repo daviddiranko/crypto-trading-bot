@@ -1,0 +1,184 @@
+# mapping of resolutions from igm to codebase
+igm_res_mapping:
+  - '1MINUTE': '1MIN'
+  - '2MINUTE': '2MIN'
+  - '3MINUTE': '3MIN'
+  - '5MINUTE': '5MIN'
+  - '15MINUTE': '15MIN'
+
+# Determine base currency of account. Usually USD or USDT, but could be EUR etc.
+# Mainly used for backtesting and determening correct ticker symbols
+base_cur: 'USDT'
+
+# Determine currency the traded contract is notated in
+contract_cur: 'USDT'
+
+# topics to subscribe to
+# for backtesting, first topic should be as frequent as possible, since it is used for price making
+public_topics:
+  - 'candle.1.BTCUSDT'
+  - 'candle.5.BTCUSDT'
+  - 'candle.15.BTCUSDT'
+private_topics:
+  - 'position'
+  - 'execution'
+  - 'order'
+  - 'stop_order'
+  - 'wallet'
+
+# mapping between public topics and symbols
+# only relevant for backtesting
+# first topic should be as frequent as possible, since it is used for price making
+public_topic_mapping:
+  - 'candle.1.BTCUSDT': 'BTCUSDT'
+  - 'candle.5.BTCUSDT': 'BTCUSDT'
+  - 'candle.15.BTCUSDT': 'BTCUSDT'
+
+# parameters of PUBLIC_TOPICS
+public_topics_columns:
+  - 'start'
+  - 'end'
+  - 'period'
+  - 'open'
+  - 'close'
+  - 'high'
+  - 'low'
+  - 'volume'
+  - 'turnover'
+  - 'confirm'
+  - 'cross_seq'
+  - 'timestamp'
+
+# parameters of PRIVATE_TOPICS
+private_topics_column:
+  - 'position':
+    - 'user_id'
+    - 'symbol'
+    - 'size'
+    - 'side'
+    - 'position_value'
+    - 'entry_price'
+    - 'liq_price'
+    - 'bust_price'
+    - 'leverage'
+    - 'order_margin'
+    - 'position_margin'
+    - 'occ_closing_fee'
+    - 'take_profit'
+    - 'tp_trigger_by'
+    - 'stop_loss'
+    - 'sl_trigger_by'
+    - 'trailing_stop'
+    - 'realised_pnl'
+    - 'auto_add_margin'
+    - 'cum_realised_pnl'
+    - 'position_status'
+    - 'position_id'
+    - 'position_seq'
+    - 'adl_rank_indicator'
+    - 'free_qty'
+    - 'tp_sl_mode'
+    - 'risk_id'
+    - 'isolated'
+    - 'mode'
+    - 'position_idx'
+  - 'execution':
+    - 'symbol'
+    - 'side'
+    - 'order_id'
+    - 'exec_id'
+    - 'order_link_id'
+    - 'price'
+    - 'order_qty'
+    - 'exec_type'
+    - 'exec_qty'
+    - 'exec_fee'
+    - 'leaves_qty'
+    - 'is_maker'
+    - 'trade_time'
+  - 'order':
+    - 'order_id'
+    - 'order_link_id'
+    - 'symbol'
+    - 'side'
+    - 'order_type'
+    - 'price'
+    - 'qty'
+    - 'leaves_qty'
+    - 'last_exec_price'
+    - 'cum_exec_qty'
+    - 'cum_exec_value'
+    - 'cum_exec_fee'
+    - 'time_in_force'
+    - 'create_type'
+    - 'cancel_type'
+    - 'order_status'
+    - 'take_profit'
+    - 'stop_loss'
+    - 'trailing_stop'
+    - 'create_time'
+    - 'update_time'
+    - 'reduce_only'
+    - 'close_on_trigger'
+    - 'position_idx'
+  - 'stop_order':
+    - 'stop_order_id'
+    - 'order_link_id'
+    - 'user_id'
+    - 'symbol'
+    - 'side'
+    - 'order_type'
+    - 'price'
+    - 'qty'
+    - 'time_in_force'
+    - 'create_type'
+    - 'cancel_type'
+    - 'order_status'
+    - 'stop_order_type'
+    - 'tp_trigger_by'
+    - 'trigger_price'
+    - 'create_time'
+    - 'update_time'
+    - 'reduce_only'
+    - 'close_on_trigger'
+    - 'position_idx'
+    - 'take_profit'
+    - 'stop_loss'
+  - 'wallet':
+    - 'wallet_balance'
+    - 'available_balance'
+
+# tickers for historical data
+hist_tickers:
+  - 'BTCUSDT'
+
+# symbol mapping between binance and bybit for backtesting to simulate bybit websocket messages with binance data
+# keys have format binance_ticker.binacne_interval and values are coresponding bybit ws topics
+# first topic is used as time iteration in backtesting. Hence it should be as small as possible
+backtest_symbols:
+  - 'BTCUSDT.1m': 'candle.1.BTCUSDT'
+  - 'BTCUSDT.5m': 'candle.5.BTCUSDT'
+  - 'BTCUSDT.15m': 'candle.15.BTCUSDT'
+
+# symbol mapping between bybit websocket message and binance ticker
+# used to map simulated bybit websocket messages to account data updates, which are indexed by binance tickers
+# keys are bybit websocket topics and values are corresponding binance symbols
+binance_bybit_mapping:
+  - 'candle.1.BTCUSDT': 'BTCUSDT'
+  - 'candle.5.BTCUSDT': 'BTCUSDT'
+  - 'candle.15.BTCUSDT': 'BTCUSDT'
+
+# parameters of historical data
+hist_columns:
+  - 'start'
+  - 'open'
+  - 'high'
+  - 'low'
+  - 'close'
+  - 'volume'
+  - 'end'
+  - 'turnover'
+  - 'NumberOfTrades'
+  - 'ActiveBuyVolume'
+  - 'ActiveBuyQuoteVolume'
+  - 'ignore'

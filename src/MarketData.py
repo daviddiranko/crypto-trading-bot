@@ -8,36 +8,29 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 import pandas as pd
 import json
-from dotenv import load_dotenv
-import os
 from typing import List, Dict, Any
-from src.endpoints.igm_functions import format_klines
 from binance.client import Client
 from src.endpoints.binance_functions import format_historical_klines
-# from src.endpoints.bybit_functions import get_historical_klines
-from src.endpoints.igm_functions import get_historical_klines
-from trading_ig import IGService
+from src.endpoints.bybit_functions import get_historical_klines, format_klines
+import yaml
+from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
+CONFIG_DIR = os.getenv('CONFIG_DIR')
 
-PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
 
-HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
-
-BINANCE_KEY = os.getenv('BINANCE_KEY')
-BINANCE_SECRET = os.getenv('BINANCE_SECRET')
-
-IGM_USER = os.getenv('IGM_USER')
-IGM_KEY = os.getenv('IGM_KEY')
-IGM_PW = os.getenv('IGM_PW')
-IGM_ACC_TYPE = os.getenv('IGM_ACC_TYPE')
-IGM_ACC = os.getenv('IGM_ACC')
-IGM_RES_MAPPING = eval(os.getenv('IGM_RES_MAPPING'))
-BASE_CUR = os.getenv('BASE_CUR')
-CONTRACT_CUR = os.getenv('CONTRACT_CUR')
+# Access variables from the loaded data
+PUBLIC_TOPICS = config.get('public_topics')
+PRIVATE_TOPICS = config.get('private_topics')
+PUBLIC_TOPICS_COLUMNS = config.get('public_topics_columns')
+HIST_TICKERS = config.get('hist_tickers')
+BASE_CUR = config.get('base_cur', 'USDT')
+CONTRACT_CUR = config.get('contract_cur', 'USDT')
 
 
 class MarketData:
@@ -72,8 +65,8 @@ class MarketData:
 
         for topic in topics:
             self.history[topic] = pd.DataFrame(columns=PUBLIC_TOPICS_COLUMNS)
-            self.history[topic]["confirm"] = self.history[topic][
-                "confirm"].astype(bool)
+            self.history[topic]['confirm'] = self.history[topic][
+                'confirm'].astype(bool)
 
     def on_message(self, message: json) -> Dict[str, Any]:
         '''

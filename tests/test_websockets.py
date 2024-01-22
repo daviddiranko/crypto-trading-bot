@@ -15,11 +15,13 @@ import os
 import unittest
 from src.endpoints.bybit_functions import place_order, place_conditional_order
 from src.TradingModel import TradingModel
-from src.models.mock_model import mock_model
+from src.models.checklist_model import mock_model
 import pandas as pd
+import yaml
 
 load_dotenv()
 
+CONFIG_DIR = os.getenv('CONFIG_DIR')
 BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
 BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
 
@@ -31,14 +33,19 @@ BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
 WS_PUBLIC_TEST_URL = os.getenv('WS_PUBLIC_TEST_URL')
 WS_PRIVATE_TEST_URL = os.getenv('WS_PRIVATE_TEST_URL')
 
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
+# Load variables from the YAML file
+with open('../../config/config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
 
-PUBLIC_TOPICS_COLUMNS = eval(os.getenv('PUBLIC_TOPICS_COLUMNS'))
-PRIVATE_TOPICS_COLUMNS = eval(os.getenv('PRIVATE_TOPICS_COLUMNS'))
-
-HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
-HIST_COLUMNS = eval(os.getenv('HIST_COLUMNS'))
+# Access variables from the loaded data
+PUBLIC_TOPICS = config.get('public_topics')
+PRIVATE_TOPICS = config.get('private_topics')
+PUBLIC_TOPICS_COLUMNS = config.get('public_topics_columns')
+BACKTEST_SYMBOLS = config.get('backtest_symbols')
+BINANCE_BYBIT_MAPPING = config.get('binance_bybit_mapping')
+HIST_TICKERS = config.get('hist_tickers')
+PRIVATE_TOPICS_COLUMNS = config.get('private_topics_columns')
+HIST_COLUMNS = config.get('hist_columns')
 
 
 class TestWebsocksets(unittest.IsolatedAsyncioTestCase):

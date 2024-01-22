@@ -16,7 +16,20 @@ load_dotenv()
 BINANCE_KEY = os.getenv('BINANCE_KEY')
 BINANCE_SECRET = os.getenv('BINANCE_SECRET')
 
-BASE_CUR = os.getenv('BASE_CUR')
+import yaml
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+CONFIG_DIR = os.getenv('CONFIG_DIR')
+
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
+
+# Access variables from the loaded data
+BASE_CUR = config.get('base_cur', 'USDT')
 
 # pull historical data from binance and add to market data history
 binance_client = Client(BINANCE_KEY, BINANCE_SECRET)
@@ -29,11 +42,10 @@ def main():
     parser = argparse.ArgumentParser(description="Run backtest for trading.")
 
     parser.add_argument('--tickers', type=str, default="RTYUSD")
-    parser.add_argument(
-        '--tick_sizes',
-        type=str,
-        default="0.1",
-        help="Tick size for each ticker")
+    parser.add_argument('--tick_sizes',
+                        type=str,
+                        default="0.1",
+                        help="Tick size for each ticker")
     parser.add_argument(
         '--freqs',
         type=str,
@@ -80,6 +92,8 @@ def main():
     model_args['tick_sizes'] = tick_sizes
     model_args['expiries'] = {ticker: 'None' for ticker in tickers}
     model_args['trading_freqs'] = trading_freqs
+    model_args['open'] = None
+    model_args['reduce_only'] = True
 
     BACKTEST_SYMBOLS = {
         '{}.{}m'.format(ticker, freq): 'candle.{}.{}'.format(freq, ticker)
@@ -114,16 +128,9 @@ def main():
                                  backtest_symbols=BACKTEST_SYMBOLS,
                                  model_args=model_args,
                                  model_storage={
-                                     'entry_body_1_long': None,
-                                     'entry_close_1_long': None,
-                                     'entry_open_1_long': None,
-                                     'entry_body_1_short': None,
-                                     'entry_close_1_short': None,
-                                     'entry_open_1_short': None,
-                                     'exit_long_higher_lows': [],
-                                     'exit_short_lower_highs': [],
-                                     'entry_bar_time': pd.Timestamp(0),
-                                     'action_bar_time': pd.Timestamp(0)
+                                     'open': None,
+                                     'close': None,
+                                     'entry_bar_time': pd.Timestamp(0)
                                  })
 
     # create performance report

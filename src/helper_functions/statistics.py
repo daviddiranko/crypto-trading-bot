@@ -258,10 +258,10 @@ def get_alternate_highs_lows(candles: pd.Series, min_int: int, sma_diff: int,
         # price range between consecutive highs or lows
         high_low_range = candles.loc[highs_lows.loc[row - 1]['ts']:highs_lows.
                                      loc[row]['ts']]
-        
+
         # if it is a low (i.e. two lows in a row) -> add high in between
         if consecutives.loc[row]['high_low'] == 'low':
-            
+
             # high is largest price between consecutive lows
             new_high = high_low_range.max()
             new_high_idx = high_low_range.idxmax()

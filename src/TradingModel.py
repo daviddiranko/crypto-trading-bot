@@ -5,23 +5,28 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
-import pandas as pd
 import json
-from dotenv import load_dotenv
-import os
 from typing import Any, Dict, List
 from .MarketData import MarketData
 from .AccountData import AccountData
 from pybit import usdt_perpetual
 from binance.client import Client
-from trading_ig import IGService
+import yaml
+from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
+CONFIG_DIR = os.getenv('CONFIG_DIR')
 
-HIST_TICKERS = eval(os.getenv('HIST_TICKERS'))
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
+
+# Access variables from the loaded data
+PUBLIC_TOPICS = config.get('public_topics')
+PRIVATE_TOPICS = config.get('private_topics')
+HIST_TICKERS = config.get('hist_tickers')
 
 
 class TradingModel:
@@ -37,7 +42,7 @@ class TradingModel:
                  symbols: List[str] = None,
                  topics: List[str] = PUBLIC_TOPICS,
                  model_storage: Dict[str, Any] = {},
-                 model_args: Dict[str, Any] = {}, 
+                 model_args: Dict[str, Any] = {},
                  model_stats: Dict[str, Any] = {}):
         '''
         Parameters
@@ -92,10 +97,7 @@ class TradingModel:
                 response = self.market_data.on_message(message)
                 ticker = ".".join(topic.split(".")[2:])
 
-                for trading_freq in self.model_args['trading_freqs']:
-                    self.model(model=self,
-                               trading_freq=int(trading_freq),
-                               ticker=ticker)
+                self.model(model=self, ticker=ticker)
                 return response
 
             # if private topic, forward to account

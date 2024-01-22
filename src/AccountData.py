@@ -11,29 +11,28 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 import os
 from pybit import usdt_perpetual
-from .endpoints.bybit_functions import place_conditional_order
-from .endpoints.igm_functions import *
+from .endpoints.bybit_functions import *
 import time
-from trading_ig import IGService
+
+from dotenv import load_dotenv
+import os
 
 load_dotenv()
-
-PUBLIC_TOPICS = eval(os.getenv('PUBLIC_TOPICS'))
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 
 BYBIT_TEST_ENDPOINT = os.getenv('BYBIT_TEST_ENDPOINT')
 BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
 BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
+CONFIG_DIR = os.getenv('CONFIG_DIR')
 
-IGM_USER = os.getenv('IGM_USER')
-IGM_KEY = os.getenv('IGM_KEY')
-IGM_PW = os.getenv('IGM_PW')
-IGM_ACC_TYPE = os.getenv('IGM_ACC_TYPE')
-IGM_ACC = os.getenv('IGM_ACC')
-IGM_RES_MAPPING = eval(os.getenv('IGM_RES_MAPPING'))
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
 
-BASE_CUR = os.getenv('BASE_CUR')
-CONTRACT_CUR = os.getenv('CONTRACT_CUR')
+# Access variables from the loaded data
+PUBLIC_TOPICS = config.get('public_topics')
+PRIVATE_TOPICS = config.get('private_topics')
+BASE_CUR = config.get('base_cur', 'USDT')
+CONTRACT_CUR = config.get('contract_cur', 'USDT')
 
 
 class AccountData:
@@ -83,17 +82,8 @@ class AccountData:
         # pull current account data
         account_data = None
         while account_data == None:
-            # try:
             account_data = initialize_account_data(session=self.session,
                                                    symbols=symbols)
-            # except:
-            #     # self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-            #     #                                    api_key=BYBIT_TEST_KEY,
-            #     #                                    api_secret=BYBIT_TEST_SECRET)
-
-            #     self.session = IGService(IGM_USER, IGM_PW, IGM_KEY,
-            #                              IGM_ACC_TYPE)
-            #     self.session.create_session()
 
         self.positions = account_data['position']
         self.executions = account_data['execution']
@@ -272,7 +262,6 @@ class AccountData:
 
     def place_order(self,
                     symbol: str,
-                    expiry: str,
                     order_type: str,
                     side: str,
                     qty: int,
@@ -360,7 +349,6 @@ class AccountData:
         #     try:
         response = place_order(session=self.session,
                                symbol=symbol,
-                               expiry=expiry,
                                order_type=order_type,
                                side=side,
                                qty=qty,
@@ -502,13 +490,11 @@ class AccountData:
                                          side=side,
                                          stop_loss=stop_loss)
             except:
-                # self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                #                                    api_key=BYBIT_TEST_KEY,
-                #                                    api_secret=BYBIT_TEST_SECRET)
+                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                                   api_key=BYBIT_TEST_KEY,
+                                                   api_secret=BYBIT_TEST_SECRET)
 
-                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY,
-                                         IGM_ACC_TYPE)
-                self.session.create_session()
+                # self.session.create_session()
 
                 time.sleep(5)
                 counter += 1
@@ -538,13 +524,11 @@ class AccountData:
                                            side=side,
                                            take_profit=take_profit)
             except:
-                # self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
-                #                                    api_key=BYBIT_TEST_KEY,
-                #                                    api_secret=BYBIT_TEST_SECRET)
+                self.session = usdt_perpetual.HTTP(endpoint=BYBIT_TEST_ENDPOINT,
+                                                   api_key=BYBIT_TEST_KEY,
+                                                   api_secret=BYBIT_TEST_SECRET)
 
-                self.session = IGService(IGM_USER, IGM_PW, IGM_KEY,
-                                         IGM_ACC_TYPE)
-                self.session.create_session()
+                # self.session.create_session()
 
                 time.sleep(5)
                 counter += 1

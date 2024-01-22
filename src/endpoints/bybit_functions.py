@@ -12,12 +12,20 @@ import itertools
 import time
 from datetime import datetime
 import src.endpoints.bybit_ws as bb
+import yaml
 
 load_dotenv()
 
-PRIVATE_TOPICS = eval(os.getenv('PRIVATE_TOPICS'))
 BYBIT_TEST_KEY = os.getenv('BYBIT_TEST_KEY')
 BYBIT_TEST_SECRET = os.getenv('BYBIT_TEST_SECRET')
+CONFIG_DIR = os.getenv('CONFIG_DIR')
+
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
+
+# Access variables from the loaded data
+PRIVATE_TOPICS = config.get('private_topics')
 
 
 def get_historical_klines(symbol: str,
@@ -88,6 +96,7 @@ def get_historical_klines(symbol: str,
                                 _start=start_ts,
                                 _end=end_ts,
                                 limit=limit)
+
         # temp_dict = bybit.kline(symbol=symbol, interval=timeframe, _from=start_ts, limit=limit)
 
         # handle the case where our start date is before the symbol pair listed on Binance
@@ -118,7 +127,6 @@ def get_historical_klines(symbol: str,
             # update our start timestamp using the last value in the array and add the interval timeframe
             # NOTE: current implementation ignores inteval of D/W/M/Y  for now
             # start_ts = temp_data[len(temp_data) - 1][0] + interval*60
-
             # start_ts = int(temp_data[len(temp_data) - 1][0]) + int(pd.Timedelta('1m').value/1000000)
             end_ts = int(temp_data[len(temp_data) - 1][0]) - int(
                 pd.Timedelta('1m').value / 1000000)

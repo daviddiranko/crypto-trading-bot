@@ -7,7 +7,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 from src.backtest.BacktestTradingModel import BacktestTradingModel
-from src.models.mock_model import mock_model
+from src.models.checklist_model import mock_model
 import unittest
 from binance.client import Client
 

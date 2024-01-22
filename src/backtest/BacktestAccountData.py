@@ -9,14 +9,22 @@ import pandas as pd
 from typing import Any, Dict, List
 from src.AccountData import AccountData
 import itertools
-
+import yaml
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-BASE_CUR = os.getenv('BASE_CUR')
-CONTRACT_CUR = os.getenv('CONTRACT_CUR')
+CONFIG_DIR = os.getenv('CONFIG_DIR')
+
+# Load variables from the YAML file
+with open(CONFIG_DIR, 'r') as file:
+    config = yaml.safe_load(file)
+
+# Access variables from the loaded data
+BASE_CUR = config.get('base_cur', 'USDT')
+CONTRACT_CUR = config.get('contract_cur', 'USDT')
+
 
 class BacktestAccountData(AccountData):
     '''
@@ -95,7 +103,6 @@ class BacktestAccountData(AccountData):
 
     def place_order(self,
                     symbol: str,
-                    expiry: str,
                     order_type: str,
                     side: str,
                     qty: int,
@@ -167,8 +174,8 @@ class BacktestAccountData(AccountData):
         if order_type.lower() == 'market':
 
             # determine execution price according to direction of the trade
-            trade_price = (side.upper() == 'BUY') * price_buy + (side.upper()
-                                                         == 'SELL') * price_sell
+            trade_price = (side.upper() == 'BUY') * price_buy + (
+                side.upper() == 'SELL') * price_sell
 
             # determine trade direction, buy=1, sell =-1
             trade_dir = ((side.upper() == 'BUY') - 0.5) * 2
@@ -353,15 +360,17 @@ class BacktestAccountData(AccountData):
 
         # check if stop loss is triggered
         if pos['stop_loss']:
-            stop_loss = (side.upper() == 'BUY') * pos['stop_loss'] > data['low'] or pos[
-                'stop_loss'] < (side.upper() == 'SELL') * data['high']
+            stop_loss = (side.upper() == 'BUY') * pos['stop_loss'] > data[
+                'low'] or pos['stop_loss'] < (side.upper()
+                                              == 'SELL') * data['high']
         else:
             stop_loss = False
 
         # check if take profit is triggered
         if pos['take_profit']:
-            take_profit = pos['take_profit'] < (side.upper() == 'BUY') * data[
-                'high'] or (side.upper() == 'SELL') * pos['take_profit'] > data['low']
+            take_profit = pos['take_profit'] < (
+                side.upper() == 'BUY') * data['high'] or (
+                    side.upper() == 'SELL') * pos['take_profit'] > data['low']
         else:
             take_profit = False
 
