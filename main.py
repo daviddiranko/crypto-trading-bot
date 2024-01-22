@@ -13,6 +13,8 @@ import argparse
 from trading_ig import IGService, IGStreamService
 from trading_ig.lightstreamer import Subscription
 import json
+import boto3
+import time 
 
 # load environment variables
 load_dotenv()
@@ -198,10 +200,11 @@ def main():
                                           reduce_only=True)
 
     # construct start string
+    now = pd.Timestamp(pd.Timestamp.now(tz='UTC').to_datetime64())
     start_str = str(
-        pd.Timestamp(pd.Timestamp.now(tz='UTC').to_datetime64()) -
+         now -
         pd.Timedelta(start, start_unit))
-    end_str = str(pd.Timestamp(pd.Timestamp.now(tz='UTC').to_datetime64()))
+    end_str = str(now)
 
     print('Load trading history for trading model...')
     # model.market_data.build_history(symbols=BACKTEST_SYMBOLS,
@@ -210,22 +213,30 @@ def main():
 
     print('Done!')
 
-    def pass_msg(msg: dict):
-                '''
-                Pass a Lightstreamer message to the trading model.
-                '''
-                msg = format_message(msg)
-                if msg:
-                    print(msg)
-                    model.on_message(msg)
+    print('Log into aws s3')
+    # initialie s3 client and timestamp reference to log market data 
+    s3_client = boto3.client('s3')
+    ref_timestamp = pd.Timestamp(year=now.year, month=now.month+1, day=1)
 
-                    if json.loads(msg)['topic'].startswith('candle'):
-                        for aggregated_msg in aggregated_messages.keys():
-                            new_msg = aggregated_messages[aggregated_msg].update(
-                                msg=msg)
-                            if new_msg:
-                                print(msg)
-                                model.on_message(new_msg)
+    print('Done!')
+
+    def pass_msg(msg: dict):
+        '''
+        Pass a Lightstreamer message to the trading model.
+        '''
+        msg = format_message(msg)
+        if msg:
+            print(msg)
+            model.on_message(msg)
+                
+            if json.loads(msg)['topic'].startswith('candle'):
+                for aggregated_msg in aggregated_messages.keys():
+                    new_msg = aggregated_messages[aggregated_msg].update(
+                        msg=msg)
+                    if new_msg:
+                        print(new_msg)
+                        model.on_message(new_msg)
+
     
     print('Connect to IGM Lightstreamer...')
 
@@ -272,6 +283,14 @@ def main():
     while True:
         try:
             if ig_stream_service.ls_client._stream_connection_thread.is_alive():
+                
+                # log market data every month
+                now = pd.Timestamp(pd.Timestamp.now(tz='UTC').to_datetime64())
+                if now.day==1 and now.hour==0 and now.minute==0 and now.second==0:
+                    for key in model.market_data.history.keys():
+                        history = model.market_data.history[key].loc[model.market_data.history[key]['start']>now-pd.offsets.MonthBegin(1)]
+                        s3_client.put_object(Body=history.to_json(), Bucket='igm-data-log',Key=key+'{}.json'.format(now))
+
                 continue
             else:
                 print('Connection lost!')

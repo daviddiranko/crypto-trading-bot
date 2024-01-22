@@ -5,7 +5,7 @@ ALL_PYTHON_FILES:=$(shell find ./src -name "*.py" 2> /dev/null && find ./tests -
 AWS_ACCOUNT_ID=$(shell aws sts get-caller-identity --query "Account" --output text)
 AWS_REGION=$(shell aws configure get region)
 AWS_ACCESS_KEY_ID=$(shell aws configure get aws_access_key_id)
-AWS_ACCESS_SECRET_KEY=$(shell aws configure get aws secret_access_key)
+AWS_ACCESS_SECRET_KEY=$(shell aws configure get aws_secret_access_key)
 AWS_CURRENT_ECS_TASKS_BTC=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --service crypto-trading-service-btc --query "taskArns" --output text)
 AWS_CURRENT_ECS_TASKS_ETH=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --service crypto-trading-service-eth --query "taskArns" --output text)
 AWS_CURRENT_ECS_TASKS_FUTURES=$(shell aws ecs list-tasks --cluster crypto-trading-cluster --service futures-trading-service --query "taskArns" --output text)
@@ -87,7 +87,7 @@ main:
 	
 # add arguments via --build-arg VARIABLE=value
 docker:
-	docker build . --build-arg BUILD_NUMBER=$(version) -t $(AWS_ECR)
+	docker build . --build-arg SECRET_KEY=$(AWS_ACCESS_SECRET_KEY) --build-arg ACCESS_KEY=$(AWS_ACCESS_KEY_ID) --build-arg REGION=$(AWS_REGION) --build-arg BUILD_NUMBER=$(version) -t $(AWS_ECR)
 
 publish: ecr login docker
 	docker tag $(AWS_ECR):latest $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(AWS_ECR):latest

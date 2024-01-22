@@ -798,6 +798,8 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                 # long_checklist+=1
 
                 add_model_stats(model=model, long=True, ts=ts, key='1.1.2')
+            else:
+                add_model_stats(model=model, long=True, ts=ts, key='1.1.2', value=0)
 
         # # 1.4.2 Breaking of a significant high (50% of entry bar) on 5 min chart: 50% of the entry bar must be above last high
         # # check if there are is at least one high for stability of calculations
@@ -817,6 +819,8 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
             long_checklist += 1
 
             add_model_stats(model=model, long=True, ts=ts, key='1.9')
+        else:
+            add_model_stats(model=model, long=True, ts=ts, key='1.9', value=0)
 
         # 1.10.1 Curvature purple: slope of regression flat or in direction of trade
         # rules += 1
@@ -824,6 +828,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
             # long_checklist += 1
 
             add_model_stats(model=model, long=True, ts=ts, key='1.10.1')
+        else:
+            add_model_stats(model=model, long=True, ts=ts, key='1.10.1', value=0)
+
 
         # 1.10.3 Purple not slowing
         # check if curvature of last 5 points is not negative
@@ -848,6 +855,10 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
 
             add_model_stats(model=model, long=True, ts=ts, key='1.12.2')
             add_model_stats(model=model, long=False, ts=ts, key='1.12.2')
+        else:
+            add_model_stats(model=model, long=True, ts=ts, key='1.12.2', value=0)
+            add_model_stats(model=model, long=False, ts=ts, key='1.12.2', value=0)
+
 
         # # 1.12.5 slope of blue:
         # # slope_blue
@@ -875,6 +886,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
             # long_checklist += 1
 
             add_model_stats(model=model, long=True, ts=ts, key='1.12.8')
+        else:
+            add_model_stats(model=model, long=True, ts=ts, key='1.12.8', value=0)
+
 
         # 1.12.9 blue not abrupt
         # check if sma8 of last 5 candles does not have a direction change of the slope with a high curvature (abs)
@@ -890,6 +904,17 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             long=False,
                             ts=ts,
                             key='1.12.9')
+        else:
+            add_model_stats(model=model,
+                            long=True,
+                            ts=ts,
+                            key='1.12.9',
+                            value=0)
+            add_model_stats(model=model,
+                            long=False,
+                            ts=ts,
+                            key='1.12.9',
+                            value=0)
 
         ###################### END 1 TREND ####################
 
@@ -917,6 +942,11 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             ts=ts,
                             key='2.2',
                             value='*'+str(body_sideway_count_core_1.max()))
+            add_model_stats(model=model,
+                            long=False,
+                            ts=ts,
+                            key='2.2',
+                            value='*'+str(body_sideway_count_core_1.max()))
 
         # 2.3 Small bars in sideways: The two candles before the entry bar must be smaller equal 25% of the entry bar (Non-negotiable)
         rules += 1
@@ -933,6 +963,17 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             ts=ts,
                             key='2.3',
                             value=body_3_1.max())
+        else:
+            add_model_stats(model=model,
+                            long=True,
+                            ts=ts,
+                            key='2.3',
+                            value='*'+str(body_3_1.max()))
+            add_model_stats(model=model,
+                            long=False,
+                            ts=ts,
+                            key='2.3',
+                            value='*'+str(body_3_1.max()))
 
         # 2.3.2 Small bars in sideways: The ATR of the two candles before the entry bar must be smaller a total value ATR_small_bars_25
         # rules += 1
@@ -949,6 +990,17 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             ts=ts,
                             key='2.3.2',
                             value=atr_3_1.max())
+        else:
+            add_model_stats(model=model,
+                            long=True,
+                            ts=ts,
+                            key='2.3.2',
+                            value='*'+str(atr_3_1.max()))
+            add_model_stats(model=model,
+                            long=False,
+                            ts=ts,
+                            key='2.3.2',
+                            value='*'+str(atr_3_1.max()))
 
         # 2.7 Amplitude of sideways must be smaller than body of entry bar
         # rules += 1
@@ -978,6 +1030,21 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                 key='2.8.1',
                 value=(slope_sideways_lr / high_low_candle_window_ex_entry) *
                 candle_window)
+        else:
+            add_model_stats(
+                model=model,
+                long=True,
+                ts=ts,
+                key='2.8.1',
+                value='*'+str((slope_sideways_lr / high_low_candle_window_ex_entry) *
+                candle_window))
+            add_model_stats(
+                model=model,
+                long=False,
+                ts=ts,
+                key='2.8.1',
+                value='*'+str((slope_sideways_lr / high_low_candle_window_ex_entry) *
+                candle_window))
 
         # 2.9.5 No drift: little to no drift prior to entry bar
         # rules += 1
@@ -989,6 +1056,12 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             ts=ts,
                             key='2.9.5',
                             value=(entry_bar['open'] - last_min) / open_close_1)
+        else:
+            add_model_stats(model=model,
+                            long=True,
+                            ts=ts,
+                            key='2.9.5',
+                            value='*'+str((entry_bar['open'] - last_min) / open_close_1))
 
         # # 2.10 sideways yellow squares
         # # rules += 1
@@ -1004,6 +1077,10 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
 
             add_model_stats(model=model, long=True, ts=ts, key='2.11')
             add_model_stats(model=model, long=False, ts=ts, key='2.11')
+        else:
+            add_model_stats(model=model, long=True, ts=ts, key='2.11', value=0)
+            add_model_stats(model=model, long=False, ts=ts, key='2.11', value=0)
+
         # #################### END 2 TIME ####################
 
         # #################### 3 BAR ####################
@@ -1019,6 +1096,12 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             ts=ts,
                             key='3.1',
                             value=max(low_open_1, high_close_1) / high_low_1)
+        else:
+            add_model_stats(model=model,
+                            long=True,
+                            ts=ts,
+                            key='3.1',
+                            value='*'+str(max(low_open_1, high_close_1) / high_low_1))
 
         # 3.2 Entry bar shows a significant price move
         rules += 1
@@ -1036,6 +1119,17 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             ts=ts,
                             key='3.2',
                             value=open_close_1)
+        else:
+            add_model_stats(model=model,
+                            long=True,
+                            ts=ts,
+                            key='3.2',
+                            value='*'+str(open_close_1))
+            add_model_stats(model=model,
+                            long=False,
+                            ts=ts,
+                            key='3.2',
+                            value='*'+str(open_close_1))
 
         # 3.4 Blue entry bar: close of entry bar must be greater than open of entry bar (Non-negotiable)
         rules += 1
@@ -1043,6 +1137,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
             long_checklist += 1
 
             add_model_stats(model=model, long=True, ts=ts, key='3.4')
+        else:
+            add_model_stats(model=model, long=True, ts=ts, key='3.4', value=0)
+
 
         # 3.5.1 Breaking of a significant high on 15 min chart
         # check if there is at least one for stability of calculations
@@ -1060,6 +1157,14 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                     key='3.5.1',
                     value=(entry_bar['close'] - highs_trend_15.iloc[-1]) /
                     open_close_1)
+            else:
+                add_model_stats(
+                    model=model,
+                    long=True,
+                    ts=ts,
+                    key='3.5.1',
+                    value='*'+str((entry_bar['close'] - highs_trend_15.iloc[-1]) /
+                    open_close_1))
 
         # 3.5.2 Breaking of a significant high on 5 min chart
         # check if there is at least one for stability of calculations
@@ -1077,6 +1182,14 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                     key='3.5.2',
                     value=(entry_bar['close'] - highs_trend_5.iloc[-1]) /
                     open_close_1)
+            else:
+                add_model_stats(
+                    model=model,
+                    long=True,
+                    ts=ts,
+                    key='3.5.2',
+                    value='*'+str((entry_bar['close'] - highs_trend_5.iloc[-1]) /
+                    open_close_1))
 
         #################### END BAR ####################
 
@@ -1095,6 +1208,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                 # short_checklist+=1
 
                 add_model_stats(model=model, long=False, ts=ts, key='1.1.1')
+            else:
+                add_model_stats(model=model, long=False, ts=ts, key='1.1.1', value=0)
+
 
         # # 1.1.1.1 Lower highs on 5 min chart or 15 min chart: last low must be higher than previous low on one of the two time frames
         # # check if there are at least two highs and onw low for stability of calculations
@@ -1118,6 +1234,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                 # short_checklist+=1
 
                 add_model_stats(model=model, long=False, ts=ts, key='1.1.2')
+            else:
+                add_model_stats(model=model, long=False, ts=ts, key='1.1.2', value=0)
+
 
         # # 1.4.2 Breaking of a significant low (50% of entry bar) on 5 min chart: 50% of the entry bar must be below last low
         # # check if there is at least one low for stability of calculations
@@ -1135,12 +1254,18 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
             short_checklist += 1
 
             add_model_stats(model=model, long=False, ts=ts, key='1.9')
+        else:
+            add_model_stats(model=model, long=False, ts=ts, key='1.9', value=0)
+
 
         # 1.10.1 Curvature purple: slope of regression flat or in direction of trade
         if purple_flat or purple_strong_down:
             # short_checklist += 1
 
             add_model_stats(model=model, long=False, ts=ts, key='1.10.1')
+        else:
+            add_model_stats(model=model, long=False, ts=ts, key='1.10.1', value=0)
+
 
         # 1.10.3 Purple not slowing
         if not purple_slowing_short:
@@ -1168,6 +1293,9 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
             # short_checklist += 1
 
             add_model_stats(model=model, long=False, ts=ts, key='1.12.8')
+        else:
+            add_model_stats(model=model, long=False, ts=ts, key='1.12.8', value=0)
+
 
         # #################### END 1 TREND ####################
 
@@ -1182,6 +1310,12 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             ts=ts,
                             key='2.9.5',
                             value=(last_max - entry_bar['open']) / open_close_1)
+        else:
+            add_model_stats(model=model,
+                            long=False,
+                            ts=ts,
+                            key='2.9.5',
+                            value='*'+str((last_max - entry_bar['open']) / open_close_1))
 
         # # 2.10 sideways yellow squares
         # if sideways_yellow_squares_short:
@@ -1202,12 +1336,21 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                             ts=ts,
                             key='3.1',
                             value=max(high_open_1, low_close_1) / high_low_1)
+        else:
+            add_model_stats(model=model,
+                            long=False,
+                            ts=ts,
+                            key='3.1',
+                            value='*'+str(max(high_open_1, low_close_1) / high_low_1))
 
         # 3.4 Red entry bar: close of entry bar must be smaller than open of entry bar
         if entry_bar['close'] < entry_bar['open']:
             short_checklist += 1
 
             add_model_stats(model=model, long=False, ts=ts, key='3.4')
+        else:
+            add_model_stats(model=model, long=False, ts=ts, key='3.4', value=0)
+
 
         # 3.5.1 Breaking of a significant low on 15 min chart
         # check if there is at least one low for stability of calculations
@@ -1224,6 +1367,14 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                     key='3.5.1',
                     value=(lows_trend_15.iloc[-1] - entry_bar['close']) /
                     open_close_1)
+            else:
+                add_model_stats(
+                    model=model,
+                    long=False,
+                    ts=ts,
+                    key='3.5.1',
+                    value='*'+str((lows_trend_15.iloc[-1] - entry_bar['close']) /
+                    open_close_1))
 
         # 3.5.2 Breaking of a significant low on 5 min chart
         # check if there is at least one low for stability of calculations
@@ -1240,6 +1391,14 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                     key='3.5.2',
                     value=(lows_trend_5.iloc[-1] - entry_bar['close']) /
                     open_close_1)
+            else:
+                add_model_stats(
+                    model=model,
+                    long=False,
+                    ts=ts,
+                    key='3.5.2',
+                    value='*'+str((lows_trend_5.iloc[-1] - entry_bar['close']) /
+                    open_close_1))
                 
         #################### END BAR ####################
 
@@ -1335,7 +1494,7 @@ def checklist_model(model: TradingModel, ticker: str, trading_freq: int):
                     model.account.positions[ticker]['size'] == 0.0):
 
             buy_qty = 1
-            print('Trade long! \n  symbol: {} \n qty: {} \n expiry: {} \n stop loss: {} \n take profit: {}'.format(ticker, buy_qty, expiry, stop_loss_short, take_profit_long))
+            print('Trade short! \n  symbol: {} \n qty: {} \n expiry: {} \n stop loss: {} \n take profit: {}'.format(ticker, buy_qty, expiry, stop_loss_short, take_profit_long))
             model.account.place_order(symbol=ticker,
                                       side='SELL',
                                       qty=buy_qty,
