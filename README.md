@@ -2,6 +2,8 @@
 
 The Crypto Trading Bot project is a Python-based trading bot designed to interact with the Bybit API for cryptocurrency trading. The bot is configured using a dedicated configuration file located in the `config` folder. All sensitive credentials, such as API keys, are expected to be stored securely in a `.env` file. An example template for the `.env` file can be found in `example.env`.
 
+PLEASE BE AWARE THAT THIS IS STILL IN DEVELOPMENT AND BUGS MAY POP UP AT TIMES. SO NOT USE IN PRODUCTION BEFORE PROPER TESTING.
+
 ## Project Structure
 
 - **config**: Folder containing the configuration file for the trading bot.
@@ -16,7 +18,14 @@ The project manages dependencies using [Poetry](https://python-poetry.org/), a m
 
 Additionally, the project utilizes [Make](https://www.gnu.org/software/make/) as a build automation tool. If you don't have Make installed, you can install it on Unix-like systems using a package manager like [Homebrew](https://brew.sh/) (for macOS) or [apt](https://linux.die.net/man/8/apt) (for Debian/Ubuntu Linux).
 
+## Setup
+You need a babyit account with api endpoints to use the bot. You can set up the account with endpoints for free on bybit.com. Then add your credentials in the template `example.env` and rename it to `.env`.
+SHARE YOUR CREDENTIALS WITH NOBODY.
+
 ## Main Functionalities
+
+### 0. Write your trading strategy
+The bot allows the trader to write his entire strategy into a single python script in `src/model/checklist_model.py`. Here the function `checklist_model` serves as the function that is executed by the backend whenever new data arrives via the bybit endpoints. To get you started, an example strategy is implemented that goes long everytime the close price exceeds the open price and goes short whenever the close price is below the open price.
 
 ### 1. Run Live Trading Bot
 
